@@ -1,0 +1,13 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "react": "^18.2.0"
+      }
+    }
+  },
+  "packages": {
+    "react": ["react@18.2.0", "", {}, "sha512-react"]
+  }
+}

@@ -1,0 +1,19 @@
+lockfileVersion: '9.0'
+
+importers:
+  .:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.0
+        version: 5.9.2
+  packages/app:
+    dependencies:
+      zod:
+        specifier: ^4.0.0
+        version: 4.0.17
+
+packages:
+  typescript@5.9.2:
+    resolution: {integrity: sha512-ts}
+  zod@4.0.17:
+    resolution: {integrity: sha512-zod}

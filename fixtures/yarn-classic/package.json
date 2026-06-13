@@ -1,0 +1,11 @@
+{
+  "name": "fixture-yarn-classic",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

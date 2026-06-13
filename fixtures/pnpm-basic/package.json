@@ -1,0 +1,15 @@
+{
+  "name": "fixture-pnpm-basic",
+  "private": true,
+  "packageManager": "pnpm@10.26.2",
+  "dependencies": {
+    "react": "^18.2.0",
+    "tiny-invariant": "^1.3.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  },
+  "optionalDependencies": {
+    "fsevents": "^2.3.3"
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "name": "depclone",
+  "version": "0.1.0",
+  "description": "Clone exact dependency source repositories into agent-readable local worktrees.",
+  "type": "module",
+  "bin": {
+    "depclone": "./dist/cli.js"
+  },
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "skills",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "node --experimental-strip-types src/cli.ts",
+    "test": "node --test --experimental-strip-types tests/*.test.ts",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "dependencies",
+    "agents",
+    "git",
+    "pnpm",
+    "source"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.26.2",
+  "devDependencies": {
+    "@types/node": "^24.13.2",
+    "typescript": "^5.9.3"
+  }
+}

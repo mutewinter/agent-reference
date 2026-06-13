@@ -1,0 +1,7 @@
+{
+  "name": "fixture-npm-basic",
+  "private": true,
+  "dependencies": {
+    "react": "^18.2.0"
+  }
+}

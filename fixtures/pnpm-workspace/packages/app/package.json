@@ -1,0 +1,7 @@
+{
+  "name": "fixture-pnpm-workspace-app",
+  "private": true,
+  "dependencies": {
+    "zod": "^4.0.0"
+  }
+}

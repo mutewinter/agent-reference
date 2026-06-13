@@ -1,0 +1,11 @@
+{
+  "name": "fixture-pnpm-workspace",
+  "private": true,
+  "packageManager": "pnpm@10.26.2",
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}
