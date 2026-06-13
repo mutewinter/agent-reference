@@ -8,6 +8,7 @@ Current scope covers PNPM, npm, Bun text lockfiles, and Yarn lockfiles. It reads
 
 ```sh
 depclone list ./package.json
+depclone status ./package.json --json
 depclone init ./package.json --package react --package zod
 depclone clone ./package.json --package react
 depclone clone ./package.json --non-interactive
@@ -37,6 +38,14 @@ Commit `depclone.config.json` when a repo should have shared dependency referenc
 `references` accepts package names or `name@version` selectors. `all: true` can be used instead to keep every direct dependency cloned. CLI flags override config values.
 
 Do not commit `.depclone/`. It contains generated machine state, including `manifest.json` and worktrees. The config says what should be cloned; the manifest says what was cloned on this computer.
+
+Agents should run:
+
+```sh
+depclone status --json
+```
+
+That command reports configured references, current lockfile versions, cloned versions, worktree paths, checkout SHAs, and stale or missing local clones. If any configured entry is `missing`, `stale`, or `missing-worktree`, run `depclone clone --non-interactive` and check status again.
 
 ## Layout
 
@@ -70,6 +79,7 @@ Supported now:
 - Workspace importer resolution when pointed at a nested `package.json`.
 - Interactive and non-interactive package selection.
 - `depclone.config.json` desired-state config for shared references.
+- `depclone status --json` for agent-readable local path and drift reporting.
 - Global bare repository cache with project-local worktrees.
 - A bundled `skills/depclone/SKILL.md` for agent awareness.
 

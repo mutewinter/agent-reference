@@ -3,7 +3,7 @@ export { scanBunDependencies } from './bun-lock.ts';
 export { DEFAULT_CONFIG_FILE, loadDepCloneConfig, writeDepCloneConfig } from './config.ts';
 export { cloneDependencies, initConfig, listDependencies, selectDependencies } from './core.ts';
 export { ensureDependencyWorktree, runGit } from './git.ts';
-export { writeAgentFiles, writeManifest } from './manifest.ts';
+export { readManifest, writeAgentFiles, writeManifest } from './manifest.ts';
 export {
   loadMetadataFile,
   normalizePackageMetadata,
@@ -18,12 +18,16 @@ export {
   repositoryUrlFromManifestRepository
 } from './repository.ts';
 export { parseYarnLock, scanYarnDependencies } from './yarn-lock.ts';
+export { getStatusReport } from './status.ts';
 export type {
   CloneDependencyOptions,
   CloneDependencyResult,
   DepCloneConfig,
   DepCloneDependency,
   DepCloneManifest,
+  DepCloneStatusEntry,
+  DepCloneStatusReport,
+  DepCloneStatusState,
   DependencyMetadata,
   GitWorktreeOptions,
   GitWorktreeResult,

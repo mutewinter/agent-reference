@@ -146,8 +146,40 @@ export interface DepCloneManifest {
   }>;
 }
 
+export type DepCloneStatusState =
+  | 'ready'
+  | 'missing'
+  | 'missing-worktree'
+  | 'stale'
+  | 'not-installed'
+  | 'unconfigured';
+
+export interface DepCloneStatusEntry {
+  name: string;
+  packageManager: PackageManager | null;
+  configured: boolean;
+  currentVersion: string | null;
+  clonedVersion: string | null;
+  dependencyTypes: DependencyType[];
+  importers: string[];
+  worktreePath: string | null;
+  checkoutSha: string | null;
+  status: DepCloneStatusState;
+  action: string;
+}
+
+export interface DepCloneStatusReport {
+  schemaVersion: 1;
+  generatedAt: string;
+  projectRoot: string;
+  configPath: string | null;
+  manifestPath: string | null;
+  entries: DepCloneStatusEntry[];
+  summary: Record<DepCloneStatusState, number>;
+}
+
 export interface CliOptions {
-  command: 'list' | 'clone' | 'init' | 'help' | 'version';
+  command: 'list' | 'clone' | 'init' | 'status' | 'help' | 'version';
   projectPath: string | null;
   packages: string[];
   all: boolean;

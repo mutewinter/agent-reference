@@ -13,6 +13,7 @@ const repoRoot = path.resolve(import.meta.dirname, '..');
 
 test('clones a selected dependency into a project worktree using local metadata', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'depclone-test-'));
+  const projectRoot = await copyFixtureProject(tempDir);
   const sourceRepo = path.join(tempDir, 'tiny-invariant-source');
   await fs.mkdir(sourceRepo);
   await git(['init'], sourceRepo);
@@ -23,7 +24,7 @@ test('clones a selected dependency into a project worktree using local metadata'
   await git(['commit', '-m', 'initial'], sourceRepo);
   const commit = (await git(['rev-parse', 'HEAD'], sourceRepo)).trim();
 
-  const result = await cloneDependencies(path.join(repoRoot, 'fixtures/pnpm-basic/package.json'), {
+  const result = await cloneDependencies(path.join(projectRoot, 'package.json'), {
     packages: ['tiny-invariant'],
     metadataMap: {
       'tiny-invariant@1.3.3': {
@@ -48,6 +49,7 @@ test('clones a selected dependency into a project worktree using local metadata'
 
 test('clones dependencies selected by depclone.config.json', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'depclone-config-test-'));
+  const projectRoot = await copyFixtureProject(tempDir);
   const sourceRepo = path.join(tempDir, 'tiny-invariant-source');
   await fs.mkdir(sourceRepo);
   await git(['init'], sourceRepo);
@@ -58,7 +60,7 @@ test('clones dependencies selected by depclone.config.json', async () => {
   await git(['commit', '-m', 'initial'], sourceRepo);
   const commit = (await git(['rev-parse', 'HEAD'], sourceRepo)).trim();
 
-  const result = await cloneDependencies(path.join(repoRoot, 'fixtures/pnpm-basic/package.json'), {
+  const result = await cloneDependencies(path.join(projectRoot, 'package.json'), {
     metadataMap: {
       'tiny-invariant@1.3.3': {
         name: 'tiny-invariant',
@@ -77,6 +79,13 @@ test('clones dependencies selected by depclone.config.json', async () => {
   assert.deepEqual(result.selected.map((dependency) => dependency.name), ['tiny-invariant']);
   assert.equal(result.cloned[0]?.checkoutSha, commit);
 });
+
+async function copyFixtureProject(tempDir: string): Promise<string> {
+  const projectRoot = path.join(tempDir, 'project');
+  await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), projectRoot, { recursive: true });
+  await fs.rm(path.join(projectRoot, '.depclone'), { recursive: true, force: true });
+  return projectRoot;
+}
 
 async function git(args: string[], cwd: string): Promise<string> {
   const result = await execFileAsync('git', args, { cwd, encoding: 'utf8' });

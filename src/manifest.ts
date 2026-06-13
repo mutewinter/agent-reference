@@ -33,6 +33,19 @@ export async function writeManifest(projectRoot: string, results: GitWorktreeRes
   return manifestPath;
 }
 
+export async function readManifest(projectRoot: string): Promise<{ path: string; manifest: DepCloneManifest } | null> {
+  const manifestPath = path.join(projectRoot, '.depclone', 'manifest.json');
+  try {
+    const raw = await fs.readFile(manifestPath, 'utf8');
+    return {
+      path: manifestPath,
+      manifest: JSON.parse(raw) as DepCloneManifest
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function writeAgentFiles(projectRoot: string): Promise<string> {
   const depcloneDir = path.join(projectRoot, '.depclone');
   await fs.mkdir(depcloneDir, { recursive: true });
@@ -44,6 +57,7 @@ export async function writeAgentFiles(projectRoot: string): Promise<string> {
       '# DepClone Agent Notes',
       '',
       'Dependency source worktrees are stored under `dependencies/`.',
+      'Run `depclone status --json` from the project root to locate paths and check for stale versions.',
       'Read `manifest.json` first. It maps package names and versions to exact checkout paths and commits.',
       'Prefer the listed worktree path over `node_modules` when inspecting dependency implementation details.',
       ''

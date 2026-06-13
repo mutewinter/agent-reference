@@ -1,6 +1,6 @@
 import type { CliOptions } from './types.ts';
 
-const COMMANDS = new Set(['list', 'clone', 'init', 'help', 'version']);
+const COMMANDS = new Set(['list', 'clone', 'init', 'status', 'help', 'version']);
 
 export function parseArgv(argv: string[]): CliOptions {
   const options: CliOptions = {

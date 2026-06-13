@@ -9,7 +9,8 @@ import { cloneDependencies, initConfig, listDependencies } from './core.ts';
 import { loadMetadataFile } from './metadata.ts';
 import { dependencyKey } from './package-utils.ts';
 import { resolveProjectInput } from './scanner.ts';
-import type { DepCloneDependency } from './types.ts';
+import { getStatusReport } from './status.ts';
+import type { DepCloneDependency, DepCloneStatusEntry } from './types.ts';
 
 async function main(argv: string[]): Promise<void> {
   const options = parseArgv(argv);
@@ -32,6 +33,15 @@ async function main(argv: string[]): Promise<void> {
       allImporters: options.allImporters
     });
     process.stdout.write(options.json ? `${JSON.stringify(dependencies, null, 2)}\n` : formatDependencyTable(dependencies));
+    return;
+  }
+
+  if (options.command === 'status') {
+    const report = await getStatusReport(options.projectPath, {
+      allImporters: options.allImporters,
+      configFile: options.configFile
+    });
+    process.stdout.write(options.json ? `${JSON.stringify(report, null, 2)}\n` : formatStatusTable(report.entries));
     return;
   }
 
@@ -104,6 +114,28 @@ async function main(argv: string[]): Promise<void> {
   process.stdout.write(`manifest -> ${result.manifestPath}\n`);
 }
 
+function formatStatusTable(entries: DepCloneStatusEntry[]): string {
+  if (entries.length === 0) return 'No dependency references found.\n';
+
+  const rows = entries.map((entry) => [
+    entry.name,
+    entry.currentVersion ?? '-',
+    entry.clonedVersion ?? '-',
+    entry.status,
+    entry.worktreePath ?? '-'
+  ]);
+  const headers = ['name', 'current', 'cloned', 'status', 'worktree'];
+  const widths = headers.map((header, index) =>
+    Math.max(header.length, ...rows.map((row) => row[index]?.length ?? 0))
+  );
+  const formatRow = (row: string[]): string =>
+    row.map((value, index) => value.padEnd(widths[index] ?? 0)).join('  ');
+
+  return `${formatRow(headers)}\n${formatRow(widths.map((width) => '-'.repeat(width)))}\n${rows
+    .map(formatRow)
+    .join('\n')}\n`;
+}
+
 function formatDependencyTable(dependencies: DepCloneDependency[]): string {
   if (dependencies.length === 0) return 'No dependencies found.\n';
 
@@ -164,6 +196,7 @@ function helpText(): string {
 
 Usage:
   depclone list [project-or-package.json] [--json] [--all-importers]
+  depclone status [project-or-package.json] [--json]
   depclone init [project-or-package.json] --package react [--package zod]
   depclone clone [project-or-package.json] --package react [--package zod] [--json]
   depclone clone [project-or-package.json] --non-interactive
