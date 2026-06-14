@@ -28,7 +28,7 @@ depclone clone --non-interactive
 
 Then run `depclone status --json` again.
 
-3. For `not-installed`, the configured package is not in the current lockfile. Do not inspect an old clone as if it matched the project.
+3. For `not-installed`, a configured lockfile reference is not in the current project. Do not inspect an old clone as if it matched the project.
 4. For `unconfigured`, only inspect the dependency if the task directly requires it.
 
 Prefer the reported `worktreePath` over `node_modules`. The status output includes the exact current lockfile version, cloned version, checkout SHA, and local path.

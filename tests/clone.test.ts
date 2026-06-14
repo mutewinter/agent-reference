@@ -80,6 +80,48 @@ test('clones dependencies selected by depclone.config.json', async () => {
   assert.equal(result.cloned[0]?.checkoutSha, commit);
 });
 
+test('clones config-declared dependencies that are not in package.json', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'depclone-extra-config-test-'));
+  const projectRoot = await copyFixtureProject(tempDir);
+  await fs.writeFile(path.join(projectRoot, 'depclone.config.json'), JSON.stringify({
+    schemaVersion: 1,
+    dependencies: {
+      'tiny-warning': '1.0.3'
+    }
+  }, null, 2));
+
+  const sourceRepo = path.join(tempDir, 'tiny-warning-source');
+  await fs.mkdir(sourceRepo);
+  await git(['init'], sourceRepo);
+  await git(['config', 'user.email', 'depclone@example.test'], sourceRepo);
+  await git(['config', 'user.name', 'DepClone Test'], sourceRepo);
+  await fs.writeFile(path.join(sourceRepo, 'index.js'), 'export const extra = true;\n');
+  await git(['add', 'index.js'], sourceRepo);
+  await git(['commit', '-m', 'initial'], sourceRepo);
+  const commit = (await git(['rev-parse', 'HEAD'], sourceRepo)).trim();
+
+  const result = await cloneDependencies(path.join(projectRoot, 'package.json'), {
+    metadataMap: {
+      'tiny-warning@1.0.3': {
+        name: 'tiny-warning',
+        version: '1.0.3',
+        repository: {
+          type: 'git',
+          url: sourceRepo
+        },
+        gitHead: commit
+      }
+    },
+    bareStoreDir: path.join(tempDir, 'store'),
+    worktreeRoot: path.join(tempDir, 'worktrees')
+  });
+
+  assert.deepEqual(result.selected.map((dependency) => `${dependency.name}@${dependency.version}`), [
+    'tiny-warning@1.0.3'
+  ]);
+  assert.equal(result.cloned[0]?.checkoutSha, commit);
+});
+
 async function copyFixtureProject(tempDir: string): Promise<string> {
   const projectRoot = path.join(tempDir, 'project');
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), projectRoot, { recursive: true });

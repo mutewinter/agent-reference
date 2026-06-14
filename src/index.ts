@@ -1,5 +1,6 @@
 export { parseArgv } from './args.ts';
 export { scanBunDependencies } from './bun-lock.ts';
+export { resolveConfigDependencies } from './config-dependencies.ts';
 export { DEFAULT_CONFIG_FILE, loadDepCloneConfig, writeDepCloneConfig } from './config.ts';
 export { cloneDependencies, initConfig, listDependencies, selectDependencies } from './core.ts';
 export { ensureDependencyWorktree, runGit } from './git.ts';
@@ -17,6 +18,7 @@ export {
   repositoryCacheParts,
   repositoryUrlFromManifestRepository
 } from './repository.ts';
+export { resolveRegistryVersion } from './registry-version.ts';
 export { parseYarnLock, scanYarnDependencies } from './yarn-lock.ts';
 export { getStatusReport } from './status.ts';
 export type {

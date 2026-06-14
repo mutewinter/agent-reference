@@ -45,6 +45,24 @@ test('reports stale dependencies when cloned version differs from lockfile', asy
   assert.equal(report.entries[0]?.clonedVersion, '1.2.0');
 });
 
+test('reports config-only dependencies as configured references', async () => {
+  const projectRoot = await copyFixtureProject();
+  await fs.writeFile(path.join(projectRoot, 'depclone.config.json'), JSON.stringify({
+    schemaVersion: 1,
+    dependencies: {
+      'tiny-warning': '1.0.3'
+    }
+  }, null, 2));
+
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'));
+
+  assert.equal(report.entries.length, 1);
+  assert.equal(report.entries[0]?.name, 'tiny-warning');
+  assert.equal(report.entries[0]?.packageManager, 'config');
+  assert.equal(report.entries[0]?.currentVersion, '1.0.3');
+  assert.equal(report.entries[0]?.status, 'missing');
+});
+
 async function copyFixtureProject(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'depclone-status-test-'));
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), tempDir, { recursive: true });

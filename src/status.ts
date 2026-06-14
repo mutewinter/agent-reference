@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
 
+import { resolveConfigDependencies } from './config-dependencies.ts';
 import { loadDepCloneConfig } from './config.ts';
 import { readManifest } from './manifest.ts';
-import { dependencyKey } from './package-utils.ts';
+import { dependencyKey, mergeDependencyEntries } from './package-utils.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
 import type {
   DepCloneDependency,
@@ -27,6 +28,11 @@ export async function getStatusReport(
     ...options,
     allImporters: options.allImporters || config?.allImporters
   });
+  const configDependencies = await resolveConfigDependencies(config, context, {
+    registry: config?.registry,
+    configPath: loadedConfig?.path
+  });
+  const dependencyUniverse = mergeDependencyEntries([...dependencies, ...configDependencies]);
   const loadedManifest = await readManifest(context.projectRoot);
   const manifestDependencies = loadedManifest?.manifest.dependencies ?? [];
   const manifestByExact = new Map(
@@ -37,7 +43,12 @@ export async function getStatusReport(
     manifestByName.set(entry.name, entry);
   }
 
-  const { selected, missingSelectors } = selectStatusDependencies(dependencies, config?.references, Boolean(config?.all));
+  const { selected, missingSelectors } = selectStatusDependencies(
+    dependencyUniverse,
+    configDependencies,
+    config?.references,
+    Boolean(config?.all)
+  );
   const entries: DepCloneStatusEntry[] = [];
 
   for (const dependency of selected) {
@@ -75,6 +86,7 @@ export async function getStatusReport(
 
 function selectStatusDependencies(
   dependencies: DepCloneDependency[],
+  configDependencies: DepCloneDependency[],
   references: string[] | undefined,
   all: boolean
 ): { selected: DepCloneDependency[]; missingSelectors: string[] } {
@@ -83,7 +95,10 @@ function selectStatusDependencies(
   }
 
   if (!references || references.length === 0) {
-    return { selected: dependencies, missingSelectors: [] };
+    return {
+      selected: configDependencies.length > 0 ? configDependencies : dependencies,
+      missingSelectors: []
+    };
   }
 
   const selected: DepCloneDependency[] = [];
@@ -101,7 +116,7 @@ function selectStatusDependencies(
     }
   }
 
-  return { selected, missingSelectors };
+  return { selected: mergeDependencyEntries([...selected, ...configDependencies]), missingSelectors };
 }
 
 async function buildDependencyStatus(

@@ -30,12 +30,17 @@ Commit `depclone.config.json` when a repo should have shared dependency referenc
 {
   "schemaVersion": 1,
   "references": ["react", "zod"],
+  "dependencies": {
+    "prettier": "3.6.2"
+  },
   "allImporters": false,
   "worktreeDir": ".depclone/dependencies"
 }
 ```
 
-`references` accepts package names or `name@version` selectors. `all: true` can be used instead to keep every direct dependency cloned. CLI flags override config values.
+`references` accepts installed package names or `name@version` selectors from the project lockfile. `dependencies`, `devDependencies`, and `optionalDependencies` use package.json-style maps for extra open source projects that are not in the project dependencies. Exact versions are deterministic; ranges and dist-tags are resolved from the npm registry.
+
+`all: true` can be used to keep every direct project dependency cloned. CLI flags override config values.
 
 Do not commit `.depclone/`. It contains generated machine state, including `manifest.json` and worktrees. The config says what should be cloned; the manifest says what was cloned on this computer.
 

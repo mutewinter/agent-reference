@@ -1,9 +1,10 @@
 import path from 'node:path';
 
+import { resolveConfigDependencies } from './config-dependencies.ts';
 import { loadDepCloneConfig, writeDepCloneConfig } from './config.ts';
 import { ensureDependencyWorktree } from './git.ts';
 import { RegistryMetadataResolver } from './metadata.ts';
-import { dependencyKey } from './package-utils.ts';
+import { dependencyKey, mergeDependencyEntries } from './package-utils.ts';
 import { resolveProjectInput, scanProject, scanResolvedProject } from './scanner.ts';
 import { writeAgentFiles, writeManifest } from './manifest.ts';
 import type {
@@ -65,14 +66,23 @@ export async function cloneDependencies(
     ...options,
     allImporters: options.allImporters || config?.allImporters
   });
-  const configuredPackages = options.packages && options.packages.length > 0
+  const configDependencies = await resolveConfigDependencies(config, context, {
+    registry: options.registry ?? config?.registry,
+    configPath: loadedConfig?.path
+  });
+  const dependencyUniverse = mergeDependencyEntries([...scanned, ...configDependencies]);
+  const hasExplicitPackageSelection = Boolean(options.packages && options.packages.length > 0);
+  const configuredPackages = hasExplicitPackageSelection
     ? options.packages
     : config?.references;
   const configuredAll = options.all || config?.all || config?.references?.includes('*') || false;
-  const selected = selectDependencies(scanned, {
+  let selected = selectDependencies(dependencyUniverse, {
     packages: configuredPackages,
     all: configuredAll
   });
+  if (!hasExplicitPackageSelection && !configuredAll && configDependencies.length > 0) {
+    selected = mergeDependencyEntries([...selected, ...configDependencies]);
+  }
 
   if (selected.length === 0) {
     throw new Error(`No dependencies selected. Use --all, --package <name>, or ${loadedConfig?.path ?? 'depclone.config.json'}.`);
@@ -112,7 +122,7 @@ export async function cloneDependencies(
   await writeAgentFiles(projectRoot);
 
   return {
-    scanned,
+    scanned: dependencyUniverse,
     selected,
     cloned,
     skipped,

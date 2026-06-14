@@ -57,6 +57,11 @@ function normalizeConfig(value: unknown, configPath: string): DepCloneConfig {
   };
 
   if (references) normalized.references = references;
+  if (object.dependencies !== undefined) normalized.dependencies = normalizeDependencyMap(object.dependencies, configPath, 'dependencies');
+  if (object.devDependencies !== undefined) normalized.devDependencies = normalizeDependencyMap(object.devDependencies, configPath, 'devDependencies');
+  if (object.optionalDependencies !== undefined) {
+    normalized.optionalDependencies = normalizeDependencyMap(object.optionalDependencies, configPath, 'optionalDependencies');
+  }
   if (typeof object.all === 'boolean') normalized.all = object.all;
   if (typeof object.allImporters === 'boolean') normalized.allImporters = object.allImporters;
   if (typeof object.registry === 'string') normalized.registry = object.registry;
@@ -64,6 +69,21 @@ function normalizeConfig(value: unknown, configPath: string): DepCloneConfig {
   if (typeof object.cacheDir === 'string') normalized.cacheDir = object.cacheDir;
 
   return normalized;
+}
+
+function normalizeDependencyMap(value: unknown, configPath: string, field: string): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${configPath} ${field} must be an object mapping package names to versions or ranges.`);
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>);
+  for (const [name, specifier] of entries) {
+    if (typeof specifier !== 'string') {
+      throw new Error(`${configPath} ${field}.${name} must be a version, range, or dist-tag string.`);
+    }
+  }
+
+  return Object.fromEntries(entries) as Record<string, string>;
 }
 
 async function findConfigFile(projectRoot: string): Promise<string | null> {

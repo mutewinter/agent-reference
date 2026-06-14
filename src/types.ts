@@ -1,6 +1,6 @@
 export type DependencyType = 'dependencies' | 'devDependencies' | 'optionalDependencies';
 
-export type PackageManager = 'pnpm' | 'npm' | 'bun' | 'yarn' | 'unknown';
+export type PackageManager = 'pnpm' | 'npm' | 'bun' | 'yarn' | 'config' | 'unknown';
 
 export interface ProjectContext {
   projectRoot: string;
@@ -197,6 +197,9 @@ export interface CliOptions {
 export interface DepCloneConfig {
   schemaVersion: 1;
   references?: string[];
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+  optionalDependencies?: Record<string, string>;
   all?: boolean;
   allImporters?: boolean;
   registry?: string;
