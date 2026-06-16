@@ -1,32 +1,37 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import type { DepCloneConfig, LoadedDepCloneConfig } from './types.ts';
+import type { AgentReferenceConfig, LoadedAgentReferenceConfig } from './types.ts';
 
-export const DEFAULT_CONFIG_FILE = 'depclone.config.json';
-const CONFIG_FILES = [DEFAULT_CONFIG_FILE, '.depclonerc.json'];
+export const DEFAULT_CONFIG_FILE = 'agent-reference.json';
+export const DEFAULT_LOCAL_CONFIG_FILE = 'agent-reference.local.json';
+const CONFIG_FILES = [DEFAULT_CONFIG_FILE];
+const LOCAL_CONFIG_FILES = [DEFAULT_LOCAL_CONFIG_FILE];
 
-export async function loadDepCloneConfig(
+export async function loadAgentReferenceConfig(
   projectRoot: string,
   options: { configFile?: string | null } = {}
-): Promise<LoadedDepCloneConfig | null> {
+): Promise<LoadedAgentReferenceConfig | null> {
   const configPath = options.configFile
     ? path.resolve(projectRoot, options.configFile)
-    : await findConfigFile(projectRoot);
+    : await findConfigFile(projectRoot, CONFIG_FILES);
+  const localPath = await findConfigFile(projectRoot, LOCAL_CONFIG_FILES);
 
-  if (!configPath) return null;
+  if (!configPath && !localPath) return null;
 
-  const raw = await fs.readFile(configPath, 'utf8');
-  const parsed = JSON.parse(raw) as unknown;
+  const baseConfig = configPath ? normalizeConfig(await readJson(configPath), configPath) : {};
+  const localConfig = localPath ? normalizeConfig(await readJson(localPath), localPath) : {};
+
   return {
     path: configPath,
-    config: normalizeConfig(parsed, configPath)
+    localPath,
+    config: mergeConfigs(baseConfig, localConfig)
   };
 }
 
-export async function writeDepCloneConfig(
+export async function writeAgentReferenceConfig(
   projectRoot: string,
-  config: DepCloneConfig,
+  config: AgentReferenceConfig,
   options: { configFile?: string | null; force?: boolean } = {}
 ): Promise<string> {
   const configPath = options.configFile
@@ -41,28 +46,46 @@ export async function writeDepCloneConfig(
   return configPath;
 }
 
-function normalizeConfig(value: unknown, configPath: string): DepCloneConfig {
+function mergeConfigs(base: AgentReferenceConfig, local: AgentReferenceConfig): AgentReferenceConfig {
+  return {
+    packages: mergeMaps(base.packages, local.packages),
+    folders: mergeMaps(base.folders, local.folders),
+    git: mergeMaps(base.git, local.git),
+    allPackages: local.allPackages ?? base.allPackages,
+    allImporters: local.allImporters ?? base.allImporters,
+    registry: local.registry ?? base.registry,
+    worktreeDir: local.worktreeDir ?? base.worktreeDir,
+    cacheDir: local.cacheDir ?? base.cacheDir
+  };
+}
+
+function mergeMaps(
+  base: Record<string, string> | undefined,
+  local: Record<string, string> | undefined
+): Record<string, string> | undefined {
+  if (!base && !local) return undefined;
+  return {
+    ...(base ?? {}),
+    ...(local ?? {})
+  };
+}
+
+async function readJson(filePath: string): Promise<unknown> {
+  return JSON.parse(await fs.readFile(filePath, 'utf8')) as unknown;
+}
+
+function normalizeConfig(value: unknown, configPath: string): AgentReferenceConfig {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${configPath} must contain a JSON object.`);
   }
 
   const object = value as Record<string, unknown>;
-  const references = object.references;
-  if (references !== undefined && (!Array.isArray(references) || references.some((item) => typeof item !== 'string'))) {
-    throw new Error(`${configPath} references must be an array of package selectors.`);
-  }
+  const normalized: AgentReferenceConfig = {};
 
-  const normalized: DepCloneConfig = {
-    schemaVersion: 1
-  };
-
-  if (references) normalized.references = references;
-  if (object.dependencies !== undefined) normalized.dependencies = normalizeDependencyMap(object.dependencies, configPath, 'dependencies');
-  if (object.devDependencies !== undefined) normalized.devDependencies = normalizeDependencyMap(object.devDependencies, configPath, 'devDependencies');
-  if (object.optionalDependencies !== undefined) {
-    normalized.optionalDependencies = normalizeDependencyMap(object.optionalDependencies, configPath, 'optionalDependencies');
-  }
-  if (typeof object.all === 'boolean') normalized.all = object.all;
+  if (object.packages !== undefined) normalized.packages = normalizeStringMap(object.packages, configPath, 'packages');
+  if (object.folders !== undefined) normalized.folders = normalizeStringMap(object.folders, configPath, 'folders');
+  if (object.git !== undefined) normalized.git = normalizeStringMap(object.git, configPath, 'git');
+  if (typeof object.allPackages === 'boolean') normalized.allPackages = object.allPackages;
   if (typeof object.allImporters === 'boolean') normalized.allImporters = object.allImporters;
   if (typeof object.registry === 'string') normalized.registry = object.registry;
   if (typeof object.worktreeDir === 'string') normalized.worktreeDir = object.worktreeDir;
@@ -71,23 +94,23 @@ function normalizeConfig(value: unknown, configPath: string): DepCloneConfig {
   return normalized;
 }
 
-function normalizeDependencyMap(value: unknown, configPath: string, field: string): Record<string, string> {
+function normalizeStringMap(value: unknown, configPath: string, field: string): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error(`${configPath} ${field} must be an object mapping package names to versions or ranges.`);
+    throw new Error(`${configPath} ${field} must be an object mapping names to string values.`);
   }
 
   const entries = Object.entries(value as Record<string, unknown>);
   for (const [name, specifier] of entries) {
     if (typeof specifier !== 'string') {
-      throw new Error(`${configPath} ${field}.${name} must be a version, range, or dist-tag string.`);
+      throw new Error(`${configPath} ${field}.${name} must be a string.`);
     }
   }
 
   return Object.fromEntries(entries) as Record<string, string>;
 }
 
-async function findConfigFile(projectRoot: string): Promise<string | null> {
-  for (const fileName of CONFIG_FILES) {
+async function findConfigFile(projectRoot: string, names: string[]): Promise<string | null> {
+  for (const fileName of names) {
     const configPath = path.join(projectRoot, fileName);
     if (await pathExists(configPath)) return configPath;
   }

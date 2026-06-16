@@ -8,7 +8,7 @@ import {
   parsePackageAtVersion,
   stripPnpmPeerSuffix
 } from './package-utils.ts';
-import type { DepCloneDependency, DependencyType, ProjectContext, ScanProjectOptions } from './types.ts';
+import type { PackageReference, DependencyType, ProjectContext, ScanProjectOptions } from './types.ts';
 
 type PnpmScalar = string | boolean | null;
 interface PnpmObject {
@@ -26,14 +26,14 @@ export async function readPnpmImporters(lockfilePath: string): Promise<Record<st
 export async function scanPnpmDependencies(
   context: ProjectContext,
   options: ScanProjectOptions = {}
-): Promise<DepCloneDependency[]> {
+): Promise<PackageReference[]> {
   const importers = await readPnpmImporters(context.lockfilePath);
   const selectedImporters: Array<[string, PnpmImporterSnapshot | undefined]> = options.allImporters
     ? Object.entries(importers)
     : [[context.importer, importers[context.importer]]];
 
   const include = options.include ?? DEPENDENCY_SECTIONS;
-  const entries: DepCloneDependency[] = [];
+  const entries: PackageReference[] = [];
 
   for (const [importer, snapshot] of selectedImporters) {
     if (!snapshot) {

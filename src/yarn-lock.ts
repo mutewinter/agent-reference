@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 
 import { isExactRegistryVersion } from './package-utils.ts';
 import { dependenciesFromPackageJsonDirectives } from './lock-utils.ts';
-import type { DepCloneDependency, ProjectContext, ScanProjectOptions } from './types.ts';
+import type { PackageReference, ProjectContext, ScanProjectOptions } from './types.ts';
 
 interface YarnLockEntry {
   descriptors: string[];
@@ -12,7 +12,7 @@ interface YarnLockEntry {
 export async function scanYarnDependencies(
   context: ProjectContext,
   options: ScanProjectOptions = {}
-): Promise<DepCloneDependency[]> {
+): Promise<PackageReference[]> {
   const lockEntries = parseYarnLock(await fs.readFile(context.lockfilePath, 'utf8'));
 
   return dependenciesFromPackageJsonDirectives(context, options, ({ name, specifier }) => {

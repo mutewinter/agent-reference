@@ -5,7 +5,7 @@ import {
   repositoryUrlFromManifestRepository
 } from './repository.ts';
 import type {
-  DepCloneDependency,
+  PackageReference,
   DependencyMetadata,
   MetadataMap,
   MetadataResolverOptions,
@@ -23,7 +23,7 @@ export class RegistryMetadataResolver {
     this.metadataMap = options.metadataMap ?? null;
   }
 
-  async resolve(dependency: DepCloneDependency): Promise<DependencyMetadata> {
+  async resolve(dependency: PackageReference): Promise<DependencyMetadata> {
     return resolvePackageMetadata(dependency, {
       registry: this.registry,
       fetchImpl: this.fetchImpl,
@@ -33,7 +33,7 @@ export class RegistryMetadataResolver {
 }
 
 export async function resolvePackageMetadata(
-  dependency: DepCloneDependency,
+  dependency: PackageReference,
   options: MetadataResolverOptions = {}
 ): Promise<DependencyMetadata> {
   const key = `${dependency.name}@${dependency.version}`;
@@ -65,7 +65,7 @@ export async function resolvePackageMetadata(
 
 export function normalizePackageMetadata(
   manifest: NpmPackageManifest,
-  dependency: Partial<DepCloneDependency> = {}
+  dependency: Partial<PackageReference> = {}
 ): DependencyMetadata {
   const repositoryUrl = manifest.repositoryUrl
     ? manifest.repositoryUrl

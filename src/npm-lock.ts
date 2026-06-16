@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 
 import { isExactRegistryVersion } from './package-utils.ts';
 import { dependenciesFromPackageJsonDirectives, nodeModulesPackagePath } from './lock-utils.ts';
-import type { DepCloneDependency, ProjectContext, ScanProjectOptions } from './types.ts';
+import type { PackageReference, ProjectContext, ScanProjectOptions } from './types.ts';
 
 interface NpmPackageLock {
   lockfileVersion?: number;
@@ -22,7 +22,7 @@ interface NpmLegacyDependency {
 export async function scanNpmDependencies(
   context: ProjectContext,
   options: ScanProjectOptions = {}
-): Promise<DepCloneDependency[]> {
+): Promise<PackageReference[]> {
   const lockfile = await readNpmPackageLock(context.lockfilePath);
 
   return dependenciesFromPackageJsonDirectives(context, options, ({ name }) => {

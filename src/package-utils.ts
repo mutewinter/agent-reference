@@ -1,4 +1,4 @@
-import type { DepCloneDependency, DependencyType } from './types.ts';
+import type { PackageReference, DependencyType } from './types.ts';
 
 export const DEPENDENCY_SECTIONS: DependencyType[] = [
   'dependencies',
@@ -52,8 +52,8 @@ export function tagCandidatesForDependency(name: string, version: string): strin
   return [...new Set(candidates)];
 }
 
-export function mergeDependencyEntries(entries: DepCloneDependency[]): DepCloneDependency[] {
-  const byKey = new Map<string, DepCloneDependency>();
+export function mergeDependencyEntries(entries: PackageReference[]): PackageReference[] {
+  const byKey = new Map<string, PackageReference>();
 
   for (const entry of entries) {
     const key = dependencyKey(entry.name, entry.version);

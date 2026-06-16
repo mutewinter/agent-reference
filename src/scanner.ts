@@ -5,7 +5,7 @@ import { scanBunDependencies } from './bun-lock.ts';
 import { scanNpmDependencies } from './npm-lock.ts';
 import { scanPnpmDependencies } from './pnpm-lock.ts';
 import { scanYarnDependencies } from './yarn-lock.ts';
-import type { DepCloneDependency, PackageManager, ProjectContext, ScanProjectOptions } from './types.ts';
+import type { PackageReference, PackageManager, ProjectContext, ScanProjectOptions } from './types.ts';
 
 export async function resolveProjectInput(
   projectPath: string | null | undefined,
@@ -42,7 +42,7 @@ export async function resolveProjectInput(
 export async function scanProject(
   projectPath: string | null | undefined,
   options: ScanProjectOptions & { cwd?: string } = {}
-): Promise<DepCloneDependency[]> {
+): Promise<PackageReference[]> {
   const context = await resolveProjectInput(projectPath, options.cwd);
   return scanResolvedProject(context, options);
 }
@@ -50,7 +50,7 @@ export async function scanProject(
 export async function scanResolvedProject(
   context: ProjectContext,
   options: ScanProjectOptions = {}
-): Promise<DepCloneDependency[]> {
+): Promise<PackageReference[]> {
   if (context.packageManager === 'pnpm') {
     return scanPnpmDependencies(context, options);
   }

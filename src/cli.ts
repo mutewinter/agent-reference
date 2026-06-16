@@ -4,13 +4,13 @@ import process from 'node:process';
 import readline from 'node:readline/promises';
 
 import { parseArgv } from './args.ts';
-import { loadDepCloneConfig } from './config.ts';
-import { cloneDependencies, initConfig, listDependencies } from './core.ts';
+import { loadAgentReferenceConfig } from './config.ts';
+import { cloneReferences, initConfig, listDependencies } from './core.ts';
 import { loadMetadataFile } from './metadata.ts';
 import { dependencyKey } from './package-utils.ts';
 import { resolveProjectInput } from './scanner.ts';
 import { getStatusReport } from './status.ts';
-import type { DepCloneDependency, DepCloneStatusEntry } from './types.ts';
+import type { PackageReference, AgentReferenceStatusEntry } from './types.ts';
 
 async function main(argv: string[]): Promise<void> {
   const options = parseArgv(argv);
@@ -41,7 +41,7 @@ async function main(argv: string[]): Promise<void> {
       allImporters: options.allImporters,
       configFile: options.configFile
     });
-    process.stdout.write(options.json ? `${JSON.stringify(report, null, 2)}\n` : formatStatusTable(report.entries));
+    process.stdout.write(options.json ? `${JSON.stringify(report, null, 2)}\n` : formatStatusTable(report.references));
     return;
   }
 
@@ -88,7 +88,7 @@ async function main(argv: string[]): Promise<void> {
     all = false;
   }
 
-  const result = await cloneDependencies(options.projectPath, {
+  const result = await cloneReferences(options.projectPath, {
     all,
     packages,
     allImporters: options.allImporters,
@@ -111,20 +111,24 @@ async function main(argv: string[]): Promise<void> {
   for (const skipped of result.skipped) {
     process.stdout.write(`${dependencyKey(skipped.dependency.name, skipped.dependency.version)} skipped: ${skipped.reason}\n`);
   }
+  for (const clone of result.clonedGit) {
+    process.stdout.write(`git:${clone.name} -> ${clone.worktreePath}\n`);
+  }
   process.stdout.write(`manifest -> ${result.manifestPath}\n`);
 }
 
-function formatStatusTable(entries: DepCloneStatusEntry[]): string {
+function formatStatusTable(entries: AgentReferenceStatusEntry[]): string {
   if (entries.length === 0) return 'No dependency references found.\n';
 
   const rows = entries.map((entry) => [
+    entry.kind,
     entry.name,
     entry.currentVersion ?? '-',
     entry.clonedVersion ?? '-',
     entry.status,
-    entry.worktreePath ?? '-'
+    entry.path ?? '-'
   ]);
-  const headers = ['name', 'current', 'cloned', 'status', 'worktree'];
+  const headers = ['kind', 'name', 'current', 'cloned', 'status', 'path'];
   const widths = headers.map((header, index) =>
     Math.max(header.length, ...rows.map((row) => row[index]?.length ?? 0))
   );
@@ -136,7 +140,7 @@ function formatStatusTable(entries: DepCloneStatusEntry[]): string {
     .join('\n')}\n`;
 }
 
-function formatDependencyTable(dependencies: DepCloneDependency[]): string {
+function formatDependencyTable(dependencies: PackageReference[]): string {
   if (dependencies.length === 0) return 'No dependencies found.\n';
 
   const rows = dependencies.map((dependency) => [
@@ -157,7 +161,7 @@ function formatDependencyTable(dependencies: DepCloneDependency[]): string {
     .join('\n')}\n`;
 }
 
-async function promptForPackages(dependencies: DepCloneDependency[]): Promise<string[]> {
+async function promptForPackages(dependencies: PackageReference[]): Promise<string[]> {
   process.stdout.write(formatDependencyChoices(dependencies));
   const rl = readline.createInterface({
     input: process.stdin,
@@ -184,7 +188,7 @@ async function promptForPackages(dependencies: DepCloneDependency[]): Promise<st
   });
 }
 
-function formatDependencyChoices(dependencies: DepCloneDependency[]): string {
+function formatDependencyChoices(dependencies: PackageReference[]): string {
   return dependencies
     .map((dependency, index) => `${index + 1}. ${dependencyKey(dependency.name, dependency.version)}`)
     .join('\n')
@@ -192,21 +196,21 @@ function formatDependencyChoices(dependencies: DepCloneDependency[]): string {
 }
 
 function helpText(): string {
-  return `depclone
+  return `agent-reference
 
 Usage:
-  depclone list [project-or-package.json] [--json] [--all-importers]
-  depclone status [project-or-package.json] [--json]
-  depclone init [project-or-package.json] --package react [--package zod]
-  depclone clone [project-or-package.json] --package react [--package zod] [--json]
-  depclone clone [project-or-package.json] --non-interactive
-  depclone clone [project-or-package.json] --all --non-interactive
+  agent-reference list [project-or-package.json] [--json] [--all-importers]
+  agent-reference status [project-or-package.json] [--json]
+  agent-reference init [project-or-package.json] --package react [--package zod]
+  agent-reference clone [project-or-package.json] --package react [--package zod] [--json]
+  agent-reference clone [project-or-package.json] --non-interactive
+  agent-reference clone [project-or-package.json] --all --non-interactive
 
 Options:
   --all                 Clone every discovered direct dependency.
   --package, -p <name>  Clone a dependency by name or name@version. Repeatable.
   --all-importers       Scan every PNPM lockfile importer in a workspace.
-  --config <path>       Config file. Defaults to depclone.config.json in the project root.
+  --config <path>       Config file. Defaults to agent-reference.json in the project root.
   --metadata-file <json> Use npm metadata from a local JSON map.
   --registry <url>      npm registry base URL. Defaults to https://registry.npmjs.org.
   --cache-dir <dir>     Global bare repository store. Also accepted: --store-dir.
@@ -219,12 +223,12 @@ Options:
 
 async function hasCloneConfig(projectPath: string | null, configFile: string | null): Promise<boolean> {
   const context = await resolveProjectInput(projectPath);
-  const loaded = await loadDepCloneConfig(context.projectRoot, { configFile });
+  const loaded = await loadAgentReferenceConfig(context.projectRoot, { configFile });
   return loaded !== null;
 }
 
 main(process.argv.slice(2)).catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`depclone: ${message}\n`);
+  process.stderr.write(`agent-reference: ${message}\n`);
   process.exitCode = 1;
 });

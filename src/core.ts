@@ -1,17 +1,17 @@
 import path from 'node:path';
 
-import { resolveConfigDependencies } from './config-dependencies.ts';
-import { loadDepCloneConfig, writeDepCloneConfig } from './config.ts';
-import { ensureDependencyWorktree } from './git.ts';
+import { resolveConfigPackageReferences } from './config-dependencies.ts';
+import { loadAgentReferenceConfig, writeAgentReferenceConfig } from './config.ts';
+import { ensureDependencyWorktree, ensureGitReferenceWorktree } from './git.ts';
 import { RegistryMetadataResolver } from './metadata.ts';
 import { dependencyKey, mergeDependencyEntries } from './package-utils.ts';
 import { resolveProjectInput, scanProject, scanResolvedProject } from './scanner.ts';
 import { writeAgentFiles, writeManifest } from './manifest.ts';
 import type {
-  CloneDependencyOptions,
-  CloneDependencyResult,
-  DepCloneConfig,
-  DepCloneDependency,
+  CloneReferencesOptions,
+  CloneReferencesResult,
+  AgentReferenceConfig,
+  PackageReference,
   GitWorktreeResult,
   ListDependenciesOptions,
   MetadataResolver
@@ -20,14 +20,14 @@ import type {
 export async function listDependencies(
   projectPath: string | null | undefined,
   options: ListDependenciesOptions = {}
-): Promise<DepCloneDependency[]> {
+): Promise<PackageReference[]> {
   return scanProject(projectPath, options);
 }
 
 export function selectDependencies(
-  dependencies: DepCloneDependency[],
+  dependencies: PackageReference[],
   options: { packages?: string[]; all?: boolean } = {}
-): DepCloneDependency[] {
+): PackageReference[] {
   if (options.all) return dependencies;
 
   const requested = new Set((options.packages ?? []).flatMap(splitPackageSelectors));
@@ -52,13 +52,13 @@ export function selectDependencies(
   return selected;
 }
 
-export async function cloneDependencies(
+export async function cloneReferences(
   projectPath: string | null | undefined,
-  options: CloneDependencyOptions = {}
-): Promise<CloneDependencyResult> {
+  options: CloneReferencesOptions = {}
+): Promise<CloneReferencesResult> {
   const cwd = options.cwd ?? process.cwd();
   const context = await resolveProjectInput(projectPath, cwd);
-  const loadedConfig = await loadDepCloneConfig(context.projectRoot, {
+  const loadedConfig = await loadAgentReferenceConfig(context.projectRoot, {
     configFile: options.configFile
   });
   const config = loadedConfig?.config;
@@ -66,26 +66,27 @@ export async function cloneDependencies(
     ...options,
     allImporters: options.allImporters || config?.allImporters
   });
-  const configDependencies = await resolveConfigDependencies(config, context, {
+  const configPackages = await resolveConfigPackageReferences(config, context, scanned, {
     registry: options.registry ?? config?.registry,
-    configPath: loadedConfig?.path
+    configPath: loadedConfig?.path ?? undefined
   });
-  const dependencyUniverse = mergeDependencyEntries([...scanned, ...configDependencies]);
+  const dependencyUniverse = mergeDependencyEntries([...scanned, ...configPackages.packages]);
   const hasExplicitPackageSelection = Boolean(options.packages && options.packages.length > 0);
   const configuredPackages = hasExplicitPackageSelection
     ? options.packages
-    : config?.references;
-  const configuredAll = options.all || config?.all || config?.references?.includes('*') || false;
+    : Object.keys(config?.packages ?? {});
+  const configuredAll = options.all || config?.allPackages || false;
   let selected = selectDependencies(dependencyUniverse, {
     packages: configuredPackages,
     all: configuredAll
   });
-  if (!hasExplicitPackageSelection && !configuredAll && configDependencies.length > 0) {
-    selected = mergeDependencyEntries([...selected, ...configDependencies]);
+  if (!hasExplicitPackageSelection && !configuredAll && configPackages.packages.length > 0) {
+    selected = mergeDependencyEntries([...selected, ...configPackages.packages]);
   }
 
-  if (selected.length === 0) {
-    throw new Error(`No dependencies selected. Use --all, --package <name>, or ${loadedConfig?.path ?? 'depclone.config.json'}.`);
+  const configuredGit = Object.entries(config?.git ?? {});
+  if (selected.length === 0 && configuredGit.length === 0) {
+    throw new Error(`No references selected. Use --all, --package <name>, or ${loadedConfig?.path ?? 'agent-reference.json'}.`);
   }
 
   const resolver: MetadataResolver =
@@ -96,9 +97,11 @@ export async function cloneDependencies(
     });
   const projectRoot = context.projectRoot;
   const cloned: GitWorktreeResult[] = [];
-  const skipped: CloneDependencyResult['skipped'] = [];
+  const clonedGit: CloneReferencesResult['clonedGit'] = [];
+  const skipped: CloneReferencesResult['skipped'] = [];
   const bareStoreDir = options.bareStoreDir ?? config?.cacheDir;
   const worktreeRoot = options.worktreeRoot ?? config?.worktreeDir;
+  const resolvedBareStoreDir = bareStoreDir ? resolveConfigPath(projectRoot, cwd, bareStoreDir) : undefined;
 
   for (const dependency of selected) {
     const metadata = await resolver.resolve(dependency);
@@ -110,7 +113,7 @@ export async function cloneDependencies(
     cloned.push(
       await ensureDependencyWorktree(dependency, metadata, {
         projectRoot,
-        bareStoreDir: bareStoreDir ? resolveConfigPath(projectRoot, cwd, bareStoreDir) : undefined,
+        bareStoreDir: resolvedBareStoreDir,
         worktreeRoot: worktreeRoot ? resolveConfigPath(projectRoot, cwd, worktreeRoot) : undefined,
         gitBin: options.gitBin,
         force: options.force
@@ -118,13 +121,23 @@ export async function cloneDependencies(
     );
   }
 
-  const manifestPath = await writeManifest(projectRoot, cloned);
+  for (const [name, spec] of configuredGit) {
+    clonedGit.push(await ensureGitReferenceWorktree(name, spec, {
+      projectRoot,
+      bareStoreDir: resolvedBareStoreDir,
+      gitBin: options.gitBin,
+      force: options.force
+    }));
+  }
+
+  const manifestPath = await writeManifest(projectRoot, cloned, clonedGit);
   await writeAgentFiles(projectRoot);
 
   return {
     scanned: dependencyUniverse,
     selected,
     cloned,
+    clonedGit,
     skipped,
     manifestPath
   };
@@ -132,8 +145,8 @@ export async function cloneDependencies(
 
 export async function initConfig(
   projectPath: string | null | undefined,
-  options: CloneDependencyOptions = {}
-): Promise<{ configPath: string; config: DepCloneConfig; selected: DepCloneDependency[] }> {
+  options: CloneReferencesOptions = {}
+): Promise<{ configPath: string; config: AgentReferenceConfig; selected: PackageReference[] }> {
   const cwd = options.cwd ?? process.cwd();
   const context = await resolveProjectInput(projectPath, cwd);
   const scanned = await scanResolvedProject(context, options);
@@ -146,17 +159,16 @@ export async function initConfig(
     throw new Error('No references selected. Use --all or --package <name>.');
   }
 
-  const config: DepCloneConfig = {
-    schemaVersion: 1,
-    references: options.all ? [] : selected.map((dependency) => dependency.name)
+  const config: AgentReferenceConfig = {
+    packages: Object.fromEntries(selected.map((dependency) => [dependency.name, 'installed']))
   };
 
-  if (options.all) config.all = true;
+  if (options.all) config.allPackages = true;
   if (options.allImporters) config.allImporters = true;
   if (options.registry) config.registry = options.registry;
   if (options.worktreeRoot) config.worktreeDir = options.worktreeRoot;
 
-  const configPath = await writeDepCloneConfig(context.projectRoot, config, {
+  const configPath = await writeAgentReferenceConfig(context.projectRoot, config, {
     configFile: options.configFile,
     force: options.force
   });

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { DEPENDENCY_SECTIONS, mergeDependencyEntries } from './package-utils.ts';
 import { directPackageJsonDependencies, readPackageJson } from './package-json.ts';
 import type {
-  DepCloneDependency,
+  PackageReference,
   DependencyType,
   PackageManager,
   ProjectContext,
@@ -19,10 +19,10 @@ export async function dependenciesFromPackageJsonDirectives(
     dependencyType: DependencyType;
     importer: string;
   }) => string | null
-): Promise<DepCloneDependency[]> {
+): Promise<PackageReference[]> {
   const include = options.include ?? DEPENDENCY_SECTIONS;
   const packageJson = await readPackageJson(context.packageJsonPath);
-  const entries: DepCloneDependency[] = [];
+  const entries: PackageReference[] = [];
 
   for (const dependency of directPackageJsonDependencies(packageJson, include)) {
     const version = resolveVersion({ ...dependency, importer: context.importer });
@@ -53,7 +53,7 @@ export function createDependencyEntry(input: {
   projectRoot: string;
   packageJsonPath: string;
   lockfilePath: string;
-}): DepCloneDependency {
+}): PackageReference {
   return {
     name: input.name,
     alias: input.alias ?? null,

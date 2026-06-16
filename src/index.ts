@@ -1,9 +1,14 @@
 export { parseArgv } from './args.ts';
 export { scanBunDependencies } from './bun-lock.ts';
-export { resolveConfigDependencies } from './config-dependencies.ts';
-export { DEFAULT_CONFIG_FILE, loadDepCloneConfig, writeDepCloneConfig } from './config.ts';
-export { cloneDependencies, initConfig, listDependencies, selectDependencies } from './core.ts';
-export { ensureDependencyWorktree, runGit } from './git.ts';
+export { resolveConfigPackageReferences } from './config-dependencies.ts';
+export {
+  DEFAULT_CONFIG_FILE,
+  DEFAULT_LOCAL_CONFIG_FILE,
+  loadAgentReferenceConfig,
+  writeAgentReferenceConfig
+} from './config.ts';
+export { cloneReferences, initConfig, listDependencies, selectDependencies } from './core.ts';
+export { ensureDependencyWorktree, ensureGitReferenceWorktree, runGit } from './git.ts';
 export { readManifest, writeAgentFiles, writeManifest } from './manifest.ts';
 export {
   loadMetadataFile,
@@ -19,23 +24,24 @@ export {
   repositoryUrlFromManifestRepository
 } from './repository.ts';
 export { resolveRegistryVersion } from './registry-version.ts';
-export { parseYarnLock, scanYarnDependencies } from './yarn-lock.ts';
 export { getStatusReport } from './status.ts';
+export { parseYarnLock, scanYarnDependencies } from './yarn-lock.ts';
 export type {
-  CloneDependencyOptions,
-  CloneDependencyResult,
-  DepCloneConfig,
-  DepCloneDependency,
-  DepCloneManifest,
-  DepCloneStatusEntry,
-  DepCloneStatusReport,
-  DepCloneStatusState,
+  AgentReferenceConfig,
+  AgentReferenceKind,
+  AgentReferenceManifest,
+  AgentReferenceStatusEntry,
+  AgentReferenceStatusReport,
+  AgentReferenceStatusState,
+  CloneReferencesOptions,
+  CloneReferencesResult,
   DependencyMetadata,
+  GitReferenceWorktreeResult,
   GitWorktreeOptions,
   GitWorktreeResult,
   ListDependenciesOptions,
   PackageManager,
+  PackageReference,
   ProjectContext,
   ScanProjectOptions
 } from './types.ts';
-export { resolveProjectInput, scanProject, scanResolvedProject } from './scanner.ts';

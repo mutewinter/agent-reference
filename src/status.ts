@@ -1,173 +1,210 @@
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
-import { resolveConfigDependencies } from './config-dependencies.ts';
-import { loadDepCloneConfig } from './config.ts';
+import { resolveConfigPackageReferences } from './config-dependencies.ts';
+import { loadAgentReferenceConfig } from './config.ts';
 import { readManifest } from './manifest.ts';
 import { dependencyKey, mergeDependencyEntries } from './package-utils.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
 import type {
-  DepCloneDependency,
-  DepCloneManifest,
-  DepCloneStatusEntry,
-  DepCloneStatusReport,
-  DepCloneStatusState,
+  AgentReferenceManifest,
+  AgentReferenceStatusEntry,
+  AgentReferenceStatusReport,
+  AgentReferenceStatusState,
+  PackageReference,
   ScanProjectOptions
 } from './types.ts';
 
 export async function getStatusReport(
   projectPath: string | null | undefined,
   options: ScanProjectOptions & { cwd?: string; configFile?: string | null } = {}
-): Promise<DepCloneStatusReport> {
+): Promise<AgentReferenceStatusReport> {
   const cwd = options.cwd ?? process.cwd();
   const context = await resolveProjectInput(projectPath, cwd);
-  const loadedConfig = await loadDepCloneConfig(context.projectRoot, {
+  const loadedConfig = await loadAgentReferenceConfig(context.projectRoot, {
     configFile: options.configFile
   });
   const config = loadedConfig?.config;
-  const dependencies = await scanResolvedProject(context, {
+  const installedPackages = await scanResolvedProject(context, {
     ...options,
     allImporters: options.allImporters || config?.allImporters
   });
-  const configDependencies = await resolveConfigDependencies(config, context, {
+  const configPackages = await resolveConfigPackageReferences(config, context, installedPackages, {
     registry: config?.registry,
-    configPath: loadedConfig?.path
+    configPath: loadedConfig?.path ?? undefined
   });
-  const dependencyUniverse = mergeDependencyEntries([...dependencies, ...configDependencies]);
+  const packageUniverse = mergeDependencyEntries([...installedPackages, ...configPackages.packages]);
   const loadedManifest = await readManifest(context.projectRoot);
-  const manifestDependencies = loadedManifest?.manifest.dependencies ?? [];
-  const manifestByExact = new Map(
-    manifestDependencies.map((entry) => [dependencyKey(entry.name, entry.version), entry])
+  const manifestReferences = loadedManifest?.manifest.references ?? [];
+  const packageManifestByExact = new Map(
+    manifestReferences
+      .filter((entry) => entry.kind === 'package' && entry.version)
+      .map((entry) => [dependencyKey(entry.name, entry.version ?? ''), entry])
   );
-  const manifestByName = new Map<string, DepCloneManifest['dependencies'][number]>();
-  for (const entry of manifestDependencies) {
-    manifestByName.set(entry.name, entry);
+  const packageManifestByName = new Map<string, AgentReferenceManifest['references'][number]>();
+  const gitManifestByName = new Map<string, AgentReferenceManifest['references'][number]>();
+
+  for (const entry of manifestReferences) {
+    if (entry.kind === 'package') packageManifestByName.set(entry.name, entry);
+    if (entry.kind === 'git') gitManifestByName.set(entry.name, entry);
   }
 
-  const { selected, missingSelectors } = selectStatusDependencies(
-    dependencyUniverse,
-    configDependencies,
-    config?.references,
-    Boolean(config?.all)
-  );
-  const entries: DepCloneStatusEntry[] = [];
+  const entries: AgentReferenceStatusEntry[] = [];
+  const selectedPackages = selectStatusPackages(packageUniverse, configPackages.packages, Boolean(config?.allPackages), Boolean(config));
 
-  for (const dependency of selected) {
-    const exactManifest = manifestByExact.get(dependencyKey(dependency.name, dependency.version));
-    const nearestManifest = manifestByName.get(dependency.name);
-    entries.push(await buildDependencyStatus(dependency, exactManifest ?? null, nearestManifest ?? null, Boolean(config)));
+  for (const dependency of selectedPackages) {
+    const exactManifest = packageManifestByExact.get(dependencyKey(dependency.name, dependency.version));
+    const nearestManifest = packageManifestByName.get(dependency.name);
+    entries.push(await buildPackageStatus(dependency, exactManifest ?? null, nearestManifest ?? null, Boolean(config)));
   }
 
-  for (const selector of missingSelectors) {
+  for (const name of configPackages.missingInstalled) {
+    const manifestEntry = packageManifestByName.get(name);
     entries.push({
-      name: selector,
+      kind: 'package',
+      name,
+      requested: 'installed',
       packageManager: null,
       configured: true,
       currentVersion: null,
-      clonedVersion: manifestByName.get(selector)?.version ?? null,
+      clonedVersion: manifestEntry?.version ?? null,
       dependencyTypes: [],
       importers: [],
-      worktreePath: manifestByName.get(selector)?.worktreePath ?? null,
-      checkoutSha: manifestByName.get(selector)?.checkoutSha ?? null,
+      path: manifestEntry?.path ?? null,
+      checkoutSha: manifestEntry?.checkoutSha ?? null,
       status: 'not-installed',
-      action: 'Update depclone.config.json or install this dependency, then run depclone clone --non-interactive.'
+      action: 'Install this package or update agent-reference.json. Do not use an old clone as current project source.'
     });
   }
 
+  for (const [name, folderPath] of Object.entries(config?.folders ?? {})) {
+    entries.push(await buildFolderStatus(context.projectRoot, name, folderPath));
+  }
+
+  for (const [name, requested] of Object.entries(config?.git ?? {})) {
+    const manifestEntry = gitManifestByName.get(name);
+    entries.push(await buildGitStatus(name, requested, manifestEntry ?? null));
+  }
+
   return {
-    schemaVersion: 1,
     generatedAt: new Date().toISOString(),
     projectRoot: context.projectRoot,
     configPath: loadedConfig?.path ?? null,
+    localConfigPath: loadedConfig?.localPath ?? null,
     manifestPath: loadedManifest?.path ?? null,
-    entries,
+    references: entries,
     summary: summarizeStatus(entries)
   };
 }
 
-function selectStatusDependencies(
-  dependencies: DepCloneDependency[],
-  configDependencies: DepCloneDependency[],
-  references: string[] | undefined,
-  all: boolean
-): { selected: DepCloneDependency[]; missingSelectors: string[] } {
-  if (all || references?.includes('*')) {
-    return { selected: dependencies, missingSelectors: [] };
-  }
-
-  if (!references || references.length === 0) {
-    return {
-      selected: configDependencies.length > 0 ? configDependencies : dependencies,
-      missingSelectors: []
-    };
-  }
-
-  const selected: DepCloneDependency[] = [];
-  const missingSelectors: string[] = [];
-
-  for (const selector of references) {
-    const match = dependencies.find((dependency) => {
-      return dependency.name === selector || dependencyKey(dependency.name, dependency.version) === selector;
-    });
-
-    if (match) {
-      selected.push(match);
-    } else {
-      missingSelectors.push(selector);
-    }
-  }
-
-  return { selected: mergeDependencyEntries([...selected, ...configDependencies]), missingSelectors };
+function selectStatusPackages(
+  packageUniverse: PackageReference[],
+  configPackages: PackageReference[],
+  allPackages: boolean,
+  hasConfig: boolean
+): PackageReference[] {
+  if (allPackages) return packageUniverse;
+  if (hasConfig) return configPackages;
+  return packageUniverse;
 }
 
-async function buildDependencyStatus(
-  dependency: DepCloneDependency,
-  exactManifest: DepCloneManifest['dependencies'][number] | null,
-  nearestManifest: DepCloneManifest['dependencies'][number] | null,
+async function buildPackageStatus(
+  dependency: PackageReference,
+  exactManifest: AgentReferenceManifest['references'][number] | null,
+  nearestManifest: AgentReferenceManifest['references'][number] | null,
   hasConfig: boolean
-): Promise<DepCloneStatusEntry> {
+): Promise<AgentReferenceStatusEntry> {
   const manifestEntry = exactManifest ?? nearestManifest;
   const clonedVersion = manifestEntry?.version ?? null;
-  const worktreePath = manifestEntry?.worktreePath ?? null;
-  const worktreeExists = worktreePath ? await pathExists(worktreePath) : false;
-  const configured = hasConfig;
-  const status = getStatusState(dependency, exactManifest, nearestManifest, worktreeExists, configured);
+  const referencePath = manifestEntry?.path ?? null;
+  const pathExistsNow = referencePath ? await pathExists(referencePath) : false;
+  const status = getPackageStatusState(dependency, exactManifest, nearestManifest, pathExistsNow, hasConfig);
 
   return {
+    kind: 'package',
     name: dependency.name,
+    requested: dependency.specifier,
     packageManager: dependency.packageManager,
-    configured,
+    configured: hasConfig,
     currentVersion: dependency.version,
     clonedVersion,
     dependencyTypes: dependency.dependencyTypes,
     importers: dependency.importers,
-    worktreePath,
+    path: referencePath,
     checkoutSha: manifestEntry?.checkoutSha ?? null,
     status,
     action: actionForStatus(status)
   };
 }
 
-function getStatusState(
-  dependency: DepCloneDependency,
-  exactManifest: DepCloneManifest['dependencies'][number] | null,
-  nearestManifest: DepCloneManifest['dependencies'][number] | null,
-  worktreeExists: boolean,
+async function buildFolderStatus(projectRoot: string, name: string, requested: string): Promise<AgentReferenceStatusEntry> {
+  const resolvedPath = resolveReferencePath(projectRoot, requested);
+  const ready = await pathExists(resolvedPath);
+
+  return {
+    kind: 'folder',
+    name,
+    requested,
+    packageManager: null,
+    configured: true,
+    currentVersion: null,
+    clonedVersion: null,
+    dependencyTypes: [],
+    importers: [],
+    path: resolvedPath,
+    checkoutSha: null,
+    status: ready ? 'ready' : 'missing',
+    action: ready ? 'Use path for source inspection.' : 'Create or correct this folder reference path.'
+  };
+}
+
+async function buildGitStatus(
+  name: string,
+  requested: string,
+  manifestEntry: AgentReferenceManifest['references'][number] | null
+): Promise<AgentReferenceStatusEntry> {
+  const referencePath = manifestEntry?.path ?? null;
+  const ready = referencePath ? await pathExists(referencePath) : false;
+
+  return {
+    kind: 'git',
+    name,
+    requested,
+    packageManager: null,
+    configured: true,
+    currentVersion: null,
+    clonedVersion: null,
+    dependencyTypes: [],
+    importers: [],
+    path: referencePath,
+    checkoutSha: manifestEntry?.checkoutSha ?? null,
+    status: ready ? 'ready' : manifestEntry ? 'missing-worktree' : 'missing',
+    action: ready ? 'Use path for source inspection.' : 'Run agent-reference clone --non-interactive to materialize this git reference.'
+  };
+}
+
+function getPackageStatusState(
+  dependency: PackageReference,
+  exactManifest: AgentReferenceManifest['references'][number] | null,
+  nearestManifest: AgentReferenceManifest['references'][number] | null,
+  pathExistsNow: boolean,
   configured: boolean
-): DepCloneStatusState {
+): AgentReferenceStatusState {
   if (!exactManifest && nearestManifest && nearestManifest.version !== dependency.version) return 'stale';
   if (!exactManifest) return configured ? 'missing' : 'unconfigured';
-  if (!worktreeExists) return 'missing-worktree';
+  if (!pathExistsNow) return 'missing-worktree';
   return 'ready';
 }
 
-function actionForStatus(status: DepCloneStatusState): string {
-  if (status === 'ready') return 'Use worktreePath for source inspection.';
-  if (status === 'unconfigured') return 'Add this package to depclone.config.json if agents should inspect it.';
-  return 'Run depclone clone --non-interactive to refresh local dependency sources.';
+function actionForStatus(status: AgentReferenceStatusState): string {
+  if (status === 'ready') return 'Use path for source inspection.';
+  if (status === 'unconfigured') return 'Add this package to agent-reference.json if agents should inspect it.';
+  return 'Run agent-reference clone --non-interactive to refresh local references.';
 }
 
-function summarizeStatus(entries: DepCloneStatusEntry[]): Record<DepCloneStatusState, number> {
-  const summary: Record<DepCloneStatusState, number> = {
+function summarizeStatus(entries: AgentReferenceStatusEntry[]): Record<AgentReferenceStatusState, number> {
+  const summary: Record<AgentReferenceStatusState, number> = {
     ready: 0,
     missing: 0,
     'missing-worktree': 0,
@@ -181,6 +218,14 @@ function summarizeStatus(entries: DepCloneStatusEntry[]): Record<DepCloneStatusS
   }
 
   return summary;
+}
+
+function resolveReferencePath(projectRoot: string, requested: string): string {
+  if (requested.startsWith('~/')) {
+    return path.join(os.homedir(), requested.slice(2));
+  }
+  if (path.isAbsolute(requested)) return requested;
+  return path.resolve(projectRoot, requested);
 }
 
 async function pathExists(filePath: string): Promise<boolean> {

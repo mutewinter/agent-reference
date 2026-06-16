@@ -1,10 +1,10 @@
 {
-  "name": "depclone",
+  "name": "agent-reference",
   "version": "0.1.0",
-  "description": "Clone exact dependency source repositories into agent-readable local worktrees.",
+  "description": "Materialize package, git, and folder references for coding agents.",
   "type": "module",
   "bin": {
-    "depclone": "./dist/cli.js"
+    "agent-reference": "./dist/cli.js"
   },
   "types": "./dist/index.d.ts",
   "exports": {
@@ -26,11 +26,12 @@
     "prepack": "npm run build"
   },
   "keywords": [
-    "dependencies",
+    "references",
     "agents",
     "git",
     "pnpm",
-    "source"
+    "source",
+    "context"
   ],
   "license": "MIT",
   "engines": {

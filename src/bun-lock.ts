@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 
 import { isExactRegistryVersion, parsePackageAtVersion } from './package-utils.ts';
 import { dependenciesFromPackageJsonDirectives } from './lock-utils.ts';
-import type { DepCloneDependency, ProjectContext, ScanProjectOptions } from './types.ts';
+import type { PackageReference, ProjectContext, ScanProjectOptions } from './types.ts';
 
 interface BunLock {
   lockfileVersion?: number;
@@ -21,7 +21,7 @@ type BunPackageEntry = [string, ...unknown[]];
 export async function scanBunDependencies(
   context: ProjectContext,
   options: ScanProjectOptions = {}
-): Promise<DepCloneDependency[]> {
+): Promise<PackageReference[]> {
   if (context.lockfilePath.endsWith('bun.lockb')) {
     throw new Error('bun.lockb is binary and cannot be inspected. Generate bun.lock with Bun v1.2+ first.');
   }

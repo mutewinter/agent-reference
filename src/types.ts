@@ -19,7 +19,7 @@ export interface ListDependenciesOptions extends ScanProjectOptions {
   cwd?: string;
 }
 
-export interface DepCloneDependency {
+export interface PackageReference {
   name: string;
   alias: string | null;
   version: string;
@@ -78,7 +78,7 @@ export interface MetadataResolverOptions {
 }
 
 export interface MetadataResolver {
-  resolve(dependency: DepCloneDependency): Promise<DependencyMetadata>;
+  resolve(dependency: PackageReference): Promise<DependencyMetadata>;
 }
 
 export interface GitWorktreeOptions {
@@ -90,7 +90,7 @@ export interface GitWorktreeOptions {
 }
 
 export interface GitWorktreeResult {
-  dependency: DepCloneDependency;
+  dependency: PackageReference;
   metadata: DependencyMetadata;
   bareRepositoryPath: string;
   worktreePath: string;
@@ -100,7 +100,19 @@ export interface GitWorktreeResult {
   reused: boolean;
 }
 
-export interface CloneDependencyOptions extends ScanProjectOptions {
+export interface GitReferenceWorktreeResult {
+  name: string;
+  requested: string;
+  repositoryUrl: string;
+  bareRepositoryPath: string;
+  worktreePath: string;
+  checkoutRef: string;
+  checkoutSha: string;
+  refSource: 'configured' | 'defaultBranch' | 'existing';
+  reused: boolean;
+}
+
+export interface CloneReferencesOptions extends ScanProjectOptions {
   cwd?: string;
   packages?: string[];
   all?: boolean;
@@ -114,39 +126,44 @@ export interface CloneDependencyOptions extends ScanProjectOptions {
   configFile?: string | null;
 }
 
-export interface CloneDependencyResult {
-  scanned: DepCloneDependency[];
-  selected: DepCloneDependency[];
+export interface CloneReferencesResult {
+  scanned: PackageReference[];
+  selected: PackageReference[];
   cloned: GitWorktreeResult[];
   skipped: Array<{
-    dependency: DepCloneDependency;
+    dependency: PackageReference;
     reason: string;
   }>;
+  clonedGit: GitReferenceWorktreeResult[];
   manifestPath: string;
 }
 
-export interface DepCloneManifest {
+export type AgentReferenceKind = 'package' | 'folder' | 'git';
+
+export interface AgentReferenceManifest {
   schemaVersion: 1;
   generatedAt: string;
   projectRoot: string;
-  dependencies: Array<{
+  references: Array<{
+    kind: AgentReferenceKind;
     name: string;
-    version: string;
-    packageManager: PackageManager;
+    requested: string | null;
+    version: string | null;
+    packageManager: PackageManager | null;
     importers: string[];
     dependencyTypes: DependencyType[];
     repositoryUrl: string | null;
     repositoryDirectory: string | null;
     gitHead: string | null;
-    bareRepositoryPath: string;
-    worktreePath: string;
-    checkoutRef: string;
-    checkoutSha: string;
-    refSource: GitWorktreeResult['refSource'];
+    bareRepositoryPath: string | null;
+    path: string;
+    checkoutRef: string | null;
+    checkoutSha: string | null;
+    refSource: GitWorktreeResult['refSource'] | GitReferenceWorktreeResult['refSource'] | null;
   }>;
 }
 
-export type DepCloneStatusState =
+export type AgentReferenceStatusState =
   | 'ready'
   | 'missing'
   | 'missing-worktree'
@@ -154,28 +171,30 @@ export type DepCloneStatusState =
   | 'not-installed'
   | 'unconfigured';
 
-export interface DepCloneStatusEntry {
+export interface AgentReferenceStatusEntry {
+  kind: AgentReferenceKind;
   name: string;
+  requested: string | null;
   packageManager: PackageManager | null;
   configured: boolean;
   currentVersion: string | null;
   clonedVersion: string | null;
   dependencyTypes: DependencyType[];
   importers: string[];
-  worktreePath: string | null;
+  path: string | null;
   checkoutSha: string | null;
-  status: DepCloneStatusState;
+  status: AgentReferenceStatusState;
   action: string;
 }
 
-export interface DepCloneStatusReport {
-  schemaVersion: 1;
+export interface AgentReferenceStatusReport {
   generatedAt: string;
   projectRoot: string;
   configPath: string | null;
+  localConfigPath: string | null;
   manifestPath: string | null;
-  entries: DepCloneStatusEntry[];
-  summary: Record<DepCloneStatusState, number>;
+  references: AgentReferenceStatusEntry[];
+  summary: Record<AgentReferenceStatusState, number>;
 }
 
 export interface CliOptions {
@@ -194,20 +213,19 @@ export interface CliOptions {
   force: boolean;
 }
 
-export interface DepCloneConfig {
-  schemaVersion: 1;
-  references?: string[];
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-  all?: boolean;
+export interface AgentReferenceConfig {
+  packages?: Record<string, string>;
+  folders?: Record<string, string>;
+  git?: Record<string, string>;
+  allPackages?: boolean;
   allImporters?: boolean;
   registry?: string;
   worktreeDir?: string;
   cacheDir?: string;
 }
 
-export interface LoadedDepCloneConfig {
-  path: string;
-  config: DepCloneConfig;
+export interface LoadedAgentReferenceConfig {
+  path: string | null;
+  localPath: string | null;
+  config: AgentReferenceConfig;
 }

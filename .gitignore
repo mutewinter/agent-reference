@@ -1,4 +1,4 @@
-.depclone/
+.agent-reference/
 dist/
 node_modules/
 coverage/

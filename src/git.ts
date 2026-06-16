@@ -11,8 +11,9 @@ import {
 } from './package-utils.ts';
 import { repositoryCacheParts } from './repository.ts';
 import type {
-  DepCloneDependency,
+  PackageReference,
   DependencyMetadata,
+  GitReferenceWorktreeResult,
   GitWorktreeOptions,
   GitWorktreeResult
 } from './types.ts';
@@ -20,7 +21,7 @@ import type {
 const execFileAsync = promisify(execFile);
 
 export async function ensureDependencyWorktree(
-  dependency: DepCloneDependency,
+  dependency: PackageReference,
   metadata: DependencyMetadata,
   options: GitWorktreeOptions
 ): Promise<GitWorktreeResult> {
@@ -31,7 +32,7 @@ export async function ensureDependencyWorktree(
   const gitBin = options.gitBin ?? 'git';
   const bareStoreDir = options.bareStoreDir ?? defaultBareStoreDir();
   const bareRepositoryPath = path.join(bareStoreDir, ...repositoryCacheParts(metadata.repositoryUrl));
-  const worktreeRoot = options.worktreeRoot ?? path.join(options.projectRoot, '.depclone', 'dependencies');
+  const worktreeRoot = options.worktreeRoot ?? path.join(options.projectRoot, '.agent-reference', 'packages');
   const worktreePath = path.join(
     worktreeRoot,
     slugifyPackageName(dependency.name),
@@ -70,6 +71,62 @@ export async function ensureDependencyWorktree(
   return {
     dependency,
     metadata,
+    bareRepositoryPath,
+    worktreePath,
+    checkoutRef: checkout.ref,
+    checkoutSha: checkoutSha.stdout.trim(),
+    refSource: checkout.source,
+    reused: false
+  };
+}
+
+export async function ensureGitReferenceWorktree(
+  name: string,
+  spec: string,
+  options: GitWorktreeOptions
+): Promise<GitReferenceWorktreeResult> {
+  const parsed = parseGitReferenceSpec(spec, options.projectRoot);
+  const gitBin = options.gitBin ?? 'git';
+  const bareStoreDir = options.bareStoreDir ?? defaultBareStoreDir();
+  const bareRepositoryPath = path.join(bareStoreDir, ...repositoryCacheParts(parsed.repositoryUrl));
+  const refName = parsed.ref ?? 'HEAD';
+  const worktreeRoot = options.worktreeRoot ?? path.join(options.projectRoot, '.agent-reference', 'git');
+  const worktreePath = path.join(worktreeRoot, slugifyPackageName(name), slugifyVersion(refName));
+
+  await ensureBareRepository(parsed.repositoryUrl, bareRepositoryPath, gitBin);
+  const checkout = await resolveConfiguredRef(bareRepositoryPath, refName, gitBin);
+
+  if (await pathExists(worktreePath)) {
+    const checkoutSha = await runGit(['-C', worktreePath, 'rev-parse', 'HEAD'], { gitBin });
+    if (checkoutSha.stdout.trim() !== checkout.sha && !options.force) {
+      throw new Error(
+        `Worktree already exists at ${worktreePath} but is checked out at ${checkoutSha.stdout.trim()}`
+      );
+    }
+
+    return {
+      name,
+      requested: spec,
+      repositoryUrl: parsed.repositoryUrl,
+      bareRepositoryPath,
+      worktreePath,
+      checkoutRef: checkout.ref,
+      checkoutSha: checkoutSha.stdout.trim(),
+      refSource: 'existing',
+      reused: true
+    };
+  }
+
+  await fs.mkdir(path.dirname(worktreePath), { recursive: true });
+  await runGit(['-C', bareRepositoryPath, 'worktree', 'add', '--detach', worktreePath, checkout.ref], {
+    gitBin
+  });
+  const checkoutSha = await runGit(['-C', worktreePath, 'rev-parse', 'HEAD'], { gitBin });
+
+  return {
+    name,
+    requested: spec,
+    repositoryUrl: parsed.repositoryUrl,
     bareRepositoryPath,
     worktreePath,
     checkoutRef: checkout.ref,
@@ -130,7 +187,7 @@ async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string,
 
 async function resolveCheckoutRef(
   bareRepositoryPath: string,
-  dependency: DepCloneDependency,
+  dependency: PackageReference,
   metadata: DependencyMetadata,
   gitBin: string
 ): Promise<{ ref: string; sha: string; source: GitWorktreeResult['refSource'] }> {
@@ -186,16 +243,65 @@ async function resolveGitRevision(
 }
 
 function defaultBareStoreDir(): string {
-  if (process.env.DEPCLONE_STORE_DIR) {
-    return process.env.DEPCLONE_STORE_DIR;
+  if (process.env.AGENT_REFERENCE_STORE_DIR) {
+    return process.env.AGENT_REFERENCE_STORE_DIR;
   }
   if (process.env.XDG_CACHE_HOME) {
-    return path.join(process.env.XDG_CACHE_HOME, 'depclone', 'repositories');
+    return path.join(process.env.XDG_CACHE_HOME, 'agent-reference', 'repositories');
   }
   if (process.platform === 'darwin') {
-    return path.join(os.homedir(), 'Library', 'Caches', 'depclone', 'repositories');
+    return path.join(os.homedir(), 'Library', 'Caches', 'agent-reference', 'repositories');
   }
-  return path.join(os.homedir(), '.cache', 'depclone', 'repositories');
+  return path.join(os.homedir(), '.cache', 'agent-reference', 'repositories');
+}
+
+function parseGitReferenceSpec(spec: string, projectRoot: string): { repositoryUrl: string; ref: string | null } {
+  const hashIndex = spec.lastIndexOf('#');
+  const rawUrl = hashIndex === -1 ? spec : spec.slice(0, hashIndex);
+  const ref = hashIndex === -1 ? null : spec.slice(hashIndex + 1);
+  const repositoryUrl = normalizeGitReferenceUrl(rawUrl, projectRoot);
+  if (!repositoryUrl) {
+    throw new Error(`Invalid git reference spec: ${spec}`);
+  }
+  return { repositoryUrl, ref: ref || null };
+}
+
+function normalizeGitReferenceUrl(rawUrl: string, projectRoot: string): string | null {
+  if (rawUrl.startsWith('file:')) {
+    return path.resolve(projectRoot, rawUrl.slice('file:'.length));
+  }
+  if (rawUrl.startsWith('github:')) {
+    return `https://github.com/${rawUrl.slice('github:'.length).replace(/\.git$/, '')}.git`;
+  }
+  return rawUrl || null;
+}
+
+async function resolveConfiguredRef(
+  bareRepositoryPath: string,
+  refName: string,
+  gitBin: string
+): Promise<{ ref: string; sha: string; source: GitReferenceWorktreeResult['refSource'] }> {
+  const candidates = refName === 'HEAD'
+    ? ['HEAD']
+    : [
+        `${refName}^{commit}`,
+        `refs/tags/${refName}^{commit}`,
+        `refs/heads/${refName}^{commit}`,
+        `refs/remotes/origin/${refName}^{commit}`
+      ];
+
+  for (const candidate of candidates) {
+    const resolved = await resolveGitRevision(bareRepositoryPath, candidate, gitBin);
+    if (resolved) {
+      return {
+        ref: resolved.ref,
+        sha: resolved.sha,
+        source: refName === 'HEAD' ? 'defaultBranch' : 'configured'
+      };
+    }
+  }
+
+  throw new Error(`Unable to resolve git reference ${refName} in ${bareRepositoryPath}`);
 }
 
 async function pathExists(filePath: string): Promise<boolean> {
