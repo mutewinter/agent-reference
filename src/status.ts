@@ -2,16 +2,16 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { resolveConfigPackageReferences } from './config-dependencies.ts';
-import { loadAgentReferenceConfig } from './config.ts';
 import { readManifest } from './manifest.ts';
-import { dependencyKey, mergeDependencyEntries } from './package-utils.ts';
-import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
+import { dependencyKey } from './package-utils.ts';
+import { loadReferenceContext } from './reference-context.ts';
 import type {
   AgentReferenceManifest,
   AgentReferenceStatusEntry,
   AgentReferenceStatusReport,
   AgentReferenceStatusState,
+  GitManifestReference,
+  PackageManifestReference,
   PackageReference,
   ScanProjectOptions
 } from './types.ts';
@@ -20,30 +20,17 @@ export async function getStatusReport(
   projectPath: string | null | undefined,
   options: ScanProjectOptions & { cwd?: string; configFile?: string | null } = {}
 ): Promise<AgentReferenceStatusReport> {
-  const cwd = options.cwd ?? process.cwd();
-  const context = await resolveProjectInput(projectPath, cwd);
-  const loadedConfig = await loadAgentReferenceConfig(context.projectRoot, {
-    configFile: options.configFile
-  });
-  const config = loadedConfig?.config;
-  const installedPackages = await scanResolvedProject(context, {
-    ...options,
-    allImporters: options.allImporters || config?.allImporters
-  });
-  const configPackages = await resolveConfigPackageReferences(config, context, installedPackages, {
-    registry: config?.registry,
-    configPath: loadedConfig?.path ?? undefined
-  });
-  const packageUniverse = mergeDependencyEntries([...installedPackages, ...configPackages.packages]);
-  const loadedManifest = await readManifest(context.projectRoot);
+  const referenceContext = await loadReferenceContext(projectPath, options);
+  const { config, configPackages, loadedConfig, packageUniverse, project } = referenceContext;
+  const loadedManifest = await readManifest(project.projectRoot);
   const manifestReferences = loadedManifest?.manifest.references ?? [];
   const packageManifestByExact = new Map(
     manifestReferences
-      .filter((entry) => entry.kind === 'package' && entry.version)
-      .map((entry) => [dependencyKey(entry.name, entry.version ?? ''), entry])
+      .filter(isPackageManifestReference)
+      .map((entry) => [dependencyKey(entry.name, entry.version), entry])
   );
-  const packageManifestByName = new Map<string, AgentReferenceManifest['references'][number]>();
-  const gitManifestByName = new Map<string, AgentReferenceManifest['references'][number]>();
+  const packageManifestByName = new Map<string, PackageManifestReference>();
+  const gitManifestByName = new Map<string, GitManifestReference>();
 
   for (const entry of manifestReferences) {
     if (entry.kind === 'package') packageManifestByName.set(entry.name, entry);
@@ -79,7 +66,7 @@ export async function getStatusReport(
   }
 
   for (const [name, folderPath] of Object.entries(config?.folders ?? {})) {
-    entries.push(await buildFolderStatus(context.projectRoot, name, folderPath));
+    entries.push(await buildFolderStatus(project.projectRoot, name, folderPath));
   }
 
   for (const [name, requested] of Object.entries(config?.git ?? {})) {
@@ -89,7 +76,7 @@ export async function getStatusReport(
 
   return {
     generatedAt: new Date().toISOString(),
-    projectRoot: context.projectRoot,
+    projectRoot: project.projectRoot,
     configPath: loadedConfig?.path ?? null,
     localConfigPath: loadedConfig?.localPath ?? null,
     manifestPath: loadedManifest?.path ?? null,
@@ -111,8 +98,8 @@ function selectStatusPackages(
 
 async function buildPackageStatus(
   dependency: PackageReference,
-  exactManifest: AgentReferenceManifest['references'][number] | null,
-  nearestManifest: AgentReferenceManifest['references'][number] | null,
+  exactManifest: PackageManifestReference | null,
+  nearestManifest: PackageManifestReference | null,
   hasConfig: boolean
 ): Promise<AgentReferenceStatusEntry> {
   const manifestEntry = exactManifest ?? nearestManifest;
@@ -162,10 +149,11 @@ async function buildFolderStatus(projectRoot: string, name: string, requested: s
 async function buildGitStatus(
   name: string,
   requested: string,
-  manifestEntry: AgentReferenceManifest['references'][number] | null
+  manifestEntry: GitManifestReference | null
 ): Promise<AgentReferenceStatusEntry> {
   const referencePath = manifestEntry?.path ?? null;
   const ready = referencePath ? await pathExists(referencePath) : false;
+  const status = getGitStatusState(requested, manifestEntry, ready);
 
   return {
     kind: 'git',
@@ -179,15 +167,17 @@ async function buildGitStatus(
     importers: [],
     path: referencePath,
     checkoutSha: manifestEntry?.checkoutSha ?? null,
-    status: ready ? 'ready' : manifestEntry ? 'missing-worktree' : 'missing',
-    action: ready ? 'Use path for source inspection.' : 'Run agent-reference clone --non-interactive to materialize this git reference.'
+    status,
+    action: status === 'ready'
+      ? 'Use path for source inspection.'
+      : 'Run agent-reference clone --non-interactive to materialize this git reference.'
   };
 }
 
 function getPackageStatusState(
   dependency: PackageReference,
-  exactManifest: AgentReferenceManifest['references'][number] | null,
-  nearestManifest: AgentReferenceManifest['references'][number] | null,
+  exactManifest: PackageManifestReference | null,
+  nearestManifest: PackageManifestReference | null,
   pathExistsNow: boolean,
   configured: boolean
 ): AgentReferenceStatusState {
@@ -195,6 +185,23 @@ function getPackageStatusState(
   if (!exactManifest) return configured ? 'missing' : 'unconfigured';
   if (!pathExistsNow) return 'missing-worktree';
   return 'ready';
+}
+
+function getGitStatusState(
+  requested: string,
+  manifestEntry: GitManifestReference | null,
+  pathExistsNow: boolean
+): AgentReferenceStatusState {
+  if (!manifestEntry) return 'missing';
+  if (manifestEntry.requested !== requested) return 'stale';
+  if (!pathExistsNow) return 'missing-worktree';
+  return 'ready';
+}
+
+function isPackageManifestReference(
+  reference: AgentReferenceManifest['references'][number]
+): reference is PackageManifestReference {
+  return reference.kind === 'package';
 }
 
 function actionForStatus(status: AgentReferenceStatusState): string {

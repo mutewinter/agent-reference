@@ -1,10 +1,10 @@
 import path from 'node:path';
 
-import { resolveConfigPackageReferences } from './config-dependencies.ts';
-import { loadAgentReferenceConfig, writeAgentReferenceConfig } from './config.ts';
+import { writeAgentReferenceConfig } from './config.ts';
 import { ensureDependencyWorktree, ensureGitReferenceWorktree } from './git.ts';
 import { RegistryMetadataResolver } from './metadata.ts';
 import { dependencyKey, mergeDependencyEntries } from './package-utils.ts';
+import { loadReferenceContext } from './reference-context.ts';
 import { resolveProjectInput, scanProject, scanResolvedProject } from './scanner.ts';
 import { writeAgentFiles, writeManifest } from './manifest.ts';
 import type {
@@ -56,27 +56,17 @@ export async function cloneReferences(
   projectPath: string | null | undefined,
   options: CloneReferencesOptions = {}
 ): Promise<CloneReferencesResult> {
-  const cwd = options.cwd ?? process.cwd();
-  const context = await resolveProjectInput(projectPath, cwd);
-  const loadedConfig = await loadAgentReferenceConfig(context.projectRoot, {
-    configFile: options.configFile
-  });
-  const config = loadedConfig?.config;
-  const scanned = await scanResolvedProject(context, {
+  const referenceContext = await loadReferenceContext(projectPath, {
     ...options,
-    allImporters: options.allImporters || config?.allImporters
+    registry: options.registry ?? undefined
   });
-  const configPackages = await resolveConfigPackageReferences(config, context, scanned, {
-    registry: options.registry ?? config?.registry,
-    configPath: loadedConfig?.path ?? undefined
-  });
-  const dependencyUniverse = mergeDependencyEntries([...scanned, ...configPackages.packages]);
+  const { config, configPackages, cwd, loadedConfig, packageUniverse, project } = referenceContext;
   const hasExplicitPackageSelection = Boolean(options.packages && options.packages.length > 0);
   const configuredPackages = hasExplicitPackageSelection
     ? options.packages
     : Object.keys(config?.packages ?? {});
   const configuredAll = options.all || config?.allPackages || false;
-  let selected = selectDependencies(dependencyUniverse, {
+  let selected = selectDependencies(packageUniverse, {
     packages: configuredPackages,
     all: configuredAll
   });
@@ -95,7 +85,7 @@ export async function cloneReferences(
       registry: options.registry ?? config?.registry,
       metadataMap: options.metadataMap
     });
-  const projectRoot = context.projectRoot;
+  const projectRoot = project.projectRoot;
   const cloned: GitWorktreeResult[] = [];
   const clonedGit: CloneReferencesResult['clonedGit'] = [];
   const skipped: CloneReferencesResult['skipped'] = [];
@@ -134,7 +124,7 @@ export async function cloneReferences(
   await writeAgentFiles(projectRoot);
 
   return {
-    scanned: dependencyUniverse,
+    scanned: packageUniverse,
     selected,
     cloned,
     clonedGit,

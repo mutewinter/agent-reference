@@ -7,6 +7,7 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { cloneReferences } from '../src/core.ts';
+import type { AgentReferenceManifest } from '../src/types.ts';
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(import.meta.dirname, '..');
@@ -14,15 +15,7 @@ const repoRoot = path.resolve(import.meta.dirname, '..');
 test('clones a selected dependency into a project worktree using local metadata', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-test-'));
   const projectRoot = await copyFixtureProject(tempDir);
-  const sourceRepo = path.join(tempDir, 'tiny-invariant-source');
-  await fs.mkdir(sourceRepo);
-  await git(['init'], sourceRepo);
-  await git(['config', 'user.email', 'agent-reference@example.test'], sourceRepo);
-  await git(['config', 'user.name', 'agent-reference Test'], sourceRepo);
-  await fs.writeFile(path.join(sourceRepo, 'index.js'), 'export const ok = true;\n');
-  await git(['add', 'index.js'], sourceRepo);
-  await git(['commit', '-m', 'initial'], sourceRepo);
-  const commit = (await git(['rev-parse', 'HEAD'], sourceRepo)).trim();
+  const sourceRepo = await createSourceRepo(tempDir, 'tiny-invariant-source', 'index.js', 'export const ok = true;\n');
 
   const result = await cloneReferences(path.join(projectRoot, 'package.json'), {
     packages: ['tiny-invariant'],
@@ -32,9 +25,9 @@ test('clones a selected dependency into a project worktree using local metadata'
         version: '1.3.3',
         repository: {
           type: 'git',
-          url: sourceRepo
+          url: sourceRepo.path
         },
-        gitHead: commit
+        gitHead: sourceRepo.commit
       }
     },
     bareStoreDir: path.join(tempDir, 'store'),
@@ -42,7 +35,7 @@ test('clones a selected dependency into a project worktree using local metadata'
   });
 
   assert.equal(result.cloned.length, 1);
-  assert.equal(result.cloned[0]?.checkoutSha, commit);
+  assert.equal(result.cloned[0]?.checkoutSha, sourceRepo.commit);
   assert.equal(await fs.readFile(path.join(result.cloned[0]?.worktreePath ?? '', 'index.js'), 'utf8'), 'export const ok = true;\n');
   assert.equal(result.skipped.length, 0);
 });
@@ -50,15 +43,7 @@ test('clones a selected dependency into a project worktree using local metadata'
 test('clones packages selected by agent-reference.json', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-config-test-'));
   const projectRoot = await copyFixtureProject(tempDir);
-  const sourceRepo = path.join(tempDir, 'tiny-invariant-source');
-  await fs.mkdir(sourceRepo);
-  await git(['init'], sourceRepo);
-  await git(['config', 'user.email', 'agent-reference@example.test'], sourceRepo);
-  await git(['config', 'user.name', 'agent-reference Test'], sourceRepo);
-  await fs.writeFile(path.join(sourceRepo, 'index.js'), 'export const fromConfig = true;\n');
-  await git(['add', 'index.js'], sourceRepo);
-  await git(['commit', '-m', 'initial'], sourceRepo);
-  const commit = (await git(['rev-parse', 'HEAD'], sourceRepo)).trim();
+  const sourceRepo = await createSourceRepo(tempDir, 'tiny-invariant-source', 'index.js', 'export const fromConfig = true;\n');
 
   const result = await cloneReferences(path.join(projectRoot, 'package.json'), {
     metadataMap: {
@@ -67,9 +52,9 @@ test('clones packages selected by agent-reference.json', async () => {
         version: '1.3.3',
         repository: {
           type: 'git',
-          url: sourceRepo
+          url: sourceRepo.path
         },
-        gitHead: commit
+        gitHead: sourceRepo.commit
       }
     },
     bareStoreDir: path.join(tempDir, 'store'),
@@ -77,7 +62,7 @@ test('clones packages selected by agent-reference.json', async () => {
   });
 
   assert.deepEqual(result.selected.map((dependency) => dependency.name), ['tiny-invariant']);
-  assert.equal(result.cloned[0]?.checkoutSha, commit);
+  assert.equal(result.cloned[0]?.checkoutSha, sourceRepo.commit);
 });
 
 test('clones config-declared packages that are not in package.json', async () => {
@@ -89,15 +74,7 @@ test('clones config-declared packages that are not in package.json', async () =>
     }
   }, null, 2));
 
-  const sourceRepo = path.join(tempDir, 'tiny-warning-source');
-  await fs.mkdir(sourceRepo);
-  await git(['init'], sourceRepo);
-  await git(['config', 'user.email', 'agent-reference@example.test'], sourceRepo);
-  await git(['config', 'user.name', 'agent-reference Test'], sourceRepo);
-  await fs.writeFile(path.join(sourceRepo, 'index.js'), 'export const extra = true;\n');
-  await git(['add', 'index.js'], sourceRepo);
-  await git(['commit', '-m', 'initial'], sourceRepo);
-  const commit = (await git(['rev-parse', 'HEAD'], sourceRepo)).trim();
+  const sourceRepo = await createSourceRepo(tempDir, 'tiny-warning-source', 'index.js', 'export const extra = true;\n');
 
   const result = await cloneReferences(path.join(projectRoot, 'package.json'), {
     metadataMap: {
@@ -106,9 +83,9 @@ test('clones config-declared packages that are not in package.json', async () =>
         version: '1.0.3',
         repository: {
           type: 'git',
-          url: sourceRepo
+          url: sourceRepo.path
         },
-        gitHead: commit
+        gitHead: sourceRepo.commit
       }
     },
     bareStoreDir: path.join(tempDir, 'store'),
@@ -118,26 +95,18 @@ test('clones config-declared packages that are not in package.json', async () =>
   assert.deepEqual(result.selected.map((dependency) => `${dependency.name}@${dependency.version}`), [
     'tiny-warning@1.0.3'
   ]);
-  assert.equal(result.cloned[0]?.checkoutSha, commit);
+  assert.equal(result.cloned[0]?.checkoutSha, sourceRepo.commit);
 });
 
 test('clones configured git references', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-git-config-test-'));
   const projectRoot = await copyFixtureProject(tempDir);
-  const sourceRepo = path.join(tempDir, 'tooling-source');
-  await fs.mkdir(sourceRepo);
-  await git(['init'], sourceRepo);
-  await git(['config', 'user.email', 'agent-reference@example.test'], sourceRepo);
-  await git(['config', 'user.name', 'agent-reference Test'], sourceRepo);
-  await fs.writeFile(path.join(sourceRepo, 'tool.js'), 'export const tool = true;\n');
-  await git(['add', 'tool.js'], sourceRepo);
-  await git(['commit', '-m', 'initial'], sourceRepo);
-  const commit = (await git(['rev-parse', 'HEAD'], sourceRepo)).trim();
-  const relativeSourceRepo = path.relative(projectRoot, sourceRepo);
+  const sourceRepo = await createSourceRepo(tempDir, 'tooling-source', 'tool.js', 'export const tool = true;\n');
+  const relativeSourceRepo = path.relative(projectRoot, sourceRepo.path);
 
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
     git: {
-      tooling: `file:${relativeSourceRepo}#${commit}`
+      tooling: `file:${relativeSourceRepo}#${sourceRepo.commit}`
     }
   }, null, 2));
 
@@ -147,8 +116,48 @@ test('clones configured git references', async () => {
 
   assert.equal(result.cloned.length, 0);
   assert.equal(result.clonedGit.length, 1);
-  assert.equal(result.clonedGit[0]?.checkoutSha, commit);
+  assert.equal(result.clonedGit[0]?.checkoutSha, sourceRepo.commit);
   assert.equal(await fs.readFile(path.join(result.clonedGit[0]?.worktreePath ?? '', 'tool.js'), 'utf8'), 'export const tool = true;\n');
+});
+
+test('preserves existing manifest references after a partial clone', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-manifest-merge-test-'));
+  const projectRoot = await copyFixtureProject(tempDir);
+  const packageRepo = await createSourceRepo(tempDir, 'tiny-invariant-source', 'index.js', 'export const packageSource = true;\n');
+
+  await cloneReferences(path.join(projectRoot, 'package.json'), {
+    metadataMap: {
+      'tiny-invariant@1.3.3': {
+        name: 'tiny-invariant',
+        version: '1.3.3',
+        repository: {
+          type: 'git',
+          url: packageRepo.path
+        },
+        gitHead: packageRepo.commit
+      }
+    },
+    bareStoreDir: path.join(tempDir, 'store')
+  });
+
+  const gitRepo = await createSourceRepo(tempDir, 'tooling-source', 'tool.js', 'export const tool = true;\n');
+
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
+    git: {
+      tooling: `file:${path.relative(projectRoot, gitRepo.path)}#${gitRepo.commit}`
+    }
+  }, null, 2));
+
+  await cloneReferences(path.join(projectRoot, 'package.json'), {
+    bareStoreDir: path.join(tempDir, 'store')
+  });
+
+  const manifest = JSON.parse(
+    await fs.readFile(path.join(projectRoot, '.agent-reference', 'manifest.json'), 'utf8')
+  ) as AgentReferenceManifest;
+
+  assert.equal(manifest.references.some((reference) => reference.kind === 'package' && reference.name === 'tiny-invariant'), true);
+  assert.equal(manifest.references.some((reference) => reference.kind === 'git' && reference.name === 'tooling'), true);
 });
 
 async function copyFixtureProject(tempDir: string): Promise<string> {
@@ -156,6 +165,26 @@ async function copyFixtureProject(tempDir: string): Promise<string> {
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), projectRoot, { recursive: true });
   await fs.rm(path.join(projectRoot, '.agent-reference'), { recursive: true, force: true });
   return projectRoot;
+}
+
+async function createSourceRepo(
+  parentDir: string,
+  name: string,
+  fileName: string,
+  content: string
+): Promise<{ path: string; commit: string }> {
+  const repoPath = path.join(parentDir, name);
+  await fs.mkdir(repoPath);
+  await git(['init'], repoPath);
+  await git(['config', 'user.email', 'agent-reference@example.test'], repoPath);
+  await git(['config', 'user.name', 'agent-reference Test'], repoPath);
+  await fs.writeFile(path.join(repoPath, fileName), content);
+  await git(['add', fileName], repoPath);
+  await git(['commit', '-m', 'initial'], repoPath);
+  return {
+    path: repoPath,
+    commit: (await git(['rev-parse', 'HEAD'], repoPath)).trim()
+  };
 }
 
 async function git(args: string[], cwd: string): Promise<string> {

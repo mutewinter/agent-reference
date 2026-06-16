@@ -19,6 +19,23 @@ import type {
 } from './types.ts';
 
 const execFileAsync = promisify(execFile);
+type PackageCheckoutSource = Exclude<GitWorktreeResult['refSource'], 'existing'>;
+type GitReferenceCheckoutSource = Exclude<GitReferenceWorktreeResult['refSource'], 'existing'>;
+
+interface CheckoutRef<RefSource extends string> {
+  ref: string;
+  sha: string;
+  source: RefSource;
+}
+
+interface MaterializedWorktree<RefSource extends string> {
+  bareRepositoryPath: string;
+  worktreePath: string;
+  checkoutRef: string;
+  checkoutSha: string;
+  refSource: RefSource | 'existing';
+  reused: boolean;
+}
 
 export async function ensureDependencyWorktree(
   dependency: PackageReference,
@@ -31,52 +48,25 @@ export async function ensureDependencyWorktree(
 
   const gitBin = options.gitBin ?? 'git';
   const bareStoreDir = options.bareStoreDir ?? defaultBareStoreDir();
-  const bareRepositoryPath = path.join(bareStoreDir, ...repositoryCacheParts(metadata.repositoryUrl));
   const worktreeRoot = options.worktreeRoot ?? path.join(options.projectRoot, '.agent-reference', 'packages');
   const worktreePath = path.join(
     worktreeRoot,
     slugifyPackageName(dependency.name),
     slugifyVersion(dependency.version)
   );
-
-  await ensureBareRepository(metadata.repositoryUrl, bareRepositoryPath, gitBin);
-  const checkout = await resolveCheckoutRef(bareRepositoryPath, dependency, metadata, gitBin);
-
-  if (await pathExists(worktreePath)) {
-    const checkoutSha = await runGit(['-C', worktreePath, 'rev-parse', 'HEAD'], { gitBin });
-    if (checkoutSha.stdout.trim() !== checkout.sha && !options.force) {
-      throw new Error(
-        `Worktree already exists at ${worktreePath} but is checked out at ${checkoutSha.stdout.trim()}`
-      );
-    }
-
-    return {
-      dependency,
-      metadata,
-      bareRepositoryPath,
-      worktreePath,
-      checkoutRef: checkout.ref,
-      checkoutSha: checkoutSha.stdout.trim(),
-      refSource: 'existing',
-      reused: true
-    };
-  }
-
-  await fs.mkdir(path.dirname(worktreePath), { recursive: true });
-  await runGit(['-C', bareRepositoryPath, 'worktree', 'add', '--detach', worktreePath, checkout.ref], {
-    gitBin
+  const materialized = await ensureWorktree({
+    repositoryUrl: metadata.repositoryUrl,
+    bareStoreDir,
+    worktreePath,
+    gitBin,
+    force: options.force,
+    resolveCheckout: (bareRepositoryPath) => resolveCheckoutRef(bareRepositoryPath, dependency, metadata, gitBin)
   });
-  const checkoutSha = await runGit(['-C', worktreePath, 'rev-parse', 'HEAD'], { gitBin });
 
   return {
     dependency,
     metadata,
-    bareRepositoryPath,
-    worktreePath,
-    checkoutRef: checkout.ref,
-    checkoutSha: checkoutSha.stdout.trim(),
-    refSource: checkout.source,
-    reused: false
+    ...materialized
   };
 }
 
@@ -88,28 +78,49 @@ export async function ensureGitReferenceWorktree(
   const parsed = parseGitReferenceSpec(spec, options.projectRoot);
   const gitBin = options.gitBin ?? 'git';
   const bareStoreDir = options.bareStoreDir ?? defaultBareStoreDir();
-  const bareRepositoryPath = path.join(bareStoreDir, ...repositoryCacheParts(parsed.repositoryUrl));
   const refName = parsed.ref ?? 'HEAD';
   const worktreeRoot = options.worktreeRoot ?? path.join(options.projectRoot, '.agent-reference', 'git');
   const worktreePath = path.join(worktreeRoot, slugifyPackageName(name), slugifyVersion(refName));
+  const materialized = await ensureWorktree({
+    repositoryUrl: parsed.repositoryUrl,
+    bareStoreDir,
+    worktreePath,
+    gitBin,
+    force: options.force,
+    resolveCheckout: (bareRepositoryPath) => resolveConfiguredRef(bareRepositoryPath, refName, gitBin)
+  });
 
-  await ensureBareRepository(parsed.repositoryUrl, bareRepositoryPath, gitBin);
-  const checkout = await resolveConfiguredRef(bareRepositoryPath, refName, gitBin);
+  return {
+    name,
+    requested: spec,
+    repositoryUrl: parsed.repositoryUrl,
+    ...materialized
+  };
+}
 
-  if (await pathExists(worktreePath)) {
-    const checkoutSha = await runGit(['-C', worktreePath, 'rev-parse', 'HEAD'], { gitBin });
+async function ensureWorktree<RefSource extends string>(options: {
+  repositoryUrl: string;
+  bareStoreDir: string;
+  worktreePath: string;
+  gitBin: string;
+  force?: boolean;
+  resolveCheckout: (bareRepositoryPath: string) => Promise<CheckoutRef<RefSource>>;
+}): Promise<MaterializedWorktree<RefSource>> {
+  const bareRepositoryPath = path.join(options.bareStoreDir, ...repositoryCacheParts(options.repositoryUrl));
+  await ensureBareRepository(options.repositoryUrl, bareRepositoryPath, options.gitBin);
+  const checkout = await options.resolveCheckout(bareRepositoryPath);
+
+  if (await pathExists(options.worktreePath)) {
+    const checkoutSha = await runGit(['-C', options.worktreePath, 'rev-parse', 'HEAD'], { gitBin: options.gitBin });
     if (checkoutSha.stdout.trim() !== checkout.sha && !options.force) {
       throw new Error(
-        `Worktree already exists at ${worktreePath} but is checked out at ${checkoutSha.stdout.trim()}`
+        `Worktree already exists at ${options.worktreePath} but is checked out at ${checkoutSha.stdout.trim()}`
       );
     }
 
     return {
-      name,
-      requested: spec,
-      repositoryUrl: parsed.repositoryUrl,
       bareRepositoryPath,
-      worktreePath,
+      worktreePath: options.worktreePath,
       checkoutRef: checkout.ref,
       checkoutSha: checkoutSha.stdout.trim(),
       refSource: 'existing',
@@ -117,18 +128,15 @@ export async function ensureGitReferenceWorktree(
     };
   }
 
-  await fs.mkdir(path.dirname(worktreePath), { recursive: true });
-  await runGit(['-C', bareRepositoryPath, 'worktree', 'add', '--detach', worktreePath, checkout.ref], {
-    gitBin
+  await fs.mkdir(path.dirname(options.worktreePath), { recursive: true });
+  await runGit(['-C', bareRepositoryPath, 'worktree', 'add', '--detach', options.worktreePath, checkout.ref], {
+    gitBin: options.gitBin
   });
-  const checkoutSha = await runGit(['-C', worktreePath, 'rev-parse', 'HEAD'], { gitBin });
+  const checkoutSha = await runGit(['-C', options.worktreePath, 'rev-parse', 'HEAD'], { gitBin: options.gitBin });
 
   return {
-    name,
-    requested: spec,
-    repositoryUrl: parsed.repositoryUrl,
     bareRepositoryPath,
-    worktreePath,
+    worktreePath: options.worktreePath,
     checkoutRef: checkout.ref,
     checkoutSha: checkoutSha.stdout.trim(),
     refSource: checkout.source,
@@ -190,7 +198,7 @@ async function resolveCheckoutRef(
   dependency: PackageReference,
   metadata: DependencyMetadata,
   gitBin: string
-): Promise<{ ref: string; sha: string; source: GitWorktreeResult['refSource'] }> {
+): Promise<CheckoutRef<PackageCheckoutSource>> {
   if (metadata.gitHead) {
     const fetched = await ensureCommitAvailable(bareRepositoryPath, metadata.gitHead, gitBin);
     if (fetched) {
@@ -280,7 +288,7 @@ async function resolveConfiguredRef(
   bareRepositoryPath: string,
   refName: string,
   gitBin: string
-): Promise<{ ref: string; sha: string; source: GitReferenceWorktreeResult['refSource'] }> {
+): Promise<CheckoutRef<GitReferenceCheckoutSource>> {
   const candidates = refName === 'HEAD'
     ? ['HEAD']
     : [

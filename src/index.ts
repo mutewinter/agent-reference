@@ -23,6 +23,7 @@ export {
   repositoryCacheParts,
   repositoryUrlFromManifestRepository
 } from './repository.ts';
+export { loadReferenceContext } from './reference-context.ts';
 export { resolveRegistryVersion } from './registry-version.ts';
 export { getStatusReport } from './status.ts';
 export { parseYarnLock, scanYarnDependencies } from './yarn-lock.ts';
@@ -39,9 +40,13 @@ export type {
   GitReferenceWorktreeResult,
   GitWorktreeOptions,
   GitWorktreeResult,
+  GitManifestReference,
+  PackageManifestReference,
   ListDependenciesOptions,
+  AgentReferenceManifestReference,
   PackageManager,
   PackageReference,
   ProjectContext,
   ScanProjectOptions
 } from './types.ts';
+export type { LoadedReferenceContext, LoadReferenceContextOptions } from './reference-context.ts';

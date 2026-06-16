@@ -140,27 +140,49 @@ export interface CloneReferencesResult {
 
 export type AgentReferenceKind = 'package' | 'folder' | 'git';
 
+export interface PackageManifestReference {
+  kind: 'package';
+  name: string;
+  requested: string | null;
+  version: string;
+  packageManager: PackageManager;
+  importers: string[];
+  dependencyTypes: DependencyType[];
+  repositoryUrl: string;
+  repositoryDirectory: string | null;
+  gitHead: string | null;
+  bareRepositoryPath: string;
+  path: string;
+  checkoutRef: string;
+  checkoutSha: string;
+  refSource: GitWorktreeResult['refSource'];
+}
+
+export interface GitManifestReference {
+  kind: 'git';
+  name: string;
+  requested: string;
+  version: null;
+  packageManager: null;
+  importers: [];
+  dependencyTypes: [];
+  repositoryUrl: string;
+  repositoryDirectory: null;
+  gitHead: null;
+  bareRepositoryPath: string;
+  path: string;
+  checkoutRef: string;
+  checkoutSha: string;
+  refSource: GitReferenceWorktreeResult['refSource'];
+}
+
+export type AgentReferenceManifestReference = PackageManifestReference | GitManifestReference;
+
 export interface AgentReferenceManifest {
   schemaVersion: 1;
   generatedAt: string;
   projectRoot: string;
-  references: Array<{
-    kind: AgentReferenceKind;
-    name: string;
-    requested: string | null;
-    version: string | null;
-    packageManager: PackageManager | null;
-    importers: string[];
-    dependencyTypes: DependencyType[];
-    repositoryUrl: string | null;
-    repositoryDirectory: string | null;
-    gitHead: string | null;
-    bareRepositoryPath: string | null;
-    path: string;
-    checkoutRef: string | null;
-    checkoutSha: string | null;
-    refSource: GitWorktreeResult['refSource'] | GitReferenceWorktreeResult['refSource'] | null;
-  }>;
+  references: AgentReferenceManifestReference[];
 }
 
 export type AgentReferenceStatusState =

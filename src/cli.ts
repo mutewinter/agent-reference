@@ -118,8 +118,6 @@ async function main(argv: string[]): Promise<void> {
 }
 
 function formatStatusTable(entries: AgentReferenceStatusEntry[]): string {
-  if (entries.length === 0) return 'No dependency references found.\n';
-
   const rows = entries.map((entry) => [
     entry.kind,
     entry.name,
@@ -128,28 +126,22 @@ function formatStatusTable(entries: AgentReferenceStatusEntry[]): string {
     entry.status,
     entry.path ?? '-'
   ]);
-  const headers = ['kind', 'name', 'current', 'cloned', 'status', 'path'];
-  const widths = headers.map((header, index) =>
-    Math.max(header.length, ...rows.map((row) => row[index]?.length ?? 0))
-  );
-  const formatRow = (row: string[]): string =>
-    row.map((value, index) => value.padEnd(widths[index] ?? 0)).join('  ');
-
-  return `${formatRow(headers)}\n${formatRow(widths.map((width) => '-'.repeat(width)))}\n${rows
-    .map(formatRow)
-    .join('\n')}\n`;
+  return formatTable(['kind', 'name', 'current', 'cloned', 'status', 'path'], rows, 'No dependency references found.\n');
 }
 
 function formatDependencyTable(dependencies: PackageReference[]): string {
-  if (dependencies.length === 0) return 'No dependencies found.\n';
-
   const rows = dependencies.map((dependency) => [
     dependency.name,
     dependency.version,
     dependency.dependencyTypes.join(','),
     dependency.importers.join(',')
   ]);
-  const headers = ['name', 'version', 'type', 'importer'];
+  return formatTable(['name', 'version', 'type', 'importer'], rows, 'No dependencies found.\n');
+}
+
+function formatTable(headers: string[], rows: string[][], emptyMessage: string): string {
+  if (rows.length === 0) return emptyMessage;
+
   const widths = headers.map((header, index) =>
     Math.max(header.length, ...rows.map((row) => row[index]?.length ?? 0))
   );

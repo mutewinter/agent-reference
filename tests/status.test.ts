@@ -84,6 +84,44 @@ test('reports local folder references with absolute paths', async () => {
   assert.equal(report.references[0]?.path, folderPath);
 });
 
+test('reports stale git references when configured spec changes', async () => {
+  const projectRoot = await copyFixtureProject();
+  const worktreePath = path.join(projectRoot, '.agent-reference', 'git', 'tooling', 'old');
+  await fs.mkdir(worktreePath, { recursive: true });
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
+    git: {
+      tooling: 'github:example/tooling#main'
+    }
+  }, null, 2));
+  await writeManifest(projectRoot, worktreePath, '1.3.3', [
+    {
+      kind: 'git',
+      name: 'tooling',
+      requested: 'github:example/tooling#old',
+      version: null,
+      packageManager: null,
+      importers: [],
+      dependencyTypes: [],
+      repositoryUrl: 'https://github.com/example/tooling.git',
+      repositoryDirectory: null,
+      gitHead: null,
+      bareRepositoryPath: path.join(projectRoot, '.agent-reference', 'bare.git'),
+      path: worktreePath,
+      checkoutRef: 'old',
+      checkoutSha: 'abc123',
+      refSource: 'configured'
+    }
+  ]);
+
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'));
+
+  assert.equal(report.references.length, 1);
+  assert.equal(report.references[0]?.kind, 'git');
+  assert.equal(report.references[0]?.name, 'tooling');
+  assert.equal(report.references[0]?.status, 'stale');
+  assert.equal(report.references[0]?.path, worktreePath);
+});
+
 async function copyFixtureProject(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-status-test-'));
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), tempDir, { recursive: true });
@@ -91,7 +129,12 @@ async function copyFixtureProject(): Promise<string> {
   return tempDir;
 }
 
-async function writeManifest(projectRoot: string, worktreePath: string, version: string): Promise<void> {
+async function writeManifest(
+  projectRoot: string,
+  worktreePath: string,
+  version: string,
+  extraReferences: AgentReferenceManifest['references'] = []
+): Promise<void> {
   const manifest: AgentReferenceManifest = {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -113,7 +156,8 @@ async function writeManifest(projectRoot: string, worktreePath: string, version:
         checkoutRef: 'abc123',
         checkoutSha: 'abc123',
         refSource: 'gitHead'
-      }
+      },
+      ...extraReferences
     ]
   };
 
