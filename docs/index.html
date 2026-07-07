@@ -124,6 +124,22 @@
     border-top: 1px solid var(--line);
   }
   footer nav a { margin-right: 1.5rem; }
+
+  .cta-row { margin-top: 1.75rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.55rem 1.1rem;
+    border: 1px solid var(--fg);
+    background: none;
+    color: var(--fg);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn:hover { color: var(--fg); background: var(--block); }
+  .btn-primary { background: var(--fg); color: var(--bg); }
+  .btn-primary:hover { background: var(--muted); border-color: var(--muted); color: var(--bg); }
 </style>
 </head>
 <body>
@@ -136,11 +152,27 @@
     <em>Agents read the real source of your dependencies, at the exact versions in your lockfile,
     instead of guessing from config files or node_modules.</em>
   </p>
+  <div class="cta-row">
+    <button class="btn btn-primary" id="copy-prompt" type="button">copy install prompt for agent</button>
+    <a class="btn" href="https://github.com/mutewinter/agent-reference">view source</a>
+  </div>
 </header>
 
 <section>
   <span class="label">Install</span>
-  <pre><code>npm install -g agent-reference</code></pre>
+  <p>Paste this into your agent — it installs the CLI, the skill, and sets up the repo:</p>
+  <pre id="agent-prompt"><code>Set up agent-reference in this repository:
+1. Install the CLI: npm install -g agent-reference
+2. Install the skill for this harness: npx skills add mutewinter/agent-reference
+3. Run agent-reference init and select the dependencies whose source
+   I am most likely to need, then run:
+   agent-reference clone --non-interactive
+4. Verify with agent-reference status: every reference should be ready.
+   From now on, read dependency source from the paths that status
+   reports instead of node_modules.</code></pre>
+  <p style="margin-top:1.25rem" class="dim">Or by hand:</p>
+  <pre><code>npm install -g agent-reference
+npx skills add mutewinter/agent-reference</code></pre>
 </section>
 
 <section>
@@ -223,5 +255,19 @@ folder   design-notes  -        -        <span class="ok">ready</span>   referen
 </footer>
 
 </main>
+<script>
+  const copyButton = document.getElementById('copy-prompt');
+  copyButton.addEventListener('click', async () => {
+    const prompt = document.getElementById('agent-prompt').textContent.trim();
+    try {
+      await navigator.clipboard.writeText(prompt);
+      copyButton.textContent = 'copied to clipboard';
+    } catch {
+      document.getElementById('agent-prompt').scrollIntoView({ behavior: 'smooth' });
+      copyButton.textContent = 'copy blocked — prompt below';
+    }
+    setTimeout(() => { copyButton.textContent = 'copy install prompt for agent'; }, 2200);
+  });
+</script>
 </body>
 </html>
