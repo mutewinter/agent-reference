@@ -9,14 +9,14 @@ import type {
   GitWorktreeResult
 } from './types.ts';
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 export interface ManifestUpdateResult {
   manifestPath: string;
   superseded: AgentReferenceManifestReference[];
 }
 
-export const MANIFEST_FILE = '.agent-reference.json';
+export const MANIFEST_FILE = 'agent-reference.lock.json';
 
 export async function writeManifest(
   projectRoot: string,
@@ -33,8 +33,6 @@ export async function writeManifest(
 
   const manifest: AgentReferenceManifest = {
     schemaVersion: SCHEMA_VERSION,
-    generatedAt: new Date().toISOString(),
-    projectRoot,
     references: mergeManifestReferences(kept, updates)
   };
 
@@ -48,7 +46,14 @@ function isSuperseded(
   updates: AgentReferenceManifestReference[]
 ): boolean {
   const sameReference = updates.filter((update) => update.kind === existing.kind && update.name === existing.name);
-  return sameReference.length > 0 && sameReference.every((update) => update.path !== existing.path);
+  return sameReference.length > 0 && sameReference.every((update) => manifestReferenceIdentity(update) !== manifestReferenceIdentity(existing));
+}
+
+function manifestReferenceIdentity(reference: AgentReferenceManifestReference): string {
+  if (reference.kind === 'package') {
+    return `package:${reference.name}@${reference.version}`;
+  }
+  return `git:${reference.name}@${reference.checkoutSha}`;
 }
 
 export async function readManifest(projectRoot: string): Promise<{ path: string; manifest: AgentReferenceManifest } | null> {
@@ -75,8 +80,6 @@ function packageResultToManifestReference(result: GitWorktreeResult): AgentRefer
     repositoryUrl: result.metadata.repositoryUrl,
     repositoryDirectory: result.metadata.repositoryDirectory,
     gitHead: result.metadata.gitHead,
-    bareRepositoryPath: result.bareRepositoryPath,
-    path: result.worktreePath,
     checkoutRef: result.checkoutRef,
     checkoutSha: result.checkoutSha,
     refSource: result.refSource
@@ -89,8 +92,6 @@ function gitResultToManifestReference(result: GitReferenceWorktreeResult): Agent
     name: result.name,
     requested: result.requested,
     repositoryUrl: result.repositoryUrl,
-    bareRepositoryPath: result.bareRepositoryPath,
-    path: result.worktreePath,
     checkoutRef: result.checkoutRef,
     checkoutSha: result.checkoutSha,
     refSource: result.refSource
@@ -105,7 +106,8 @@ function mergeManifestReferences(
   for (const reference of updates) {
     byKey.set(manifestReferenceKey(reference), reference);
   }
-  return [...byKey.values()];
+  // The lockfile is committed: keep ordering deterministic so diffs stay minimal.
+  return [...byKey.values()].sort((a, b) => manifestReferenceKey(a).localeCompare(manifestReferenceKey(b)));
 }
 
 function manifestReferenceKey(reference: AgentReferenceManifestReference): string {

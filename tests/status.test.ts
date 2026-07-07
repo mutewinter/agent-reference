@@ -22,9 +22,10 @@ test('reports configured dependencies missing from local worktrees', async () =>
 
 test('reports ready dependencies with local worktree paths', async () => {
   const projectRoot = await copyFixtureProject();
-  const worktreePath = path.join(projectRoot, '.agent-reference', 'packages', 'tiny-invariant', '1.3.3');
+  const worktreePath = path.join(projectRoot, 'refs', 'tiny-invariant', '1.3.3');
   await fs.mkdir(worktreePath, { recursive: true });
-  await writeManifest(projectRoot, worktreePath, '1.3.3');
+  await useLocalWorktreeConfig(projectRoot);
+  await writeManifest(projectRoot, '1.3.3');
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'));
 
@@ -35,9 +36,8 @@ test('reports ready dependencies with local worktree paths', async () => {
 
 test('reports stale dependencies when cloned version differs from lockfile', async () => {
   const projectRoot = await copyFixtureProject();
-  const worktreePath = path.join(projectRoot, '.agent-reference', 'packages', 'tiny-invariant', '1.2.0');
-  await fs.mkdir(worktreePath, { recursive: true });
-  await writeManifest(projectRoot, worktreePath, '1.2.0');
+  await useLocalWorktreeConfig(projectRoot);
+  await writeManifest(projectRoot, '1.2.0');
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'));
 
@@ -86,21 +86,18 @@ test('reports local folder references with absolute paths', async () => {
 
 test('reports stale git references when configured spec changes', async () => {
   const projectRoot = await copyFixtureProject();
-  const worktreePath = path.join(projectRoot, '.agent-reference', 'git', 'tooling', 'old');
-  await fs.mkdir(worktreePath, { recursive: true });
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
     git: {
       tooling: 'github:example/tooling#main'
-    }
+    },
+    worktreeDir: './refs'
   }, null, 2));
-  await writeManifest(projectRoot, worktreePath, '1.3.3', [
+  await writeManifest(projectRoot, '1.3.3', [
     {
       kind: 'git',
       name: 'tooling',
       requested: 'github:example/tooling#old',
       repositoryUrl: 'https://github.com/example/tooling.git',
-      bareRepositoryPath: path.join(projectRoot, '.agent-reference', 'bare.git'),
-      path: worktreePath,
       checkoutRef: 'old',
       checkoutSha: 'abc123',
       refSource: 'configured'
@@ -113,26 +110,30 @@ test('reports stale git references when configured spec changes', async () => {
   assert.equal(report.references[0]?.kind, 'git');
   assert.equal(report.references[0]?.name, 'tooling');
   assert.equal(report.references[0]?.status, 'stale');
-  assert.equal(report.references[0]?.path, worktreePath);
+  assert.equal(report.references[0]?.path, path.join(projectRoot, 'refs', 'tooling', 'old'));
 });
 
 async function copyFixtureProject(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-status-test-'));
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), tempDir, { recursive: true });
-  await fs.rm(path.join(tempDir, '.agent-reference.json'), { force: true });
+  await fs.rm(path.join(tempDir, 'agent-reference.lock.json'), { force: true });
   return tempDir;
+}
+
+async function useLocalWorktreeConfig(projectRoot: string): Promise<void> {
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
+    packages: { 'tiny-invariant': 'installed' },
+    worktreeDir: './refs'
+  }, null, 2));
 }
 
 async function writeManifest(
   projectRoot: string,
-  worktreePath: string,
   version: string,
   extraReferences: AgentReferenceManifest['references'] = []
 ): Promise<void> {
   const manifest: AgentReferenceManifest = {
-    schemaVersion: 2,
-    generatedAt: new Date().toISOString(),
-    projectRoot,
+    schemaVersion: 3,
     references: [
       {
         kind: 'package',
@@ -142,8 +143,6 @@ async function writeManifest(
         repositoryUrl: 'https://github.com/alexreardon/tiny-invariant.git',
         repositoryDirectory: null,
         gitHead: 'abc123',
-        bareRepositoryPath: path.join(projectRoot, '.agent-reference', 'bare.git'),
-        path: worktreePath,
         checkoutRef: 'abc123',
         checkoutSha: 'abc123',
         refSource: 'gitHead'
@@ -152,5 +151,5 @@ async function writeManifest(
     ]
   };
 
-  await fs.writeFile(path.join(projectRoot, '.agent-reference.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.lock.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 }

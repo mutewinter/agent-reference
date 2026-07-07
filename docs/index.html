@@ -244,7 +244,7 @@ package  zod   4.4.3    4.4.3   <span class="ok">ready</span>   /home/you/.cache
     <li>Resolves each package's repository and publish commit from the npm registry; falls back to release tags, then the default branch, and records which one it used.</li>
     <li>Network access is exactly two things: the npm registry, and <code>git clone</code> of each package's declared repository URL.</li>
     <li>Everything lands in one machine-wide store (<code>~/.cache/agent-reference</code>) — bare repos plus worktrees keyed by commit, shared across all your projects like the pnpm store. Delete it anytime; clone rebuilds it.</li>
-    <li>Your repo gets two small root files, like package.json and its lockfile: <code>agent-reference.json</code> (committed config) and a generated <code>.agent-reference.json</code> manifest (gitignored). No folder, no dependency source.</li>
+    <li>Your repo gets two small root files, both committed — <code>agent-reference.json</code> (what to reference) and a generated <code>agent-reference.lock.json</code> (the resolved repos and commits, no machine-specific paths). Like package.json and its lockfile.</li>
     <li>Re-cloning after a version bump replaces the manifest entry, so status always points at exactly one copy per reference.</li>
     <li>Uninstall: <code>npm uninstall -g agent-reference &amp;&amp; rm -rf ~/.cache/agent-reference</code>.</li>
   </ul>
@@ -272,7 +272,7 @@ package  zod   4.4.3    4.4.3   <span class="ok">ready</span>   /home/you/.cache
    Pick the dependencies whose source I'm most likely to need, then:
    agent-reference init --package &lt;name&gt; (repeat --package per pick)
    agent-reference clone --non-interactive
-4. Add .agent-reference.json to .gitignore. Commit agent-reference.json.
+4. Commit agent-reference.json and the generated agent-reference.lock.json.
 5. Verify: agent-reference status - every reference should be ready.
    missing or stale? rerun agent-reference clone --non-interactive.
    not-installed? the config names a package that is not in the
@@ -295,7 +295,7 @@ npx skills add mutewinter/agent-reference</code></pre>
   <ol class="steps">
     <li><code>agent-reference init --package react --package zod</code> <span class="dim">— pick the dependencies agents should be able to read; writes agent-reference.json.</span></li>
     <li><code>agent-reference clone --non-interactive</code> <span class="dim">— checks each reference out at its publish commit, into the shared store.</span></li>
-    <li><code>agent-reference status</code> <span class="dim">— agents run this and follow the paths. Add .agent-reference.json to .gitignore.</span></li>
+    <li><code>agent-reference status</code> <span class="dim">— agents run this and follow the paths. Commit the config and lockfile it generated.</span></li>
   </ol>
 </section>
 

@@ -1,7 +1,8 @@
 import os from 'node:os';
 import path from 'node:path';
 
-import { pathExists } from './fs-utils.ts';
+import { pathExists, resolveConfigPath } from './fs-utils.ts';
+import { defaultStoreDir, manifestReferencePath } from './git.ts';
 import { readManifest } from './manifest.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import type {
@@ -21,11 +22,19 @@ export async function getStatusReport(
   projectPath: string | null | undefined,
   options: ScanProjectOptions & { configFile?: string | null } = {}
 ): Promise<AgentReferenceStatusReport> {
-  const { config, configPackages, loadedConfig, packageUniverse, project } = await loadReferenceContext(
+  const { config, configPackages, cwd, loadedConfig, packageUniverse, project } = await loadReferenceContext(
     projectPath,
     options
   );
   const loadedManifest = await readManifest(project.projectRoot);
+  const storeDir = config?.cacheDir
+    ? resolveConfigPath(project.projectRoot, cwd, config.cacheDir)
+    : defaultStoreDir();
+  const worktreeRoot = config?.worktreeDir
+    ? resolveConfigPath(project.projectRoot, cwd, config.worktreeDir)
+    : undefined;
+  const referencePathFor = (reference: PackageManifestReference | GitManifestReference): string =>
+    manifestReferencePath(storeDir, worktreeRoot, reference);
 
   const packageManifestByExact = new Map<string, PackageManifestReference>();
   const packageManifestByName = new Map<string, PackageManifestReference>();
@@ -49,7 +58,8 @@ export async function getStatusReport(
         dependency,
         packageManifestByExact.get(`${dependency.name}@${dependency.version}`) ?? null,
         packageManifestByName.get(dependency.name) ?? null,
-        hasConfig
+        hasConfig,
+        referencePathFor
       )
     );
   }
@@ -63,7 +73,7 @@ export async function getStatusReport(
       packageManager: null,
       currentVersion: null,
       clonedVersion: manifestEntry?.version ?? null,
-      path: manifestEntry?.path ?? null,
+      path: manifestEntry ? referencePathFor(manifestEntry) : null,
       checkoutSha: manifestEntry?.checkoutSha ?? null,
       status: 'not-installed',
       action: 'Install this package or update agent-reference.json. Do not use an old clone as current project source.'
@@ -75,7 +85,7 @@ export async function getStatusReport(
   }
 
   for (const [name, requested] of Object.entries(config?.git ?? {})) {
-    entries.push(await buildGitStatus(name, requested, gitManifestByName.get(name) ?? null));
+    entries.push(await buildGitStatus(name, requested, gitManifestByName.get(name) ?? null, referencePathFor));
   }
 
   return {
@@ -93,10 +103,11 @@ async function buildPackageStatus(
   dependency: PackageReference,
   exactManifest: PackageManifestReference | null,
   nearestManifest: PackageManifestReference | null,
-  configured: boolean
+  configured: boolean,
+  referencePathFor: (reference: PackageManifestReference | GitManifestReference) => string
 ): Promise<AgentReferenceStatusEntry> {
   const manifestEntry = exactManifest ?? nearestManifest;
-  const referencePath = manifestEntry?.path ?? null;
+  const referencePath = manifestEntry ? referencePathFor(manifestEntry) : null;
   const status = getPackageStatusState(
     dependency,
     exactManifest,
@@ -140,9 +151,10 @@ async function buildFolderStatus(projectRoot: string, name: string, requested: s
 async function buildGitStatus(
   name: string,
   requested: string,
-  manifestEntry: GitManifestReference | null
+  manifestEntry: GitManifestReference | null,
+  referencePathFor: (reference: PackageManifestReference | GitManifestReference) => string
 ): Promise<AgentReferenceStatusEntry> {
-  const referencePath = manifestEntry?.path ?? null;
+  const referencePath = manifestEntry ? referencePathFor(manifestEntry) : null;
   const ready = referencePath ? await pathExists(referencePath) : false;
   const status = getGitStatusState(requested, manifestEntry, ready);
 

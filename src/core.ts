@@ -1,7 +1,13 @@
-import path from 'node:path';
-
 import { writeAgentReferenceConfig } from './config.ts';
-import { ensureDependencyWorktree, ensureGitReferenceWorktree, removeWorktree } from './git.ts';
+import { isInsideDirectory, resolveConfigPath } from './fs-utils.ts';
+import {
+  bareRepositoryPathFor,
+  defaultStoreDir,
+  ensureDependencyWorktree,
+  ensureGitReferenceWorktree,
+  manifestReferencePath,
+  removeWorktree
+} from './git.ts';
 import { writeManifest } from './manifest.ts';
 import { dependencyKey } from './package-utils.ts';
 import { loadReferenceContext } from './reference-context.ts';
@@ -59,11 +65,16 @@ export async function cloneReferences(
     metadataMap: options.metadataMap
   };
   const projectRoot = project.projectRoot;
-  const storeDir = options.storeDir ?? config?.cacheDir;
-  const worktreeRoot = options.worktreeRoot ?? config?.worktreeDir;
+  const configuredStore = options.storeDir ?? config?.cacheDir;
+  const storeDir = configuredStore ? resolveConfigPath(projectRoot, cwd, configuredStore) : defaultStoreDir();
+  const configuredWorktreeRoot = options.worktreeRoot ?? config?.worktreeDir;
+  const worktreeRoot = configuredWorktreeRoot
+    ? resolveConfigPath(projectRoot, cwd, configuredWorktreeRoot)
+    : undefined;
   const worktreeOptions = {
     projectRoot,
-    storeDir: storeDir ? resolveConfigPath(projectRoot, cwd, storeDir) : undefined,
+    storeDir,
+    worktreeRoot,
     gitBin: options.gitBin,
     force: options.force
   };
@@ -82,12 +93,7 @@ export async function cloneReferences(
       continue;
     }
 
-    cloned.push(
-      await ensureDependencyWorktree(dependency, metadata, {
-        ...worktreeOptions,
-        worktreeRoot: worktreeRoot ? resolveConfigPath(projectRoot, cwd, worktreeRoot) : undefined
-      })
-    );
+    cloned.push(await ensureDependencyWorktree(dependency, metadata, worktreeOptions));
   }
 
   const clonedGit: CloneReferencesResult['clonedGit'] = [];
@@ -97,8 +103,9 @@ export async function cloneReferences(
 
   const { manifestPath, superseded } = await writeManifest(projectRoot, cloned, clonedGit);
   for (const reference of superseded) {
-    if (isInsideDirectory(projectRoot, reference.path)) {
-      await removeWorktree(reference.bareRepositoryPath, reference.path, options.gitBin);
+    const supersededPath = manifestReferencePath(storeDir, worktreeRoot, reference);
+    if (isInsideDirectory(projectRoot, supersededPath)) {
+      await removeWorktree(bareRepositoryPathFor(storeDir, reference.repositoryUrl), supersededPath, options.gitBin);
     }
   }
 
@@ -141,13 +148,3 @@ function splitPackageSelectors(selector: string): string[] {
     .filter(Boolean);
 }
 
-function isInsideDirectory(directory: string, candidate: string): boolean {
-  const relative = path.relative(directory, candidate);
-  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
-}
-
-function resolveConfigPath(projectRoot: string, cwd: string, configuredPath: string): string {
-  if (path.isAbsolute(configuredPath)) return configuredPath;
-  if (configuredPath.startsWith('.')) return path.resolve(projectRoot, configuredPath);
-  return path.resolve(cwd, configuredPath);
-}
