@@ -118,8 +118,6 @@ export interface PackageManifestReference {
   repositoryUrl: string;
   repositoryDirectory: string | null;
   gitHead: string | null;
-  bareRepositoryPath: string;
-  path: string;
   checkoutRef: string;
   checkoutSha: string;
   refSource: GitWorktreeResult['refSource'];
@@ -130,8 +128,6 @@ export interface GitManifestReference {
   name: string;
   requested: string;
   repositoryUrl: string;
-  bareRepositoryPath: string;
-  path: string;
   checkoutRef: string;
   checkoutSha: string;
   refSource: GitReferenceWorktreeResult['refSource'];
@@ -140,9 +136,7 @@ export interface GitManifestReference {
 export type AgentReferenceManifestReference = PackageManifestReference | GitManifestReference;
 
 export interface AgentReferenceManifest {
-  schemaVersion: 2;
-  generatedAt: string;
-  projectRoot: string;
+  schemaVersion: 3;
   references: AgentReferenceManifestReference[];
 }
 

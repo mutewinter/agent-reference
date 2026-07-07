@@ -153,7 +153,7 @@ test('preserves existing manifest references after a partial clone', async () =>
   });
 
   const manifest = JSON.parse(
-    await fs.readFile(path.join(projectRoot, '.agent-reference.json'), 'utf8')
+    await fs.readFile(path.join(projectRoot, 'agent-reference.lock.json'), 'utf8')
   ) as AgentReferenceManifest;
 
   assert.equal(manifest.references.some((reference) => reference.kind === 'package' && reference.name === 'tiny-invariant'), true);
@@ -243,7 +243,7 @@ async function createUpgradeScenario(label: string): Promise<{
 
 async function manifestVersions(projectRoot: string): Promise<string[]> {
   const manifest = JSON.parse(
-    await fs.readFile(path.join(projectRoot, '.agent-reference.json'), 'utf8')
+    await fs.readFile(path.join(projectRoot, 'agent-reference.lock.json'), 'utf8')
   ) as AgentReferenceManifest;
   return manifest.references.flatMap((reference) =>
     reference.kind === 'package' && reference.name === 'tiny-warning' ? [reference.version] : []
@@ -262,7 +262,7 @@ async function pathExists(filePath: string): Promise<boolean> {
 async function copyFixtureProject(tempDir: string): Promise<string> {
   const projectRoot = path.join(tempDir, 'project');
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), projectRoot, { recursive: true });
-  await fs.rm(path.join(projectRoot, '.agent-reference.json'), { force: true });
+  await fs.rm(path.join(projectRoot, 'agent-reference.lock.json'), { force: true });
   return projectRoot;
 }
 

@@ -12,6 +12,7 @@ import {
 } from './package-utils.ts';
 import { repositoryCacheParts } from './repository.ts';
 import type {
+  AgentReferenceManifestReference,
   PackageReference,
   DependencyMetadata,
   GitReferenceWorktreeResult,
@@ -104,6 +105,29 @@ function sharedWorktreePath(storeDir: string, repositoryUrl: string, sha: string
   return path.join(storeDir, 'worktrees', ...parts, repo, sha.slice(0, 12));
 }
 
+export function bareRepositoryPathFor(storeDir: string, repositoryUrl: string): string {
+  return path.join(storeDir, 'repositories', ...repositoryCacheParts(repositoryUrl));
+}
+
+export function manifestReferencePath(
+  storeDir: string,
+  worktreeRoot: string | undefined,
+  reference: AgentReferenceManifestReference
+): string {
+  if (worktreeRoot) {
+    const leaf = reference.kind === 'package'
+      ? slugifyVersion(reference.version)
+      : slugifyVersion(refNameFromSpec(reference.requested));
+    return path.join(worktreeRoot, slugifyPackageName(reference.name), leaf);
+  }
+  return sharedWorktreePath(storeDir, reference.repositoryUrl, reference.checkoutSha);
+}
+
+function refNameFromSpec(spec: string): string {
+  const hashIndex = spec.lastIndexOf('#');
+  return hashIndex === -1 ? 'HEAD' : spec.slice(hashIndex + 1) || 'HEAD';
+}
+
 async function ensureWorktree<RefSource extends string>(options: {
   repositoryUrl: string;
   storeDir: string;
@@ -112,7 +136,7 @@ async function ensureWorktree<RefSource extends string>(options: {
   worktreePathFor: (checkout: CheckoutRef<RefSource>) => string;
   resolveCheckout: (bareRepositoryPath: string) => Promise<CheckoutRef<RefSource>>;
 }): Promise<MaterializedWorktree<RefSource>> {
-  const bareRepositoryPath = path.join(options.storeDir, 'repositories', ...repositoryCacheParts(options.repositoryUrl));
+  const bareRepositoryPath = bareRepositoryPathFor(options.storeDir, options.repositoryUrl);
   await ensureBareRepository(options.repositoryUrl, bareRepositoryPath, options.gitBin);
   const checkout = await options.resolveCheckout(bareRepositoryPath);
   const worktreePath = options.worktreePathFor(checkout);
@@ -266,7 +290,7 @@ async function resolveGitRevision(
   return result.exitCode === 0 && sha ? { ref: revision, sha } : null;
 }
 
-function defaultStoreDir(): string {
+export function defaultStoreDir(): string {
   if (process.env.AGENT_REFERENCE_STORE_DIR) {
     return process.env.AGENT_REFERENCE_STORE_DIR;
   }
@@ -275,6 +299,9 @@ function defaultStoreDir(): string {
   }
   if (process.platform === 'darwin') {
     return path.join(os.homedir(), 'Library', 'Caches', 'agent-reference');
+  }
+  if (process.platform === 'win32') {
+    return path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'), 'agent-reference', 'cache');
   }
   return path.join(os.homedir(), '.cache', 'agent-reference');
 }
