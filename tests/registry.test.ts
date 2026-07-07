@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { resolveRegistryVersion } from '../src/registry-version.ts';
+import { resolveRegistryVersion } from '../src/registry.ts';
 
 test('resolves exact versions without registry access', async () => {
   const version = await resolveRegistryVersion('tiny-warning', '1.0.3', {

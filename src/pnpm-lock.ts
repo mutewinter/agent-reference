@@ -1,13 +1,13 @@
 import fs from 'node:fs/promises';
-import path from 'node:path';
 
 import {
-  DEPENDENCY_SECTIONS,
   isExactRegistryVersion,
   mergeDependencyEntries,
   parsePackageAtVersion,
   stripPnpmPeerSuffix
 } from './package-utils.ts';
+import { DEPENDENCY_SECTIONS } from './package-json.ts';
+import { splitOutsideQuotes, stripQuotes } from './text-utils.ts';
 import type { PackageReference, DependencyType, ProjectContext, ScanProjectOptions } from './types.ts';
 
 type PnpmScalar = string | boolean | null;
@@ -17,22 +17,16 @@ interface PnpmObject {
 type PnpmImporterSnapshot = Partial<Record<DependencyType, Record<string, PnpmDependencyValue>>>;
 type PnpmDependencyValue = string | { version?: string; specifier?: string };
 
-export async function readPnpmImporters(lockfilePath: string): Promise<Record<string, PnpmImporterSnapshot>> {
-  const text = await fs.readFile(lockfilePath, 'utf8');
-  const parsed = parsePnpmLockText(text);
-  return (parsed.importers as Record<string, PnpmImporterSnapshot> | undefined) ?? {};
-}
-
 export async function scanPnpmDependencies(
   context: ProjectContext,
   options: ScanProjectOptions = {}
 ): Promise<PackageReference[]> {
-  const importers = await readPnpmImporters(context.lockfilePath);
+  const text = await fs.readFile(context.lockfilePath, 'utf8');
+  const importers = (parsePnpmLockText(text).importers as Record<string, PnpmImporterSnapshot> | undefined) ?? {};
   const selectedImporters: Array<[string, PnpmImporterSnapshot | undefined]> = options.allImporters
     ? Object.entries(importers)
     : [[context.importer, importers[context.importer]]];
 
-  const include = options.include ?? DEPENDENCY_SECTIONS;
   const entries: PackageReference[] = [];
 
   for (const [importer, snapshot] of selectedImporters) {
@@ -40,25 +34,18 @@ export async function scanPnpmDependencies(
       throw new Error(`No PNPM lockfile importer found for ${importer}`);
     }
 
-    for (const dependencyType of include) {
-      const dependencies = snapshot[dependencyType] ?? {};
-      for (const [name, value] of Object.entries(dependencies)) {
+    for (const dependencyType of DEPENDENCY_SECTIONS) {
+      for (const [name, value] of Object.entries(snapshot[dependencyType] ?? {})) {
         const resolved = normalizePnpmDependencyValue(name, value);
         if (!resolved.version) continue;
 
         entries.push({
           name: resolved.name,
-          alias: resolved.name === name ? null : name,
           version: resolved.version,
           specifier: resolved.specifier,
-          dependencyType,
-          dependencyTypes: [dependencyType],
-          importer,
-          importers: [importer],
           packageManager: 'pnpm',
-          packageJsonPath: path.join(context.projectRoot, importer === '.' ? '' : importer, 'package.json'),
-          packageJsonPaths: [path.join(context.projectRoot, importer === '.' ? '' : importer, 'package.json')],
-          lockfilePath: context.lockfilePath
+          dependencyTypes: [dependencyType],
+          importers: [importer]
         });
       }
     }
@@ -178,13 +165,8 @@ function splitYamlMapping(content: string): { key: string; value: string } | nul
 
 function parseYamlScalar(rawValue: string): PnpmScalar | PnpmObject {
   const value = rawValue.trim();
-
-  if (
-    (value.startsWith("'") && value.endsWith("'")) ||
-    (value.startsWith('"') && value.endsWith('"'))
-  ) {
-    return value.slice(1, -1);
-  }
+  const unquoted = stripQuotes(value);
+  if (unquoted !== value) return unquoted;
 
   if (value.startsWith('{') && value.endsWith('}')) {
     return parseInlineObject(value.slice(1, -1));
@@ -199,7 +181,7 @@ function parseYamlScalar(rawValue: string): PnpmScalar | PnpmObject {
 
 function parseInlineObject(body: string): PnpmObject {
   const object: PnpmObject = {};
-  for (const part of splitInlineParts(body)) {
+  for (const part of splitOutsideQuotes(body, ',')) {
     const mapping = splitYamlMapping(part.trim());
     if (mapping) {
       const key = parseYamlScalar(mapping.key);
@@ -209,26 +191,6 @@ function parseInlineObject(body: string): PnpmObject {
     }
   }
   return object;
-}
-
-function splitInlineParts(body: string): string[] {
-  const parts: string[] = [];
-  let quote: string | null = null;
-  let start = 0;
-
-  for (let index = 0; index < body.length; index += 1) {
-    const char = body[index];
-    if ((char === '"' || char === "'") && body[index - 1] !== '\\') {
-      quote = quote === char ? null : quote ?? char;
-    }
-    if (char === ',' && !quote) {
-      parts.push(body.slice(start, index));
-      start = index + 1;
-    }
-  }
-
-  parts.push(body.slice(start));
-  return parts;
 }
 
 function stripYamlComment(line: string): string {

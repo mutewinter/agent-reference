@@ -1,6 +1,12 @@
-import fs from 'node:fs/promises';
+import { readJsonFile } from './fs-utils.ts';
+import { mergeDependencyEntries } from './package-utils.ts';
+import type { DependencyType, PackageReference, ProjectContext } from './types.ts';
 
-import type { DependencyType } from './types.ts';
+export const DEPENDENCY_SECTIONS: DependencyType[] = [
+  'dependencies',
+  'devDependencies',
+  'optionalDependencies'
+];
 
 export interface PackageJsonDependency {
   name: string;
@@ -17,27 +23,38 @@ export interface PackageJson {
   workspaces?: string[] | { packages?: string[] };
 }
 
-export async function readPackageJson(packageJsonPath: string): Promise<PackageJson> {
-  const raw = await fs.readFile(packageJsonPath, 'utf8');
-  return JSON.parse(raw) as PackageJson;
-}
-
-export function directPackageJsonDependencies(
-  packageJson: PackageJson,
-  include: DependencyType[]
-): PackageJsonDependency[] {
+export function directPackageJsonDependencies(packageJson: PackageJson): PackageJsonDependency[] {
   const entries: PackageJsonDependency[] = [];
 
-  for (const dependencyType of include) {
-    const dependencies = packageJson[dependencyType] ?? {};
-    for (const [name, specifier] of Object.entries(dependencies)) {
-      entries.push({
-        name,
-        specifier,
-        dependencyType
-      });
+  for (const dependencyType of DEPENDENCY_SECTIONS) {
+    for (const [name, specifier] of Object.entries(packageJson[dependencyType] ?? {})) {
+      entries.push({ name, specifier, dependencyType });
     }
   }
 
   return entries;
+}
+
+export async function dependenciesFromPackageJsonDirectives(
+  context: ProjectContext,
+  resolveVersion: (dependency: PackageJsonDependency) => string | null
+): Promise<PackageReference[]> {
+  const packageJson = await readJsonFile<PackageJson>(context.packageJsonPath);
+  const entries: PackageReference[] = [];
+
+  for (const dependency of directPackageJsonDependencies(packageJson)) {
+    const version = resolveVersion(dependency);
+    if (!version) continue;
+
+    entries.push({
+      name: dependency.name,
+      version,
+      specifier: dependency.specifier,
+      packageManager: context.packageManager,
+      dependencyTypes: [dependency.dependencyType],
+      importers: [context.importer]
+    });
+  }
+
+  return mergeDependencyEntries(entries);
 }

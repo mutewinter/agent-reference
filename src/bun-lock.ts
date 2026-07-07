@@ -1,34 +1,22 @@
 import fs from 'node:fs/promises';
 
+import { dependenciesFromPackageJsonDirectives } from './package-json.ts';
 import { isExactRegistryVersion, parsePackageAtVersion } from './package-utils.ts';
-import { dependenciesFromPackageJsonDirectives } from './lock-utils.ts';
-import type { PackageReference, ProjectContext, ScanProjectOptions } from './types.ts';
+import type { PackageReference, ProjectContext } from './types.ts';
 
 interface BunLock {
   lockfileVersion?: number;
-  workspaces?: Record<string, BunWorkspace>;
-  packages?: Record<string, BunPackageEntry>;
+  packages?: Record<string, [string, ...unknown[]]>;
 }
 
-interface BunWorkspace {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  optionalDependencies?: Record<string, string>;
-}
-
-type BunPackageEntry = [string, ...unknown[]];
-
-export async function scanBunDependencies(
-  context: ProjectContext,
-  options: ScanProjectOptions = {}
-): Promise<PackageReference[]> {
+export async function scanBunDependencies(context: ProjectContext): Promise<PackageReference[]> {
   if (context.lockfilePath.endsWith('bun.lockb')) {
     throw new Error('bun.lockb is binary and cannot be inspected. Generate bun.lock with Bun v1.2+ first.');
   }
 
   const lockfile = await readBunLock(context.lockfilePath);
 
-  return dependenciesFromPackageJsonDirectives(context, options, ({ name }) => {
+  return dependenciesFromPackageJsonDirectives(context, ({ name }) => {
     const entry = lockfile.packages?.[name];
     const descriptor = Array.isArray(entry) ? entry[0] : null;
     if (typeof descriptor !== 'string') return null;

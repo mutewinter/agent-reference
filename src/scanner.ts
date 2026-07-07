@@ -2,10 +2,19 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { scanBunDependencies } from './bun-lock.ts';
+import { pathExists } from './fs-utils.ts';
 import { scanNpmDependencies } from './npm-lock.ts';
 import { scanPnpmDependencies } from './pnpm-lock.ts';
 import { scanYarnDependencies } from './yarn-lock.ts';
 import type { PackageReference, PackageManager, ProjectContext, ScanProjectOptions } from './types.ts';
+
+const LOCKFILE_CANDIDATES: Array<{ file: string; packageManager: PackageManager }> = [
+  { file: 'pnpm-lock.yaml', packageManager: 'pnpm' },
+  { file: 'package-lock.json', packageManager: 'npm' },
+  { file: 'bun.lock', packageManager: 'bun' },
+  { file: 'bun.lockb', packageManager: 'bun' },
+  { file: 'yarn.lock', packageManager: 'yarn' }
+];
 
 export async function resolveProjectInput(
   projectPath: string | null | undefined,
@@ -28,20 +37,19 @@ export async function resolveProjectInput(
   }
 
   const projectRoot = path.dirname(lockfile.path);
-  const importer = path.relative(projectRoot, packageDir) || '.';
 
   return {
     projectRoot,
     packageJsonPath,
     lockfilePath: lockfile.path,
     packageManager: lockfile.packageManager,
-    importer: importer === '' ? '.' : importer
+    importer: path.relative(projectRoot, packageDir) || '.'
   };
 }
 
 export async function scanProject(
   projectPath: string | null | undefined,
-  options: ScanProjectOptions & { cwd?: string } = {}
+  options: ScanProjectOptions = {}
 ): Promise<PackageReference[]> {
   const context = await resolveProjectInput(projectPath, options.cwd);
   return scanResolvedProject(context, options);
@@ -51,35 +59,25 @@ export async function scanResolvedProject(
   context: ProjectContext,
   options: ScanProjectOptions = {}
 ): Promise<PackageReference[]> {
-  if (context.packageManager === 'pnpm') {
-    return scanPnpmDependencies(context, options);
+  switch (context.packageManager) {
+    case 'pnpm':
+      return scanPnpmDependencies(context, options);
+    case 'npm':
+      return scanNpmDependencies(context);
+    case 'bun':
+      return scanBunDependencies(context);
+    case 'yarn':
+      return scanYarnDependencies(context);
+    default:
+      throw new Error(`${context.packageManager} lockfiles are not supported yet.`);
   }
-  if (context.packageManager === 'npm') {
-    return scanNpmDependencies(context, options);
-  }
-  if (context.packageManager === 'bun') {
-    return scanBunDependencies(context, options);
-  }
-  if (context.packageManager === 'yarn') {
-    return scanYarnDependencies(context, options);
-  }
-
-  throw new Error(`${context.packageManager} lockfiles are not supported yet.`);
 }
 
 async function findNearestLockfile(startDir: string): Promise<{ path: string; packageManager: PackageManager } | null> {
   let current = startDir;
 
   while (true) {
-    const candidates: Array<{ file: string; packageManager: PackageManager }> = [
-      { file: 'pnpm-lock.yaml', packageManager: 'pnpm' },
-      { file: 'package-lock.json', packageManager: 'npm' },
-      { file: 'bun.lock', packageManager: 'bun' },
-      { file: 'bun.lockb', packageManager: 'bun' },
-      { file: 'yarn.lock', packageManager: 'yarn' }
-    ];
-
-    for (const candidate of candidates) {
+    for (const candidate of LOCKFILE_CANDIDATES) {
       const lockfilePath = path.join(current, candidate.file);
       if (await pathExists(lockfilePath)) {
         return { path: lockfilePath, packageManager: candidate.packageManager };
@@ -89,14 +87,5 @@ async function findNearestLockfile(startDir: string): Promise<{ path: string; pa
     const parent = path.dirname(current);
     if (parent === current) return null;
     current = parent;
-  }
-}
-
-async function pathExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
   }
 }

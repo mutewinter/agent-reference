@@ -98,13 +98,7 @@ test('reports stale git references when configured spec changes', async () => {
       kind: 'git',
       name: 'tooling',
       requested: 'github:example/tooling#old',
-      version: null,
-      packageManager: null,
-      importers: [],
-      dependencyTypes: [],
       repositoryUrl: 'https://github.com/example/tooling.git',
-      repositoryDirectory: null,
-      gitHead: null,
       bareRepositoryPath: path.join(projectRoot, '.agent-reference', 'bare.git'),
       path: worktreePath,
       checkoutRef: 'old',
@@ -136,18 +130,15 @@ async function writeManifest(
   extraReferences: AgentReferenceManifest['references'] = []
 ): Promise<void> {
   const manifest: AgentReferenceManifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     generatedAt: new Date().toISOString(),
     projectRoot,
     references: [
       {
         kind: 'package',
         name: 'tiny-invariant',
-        requested: '^1.3.3',
         version,
         packageManager: 'pnpm',
-        importers: ['.'],
-        dependencyTypes: ['dependencies'],
         repositoryUrl: 'https://github.com/alexreardon/tiny-invariant.git',
         repositoryDirectory: null,
         gitHead: 'abc123',

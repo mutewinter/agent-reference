@@ -1,33 +1,21 @@
-import fs from 'node:fs/promises';
+import path from 'node:path';
 
+import { readJsonFile } from './fs-utils.ts';
+import { dependenciesFromPackageJsonDirectives } from './package-json.ts';
 import { isExactRegistryVersion } from './package-utils.ts';
-import { dependenciesFromPackageJsonDirectives, nodeModulesPackagePath } from './lock-utils.ts';
-import type { PackageReference, ProjectContext, ScanProjectOptions } from './types.ts';
+import type { PackageReference, ProjectContext } from './types.ts';
 
 interface NpmPackageLock {
   lockfileVersion?: number;
-  packages?: Record<string, NpmPackageLockPackage>;
-  dependencies?: Record<string, NpmLegacyDependency>;
+  packages?: Record<string, { version?: string; link?: boolean }>;
+  dependencies?: Record<string, { version?: string }>;
 }
 
-interface NpmPackageLockPackage {
-  version?: string;
-  link?: boolean;
-}
+export async function scanNpmDependencies(context: ProjectContext): Promise<PackageReference[]> {
+  const lockfile = await readJsonFile<NpmPackageLock>(context.lockfilePath);
 
-interface NpmLegacyDependency {
-  version?: string;
-}
-
-export async function scanNpmDependencies(
-  context: ProjectContext,
-  options: ScanProjectOptions = {}
-): Promise<PackageReference[]> {
-  const lockfile = await readNpmPackageLock(context.lockfilePath);
-
-  return dependenciesFromPackageJsonDirectives(context, options, ({ name }) => {
-    const packagePath = nodeModulesPackagePath(context.importer, name);
-    const localPackage = lockfile.packages?.[packagePath];
+  return dependenciesFromPackageJsonDirectives(context, ({ name }) => {
+    const localPackage = lockfile.packages?.[nodeModulesPackagePath(context.importer, name)];
     const rootPackage = lockfile.packages?.[nodeModulesPackagePath('.', name)];
     const legacyPackage = lockfile.dependencies?.[name];
     const version = localPackage?.version ?? rootPackage?.version ?? legacyPackage?.version ?? null;
@@ -36,7 +24,7 @@ export async function scanNpmDependencies(
   });
 }
 
-async function readNpmPackageLock(lockfilePath: string): Promise<NpmPackageLock> {
-  const raw = await fs.readFile(lockfilePath, 'utf8');
-  return JSON.parse(raw) as NpmPackageLock;
+function nodeModulesPackagePath(importer: string, name: string): string {
+  const parts = importer === '.' ? [] : [importer];
+  return path.join(...parts, 'node_modules', ...name.split('/'));
 }

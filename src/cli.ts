@@ -3,118 +3,100 @@ import fs from 'node:fs/promises';
 import process from 'node:process';
 import readline from 'node:readline/promises';
 
-import { parseArgv } from './args.ts';
+import { parseArgv, type CliOptions } from './args.ts';
 import { loadAgentReferenceConfig } from './config.ts';
-import { cloneReferences, initConfig, listDependencies } from './core.ts';
-import { loadMetadataFile } from './metadata.ts';
+import { cloneReferences, initConfig } from './core.ts';
 import { dependencyKey } from './package-utils.ts';
-import { resolveProjectInput } from './scanner.ts';
+import { loadMetadataFile } from './registry.ts';
+import { resolveProjectInput, scanProject } from './scanner.ts';
 import { getStatusReport } from './status.ts';
 import type { PackageReference, AgentReferenceStatusEntry } from './types.ts';
 
 async function main(argv: string[]): Promise<void> {
   const options = parseArgv(argv);
 
-  if (options.command === 'help') {
-    process.stdout.write(helpText());
-    return;
-  }
-
-  if (options.command === 'version') {
-    const packageJson = JSON.parse(await fs.readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
-      version: string;
-    };
-    process.stdout.write(`${packageJson.version}\n`);
-    return;
-  }
-
-  if (options.command === 'list') {
-    const dependencies = await listDependencies(options.projectPath, {
-      allImporters: options.allImporters
-    });
-    process.stdout.write(options.json ? `${JSON.stringify(dependencies, null, 2)}\n` : formatDependencyTable(dependencies));
-    return;
-  }
-
-  if (options.command === 'status') {
-    const report = await getStatusReport(options.projectPath, {
-      allImporters: options.allImporters,
-      configFile: options.configFile
-    });
-    process.stdout.write(options.json ? `${JSON.stringify(report, null, 2)}\n` : formatStatusTable(report.references));
-    return;
-  }
-
-  if (options.command === 'init') {
-    let packages = options.packages;
-    let all = options.all;
-
-    if (!all && packages.length === 0 && !options.nonInteractive && process.stdin.isTTY) {
-      const dependencies = await listDependencies(options.projectPath, {
-        allImporters: options.allImporters
-      });
-      packages = await promptForPackages(dependencies);
-      all = false;
-    }
-
-    const result = await initConfig(options.projectPath, {
-      all,
-      packages,
-      allImporters: options.allImporters,
-      registry: options.registry ?? undefined,
-      worktreeRoot: options.worktreeRoot ?? undefined,
-      force: options.force,
-      configFile: options.configFile
-    });
-
-    if (options.json) {
-      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  switch (options.command) {
+    case 'help':
+      process.stdout.write(helpText());
+      return;
+    case 'version': {
+      const packageJson = JSON.parse(await fs.readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
+        version: string;
+      };
+      process.stdout.write(`${packageJson.version}\n`);
       return;
     }
-
-    process.stdout.write(`config -> ${result.configPath}\n`);
-    return;
+    case 'list': {
+      const dependencies = await scanProject(options.projectPath, { allImporters: options.allImporters });
+      printResult(options, dependencies, formatDependencyTable);
+      return;
+    }
+    case 'status': {
+      const report = await getStatusReport(options.projectPath, {
+        allImporters: options.allImporters,
+        configFile: options.configFile
+      });
+      printResult(options, report, (result) => formatStatusTable(result.references));
+      return;
+    }
+    case 'init':
+      return runInit(options);
+    case 'clone':
+      return runClone(options);
   }
+}
 
-  const metadataMap = await loadMetadataFile(options.metadataFile);
-  let packages = options.packages;
-  let all = options.all;
-
-  if (!all && packages.length === 0 && !options.nonInteractive && process.stdin.isTTY && !await hasCloneConfig(options.projectPath, options.configFile)) {
-    const dependencies = await listDependencies(options.projectPath, {
-      allImporters: options.allImporters
-    });
-    packages = await promptForPackages(dependencies);
-    all = false;
-  }
-
-  const result = await cloneReferences(options.projectPath, {
-    all,
+async function runInit(options: CliOptions): Promise<void> {
+  const packages = await resolvePackageSelection(options, true);
+  const result = await initConfig(options.projectPath, {
+    all: options.all,
     packages,
     allImporters: options.allImporters,
     registry: options.registry ?? undefined,
-    metadataMap,
+    worktreeRoot: options.worktreeRoot ?? undefined,
+    force: options.force,
+    configFile: options.configFile
+  });
+
+  printResult(options, result, () => `config -> ${result.configPath}\n`);
+}
+
+async function runClone(options: CliOptions): Promise<void> {
+  const packages = await resolvePackageSelection(options, !(await hasCloneConfig(options)));
+  const result = await cloneReferences(options.projectPath, {
+    all: options.all,
+    packages,
+    allImporters: options.allImporters,
+    registry: options.registry ?? undefined,
+    metadataMap: await loadMetadataFile(options.metadataFile),
     bareStoreDir: options.bareStoreDir ?? undefined,
     worktreeRoot: options.worktreeRoot ?? undefined,
     configFile: options.configFile,
     force: options.force
   });
 
-  if (options.json) {
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-    return;
-  }
+  printResult(options, result, () => {
+    const lines = [
+      ...result.cloned.map((clone) => `${dependencyKey(clone.dependency.name, clone.dependency.version)} -> ${clone.worktreePath}`),
+      ...result.skipped.map((skip) => `${skip.version ? dependencyKey(skip.name, skip.version) : skip.name} skipped: ${skip.reason}`),
+      ...result.clonedGit.map((clone) => `git:${clone.name} -> ${clone.worktreePath}`),
+      `manifest -> ${result.manifestPath}`
+    ];
+    return `${lines.join('\n')}\n`;
+  });
+}
 
-  for (const clone of result.cloned) {
-    process.stdout.write(`${dependencyKey(clone.dependency.name, clone.dependency.version)} -> ${clone.worktreePath}\n`);
-  }
-  for (const skipped of result.skipped) {
-    process.stdout.write(`${dependencyKey(skipped.dependency.name, skipped.dependency.version)} skipped: ${skipped.reason}\n`);
-  }
-  for (const clone of result.clonedGit) {
-    process.stdout.write(`git:${clone.name} -> ${clone.worktreePath}\n`);
-  }
-  process.stdout.write(`manifest -> ${result.manifestPath}\n`);
+async function resolvePackageSelection(options: CliOptions, promptWhenEmpty: boolean): Promise<string[]> {
+  const canPrompt =
+    !options.all && options.packages.length === 0 && !options.nonInteractive && process.stdin.isTTY && promptWhenEmpty;
+  if (!canPrompt) return options.packages;
+
+  const dependencies = await scanProject(options.projectPath, { allImporters: options.allImporters });
+  return promptForPackages(dependencies);
+}
+
+function printResult<T>(options: CliOptions, result: T, format: (result: T) => string): void {
+  process.stdout.write(options.json ? `${JSON.stringify(result, null, 2)}\n` : format(result));
 }
 
 function formatStatusTable(entries: AgentReferenceStatusEntry[]): string {
@@ -154,7 +136,11 @@ function formatTable(headers: string[], rows: string[][], emptyMessage: string):
 }
 
 async function promptForPackages(dependencies: PackageReference[]): Promise<string[]> {
-  process.stdout.write(formatDependencyChoices(dependencies));
+  const choices = dependencies
+    .map((dependency, index) => `${index + 1}. ${dependencyKey(dependency.name, dependency.version)}`)
+    .join('\n');
+  process.stdout.write(`${choices}\n`);
+
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
@@ -169,7 +155,7 @@ async function promptForPackages(dependencies: PackageReference[]): Promise<stri
   const selections = answer
     .split(',')
     .map((part) => Number.parseInt(part.trim(), 10))
-    .filter((value) => Number.isInteger(value) && value > 0 && value <= dependencies.length);
+    .filter((value) => Number.isInteger(value) && value > 0);
 
   return selections.map((selection) => {
     const dependency = dependencies[selection - 1];
@@ -178,13 +164,6 @@ async function promptForPackages(dependencies: PackageReference[]): Promise<stri
     }
     return dependencyKey(dependency.name, dependency.version);
   });
-}
-
-function formatDependencyChoices(dependencies: PackageReference[]): string {
-  return dependencies
-    .map((dependency, index) => `${index + 1}. ${dependencyKey(dependency.name, dependency.version)}`)
-    .join('\n')
-    .concat('\n');
 }
 
 function helpText(): string {
@@ -213,9 +192,9 @@ Options:
 `;
 }
 
-async function hasCloneConfig(projectPath: string | null, configFile: string | null): Promise<boolean> {
-  const context = await resolveProjectInput(projectPath);
-  const loaded = await loadAgentReferenceConfig(context.projectRoot, { configFile });
+async function hasCloneConfig(options: CliOptions): Promise<boolean> {
+  const context = await resolveProjectInput(options.projectPath);
+  const loaded = await loadAgentReferenceConfig(context.projectRoot, { configFile: options.configFile });
   return loaded !== null;
 }
 

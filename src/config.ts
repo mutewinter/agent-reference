@@ -1,12 +1,11 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+import { pathExists, readJsonFile } from './fs-utils.ts';
 import type { AgentReferenceConfig, LoadedAgentReferenceConfig } from './types.ts';
 
 export const DEFAULT_CONFIG_FILE = 'agent-reference.json';
 export const DEFAULT_LOCAL_CONFIG_FILE = 'agent-reference.local.json';
-const CONFIG_FILES = [DEFAULT_CONFIG_FILE];
-const LOCAL_CONFIG_FILES = [DEFAULT_LOCAL_CONFIG_FILE];
 
 export async function loadAgentReferenceConfig(
   projectRoot: string,
@@ -14,13 +13,13 @@ export async function loadAgentReferenceConfig(
 ): Promise<LoadedAgentReferenceConfig | null> {
   const configPath = options.configFile
     ? path.resolve(projectRoot, options.configFile)
-    : await findConfigFile(projectRoot, CONFIG_FILES);
-  const localPath = await findConfigFile(projectRoot, LOCAL_CONFIG_FILES);
+    : await findConfigFile(projectRoot, DEFAULT_CONFIG_FILE);
+  const localPath = await findConfigFile(projectRoot, DEFAULT_LOCAL_CONFIG_FILE);
 
   if (!configPath && !localPath) return null;
 
-  const baseConfig = configPath ? normalizeConfig(await readJson(configPath), configPath) : {};
-  const localConfig = localPath ? normalizeConfig(await readJson(localPath), localPath) : {};
+  const baseConfig = configPath ? normalizeConfig(await readJsonFile(configPath), configPath) : {};
+  const localConfig = localPath ? normalizeConfig(await readJsonFile(localPath), localPath) : {};
 
   return {
     path: configPath,
@@ -70,10 +69,6 @@ function mergeMaps(
   };
 }
 
-async function readJson(filePath: string): Promise<unknown> {
-  return JSON.parse(await fs.readFile(filePath, 'utf8')) as unknown;
-}
-
 function normalizeConfig(value: unknown, configPath: string): AgentReferenceConfig {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${configPath} must contain a JSON object.`);
@@ -109,20 +104,7 @@ function normalizeStringMap(value: unknown, configPath: string, field: string): 
   return Object.fromEntries(entries) as Record<string, string>;
 }
 
-async function findConfigFile(projectRoot: string, names: string[]): Promise<string | null> {
-  for (const fileName of names) {
-    const configPath = path.join(projectRoot, fileName);
-    if (await pathExists(configPath)) return configPath;
-  }
-
-  return null;
-}
-
-async function pathExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
+async function findConfigFile(projectRoot: string, fileName: string): Promise<string | null> {
+  const configPath = path.join(projectRoot, fileName);
+  return (await pathExists(configPath)) ? configPath : null;
 }

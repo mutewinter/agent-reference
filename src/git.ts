@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
+import { pathExists } from './fs-utils.ts';
 import {
   slugifyPackageName,
   slugifyVersion,
@@ -310,13 +311,4 @@ async function resolveConfiguredRef(
   }
 
   throw new Error(`Unable to resolve git reference ${refName} in ${bareRepositoryPath}`);
-}
-
-async function pathExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
 }
