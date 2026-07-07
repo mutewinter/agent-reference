@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>agent-reference — local source references for coding agents</title>
-<meta name="description" content="A CLI that materializes package, git, and folder references so coding agents read real source at exact versions.">
+<title>agent-reference — real dependency source for coding agents</title>
+<meta name="description" content="A CLI that clones your dependencies' repositories at exact lockfile versions into one shared store, so coding agents read original source instead of node_modules.">
 <style>
   :root {
     --bg: #fafafa;
     --fg: #111111;
+    --fg-hover: #3a3a3a;
     --muted: #6b6b6b;
     --line: #e2e2e2;
     --block: #ffffff;
@@ -17,6 +18,7 @@
     :root {
       --bg: #0a0a0a;
       --fg: #ededed;
+      --fg-hover: #ffffff;
       --muted: #8a8a8a;
       --line: #262626;
       --block: #111111;
@@ -33,12 +35,16 @@
   }
   ::selection { background: var(--fg); color: var(--bg); }
   main {
-    max-width: 44rem;
+    max-width: 46rem;
     margin: 0 auto;
     padding: 0 1.25rem;
   }
   a { color: var(--fg); text-underline-offset: 3px; }
   a:hover { color: var(--muted); }
+  a:focus-visible, button:focus-visible {
+    outline: 2px solid var(--fg);
+    outline-offset: 2px;
+  }
 
   header {
     padding: 5rem 0 3.25rem;
@@ -52,10 +58,16 @@
   }
   .tagline {
     margin-top: 1.25rem;
-    max-width: 38rem;
+    max-width: 40rem;
     font-size: 1rem;
   }
-  .tagline em { display: block; margin-top: 0.5rem; font-style: normal; font-size: 0.875rem; color: var(--muted); }
+  .tagline em {
+    display: block;
+    margin-top: 0.5rem;
+    font-style: normal;
+    font-size: 0.875rem;
+    color: var(--muted);
+  }
 
   .cta-row { margin-top: 2rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
   .btn {
@@ -72,20 +84,12 @@
     cursor: pointer;
   }
   .btn:hover { color: var(--fg); background: var(--block); }
-  .btn-primary { background: var(--fg); color: var(--bg); }
-  .btn-primary:hover { background: var(--muted); border-color: var(--muted); color: var(--bg); }
+  .btn-primary { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .btn-primary:hover { background: var(--fg-hover); border-color: var(--fg-hover); color: var(--bg); }
   .btn svg { flex: none; }
 
   section { padding: 3rem 0; border-bottom: 1px solid var(--line); }
   section:last-of-type { border-bottom: none; }
-  .label {
-    display: block;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: var(--muted);
-    margin-bottom: 0.5rem;
-  }
   h2 {
     font-size: 1.05rem;
     font-weight: 600;
@@ -93,7 +97,7 @@
     margin-bottom: 1.1rem;
   }
   p + p { margin-top: 1rem; }
-  p { max-width: 38rem; }
+  p { max-width: 40rem; }
   .dim { color: var(--muted); }
   .ok { font-weight: 600; }
 
@@ -105,8 +109,10 @@
     line-height: 1.6;
     margin: 1.25rem 0 0;
   }
+  pre.demo { font-size: 0.8rem; }
+  #agent-prompt { white-space: pre-wrap; overflow-wrap: break-word; }
   code { font-family: inherit; }
-  p code, li code {
+  p code, li code, td code {
     background: var(--block);
     border: 1px solid var(--line);
     padding: 0.05rem 0.35rem;
@@ -125,25 +131,30 @@
     color: var(--muted);
     background: var(--bg);
     border: 1px solid var(--line);
-    padding: 0.3rem 0.6rem;
+    padding: 0.45rem 0.7rem;
     cursor: pointer;
   }
   .copy-chip:hover { color: var(--fg); border-color: var(--fg); }
+  @media (max-width: 640px) {
+    #agent-prompt { padding-top: 2.9rem; }
+  }
 
   ol.steps { list-style: none; counter-reset: step; margin-top: 0.25rem; }
   ol.steps > li {
     counter-increment: step;
-    padding: 1.1rem 0;
+    padding: 1.1rem 0 1.1rem 2.4rem;
     border-bottom: 1px solid var(--line);
   }
   ol.steps > li:last-child { border-bottom: none; padding-bottom: 0; }
   ol.steps > li::before {
     content: counter(step, decimal-leading-zero);
     color: var(--muted);
-    margin-right: 1rem;
+    display: inline-block;
+    width: 2.4rem;
+    margin-left: -2.4rem;
   }
   ul.plain { list-style: none; }
-  ul.plain li { padding-left: 1.4rem; text-indent: -1.4rem; max-width: 38rem; }
+  ul.plain li { padding-left: 1.4rem; text-indent: -1.4rem; max-width: 40rem; }
   ul.plain li + li { margin-top: 0.6rem; }
   ul.plain li::before { content: "—"; color: var(--muted); margin-right: 0.65rem; }
 
@@ -168,7 +179,11 @@
     color: var(--muted);
     border-top: 1px solid var(--line);
   }
-  footer nav a { margin-right: 1.5rem; }
+  footer nav a {
+    margin-right: 1.5rem;
+    display: inline-block;
+    padding: 0.75rem 0;
+  }
 </style>
 </head>
 <body>
@@ -177,39 +192,97 @@
 <header>
   <h1><span class="prompt-char">$</span> agent-reference</h1>
   <p class="tagline">
-    Materialize package, git, and folder references for coding agents.
-    <em>Agents read the real source of your dependencies, at the exact versions in your lockfile,
-    instead of guessing from config files or node_modules.</em>
+    Your coding agents read the real source of your dependencies,
+    at the exact versions in your lockfile.
+    <em>One CLI that clones package, git, and folder references into a shared
+    machine-wide store — nothing heavy lands in your repo.</em>
   </p>
   <div class="cta-row">
     <button class="btn btn-primary" id="copy-prompt" type="button">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="5.5" y="5.5" width="9" height="9"/><path d="M10.5 3.5v-2h-9v9h2"/></svg>
-      <span>copy install prompt for agent</span>
+      <span aria-live="polite">copy setup prompt</span>
     </button>
     <a class="btn" href="https://github.com/mutewinter/agent-reference">view source</a>
   </div>
 </header>
 
 <section>
-  <span class="label">Install</span>
-  <h2>Point your agent at it</h2>
-  <p>Paste this into your agent — it installs the CLI, the skill, and sets up the repo:</p>
+  <h2>Why not just node_modules?</h2>
+  <p>
+    node_modules ships build output: minified bundles, flattened <code>.d.ts</code> files,
+    no comments, no tests. An agent reading it is reverse-engineering.
+  </p>
+  <p>
+    agent-reference clones each package's repository at the exact commit that published
+    the version in your lockfile — <code>gitHead</code> when the registry has it, matching
+    release tags otherwise — so agents read the original TypeScript, the tests, and the
+    commit history.
+  </p>
+</section>
+
+<section>
+  <h2>One command, absolute paths</h2>
+  <pre class="demo"><code><span class="dim">$</span> agent-reference status
+
+kind     name  current  cloned  status  path
+-------  ----  -------  ------  ------  ------------------------------------------------------------------------
+package  ms    2.1.3    2.1.3   <span class="ok">ready</span>   /home/you/.cache/agent-reference/worktrees/github.com/vercel/ms/07dc9e5b6e60
+package  zod   4.4.3    4.4.3   <span class="ok">ready</span>   /home/you/.cache/agent-reference/worktrees/github.com/colinhacks/zod/f3c9ec03ba7a</code></pre>
+  <p style="margin-top:1.25rem">
+    Agents run this and follow the paths. Every row reports one of five states:
+    <code>ready</code> (use the path), <code>missing</code> / <code>stale</code> /
+    <code>missing-worktree</code> (fixed by <code>agent-reference clone --non-interactive</code>),
+    or <code>not-installed</code> (the config names a package that left the lockfile — a human decision).
+    Folder and git references show <code>-</code> in the version columns.
+  </p>
+</section>
+
+<section>
+  <h2>How it works</h2>
+  <ul class="plain">
+    <li>Reads exact installed versions from your lockfile — pnpm, npm, Bun, and Yarn.</li>
+    <li>Resolves each package's repository and publish commit from the npm registry; falls back to release tags, then the default branch, and records which one it used.</li>
+    <li>Network access is exactly two things: the npm registry, and <code>git clone</code> of each package's declared repository URL.</li>
+    <li>Everything lands in one machine-wide store (<code>~/.cache/agent-reference</code>) — bare repos plus worktrees keyed by commit, shared across all your projects like the pnpm store. Delete it anytime; clone rebuilds it.</li>
+    <li>Your repo gets two small files: <code>agent-reference.json</code> (committed) and <code>.agent-reference/manifest.json</code> (gitignored). No dependency source is written into the project.</li>
+    <li>Re-cloning after a version bump replaces the manifest entry, so status always points at exactly one copy per reference.</li>
+    <li>Uninstall: <code>npm uninstall -g agent-reference &amp;&amp; rm -rf ~/.cache/agent-reference</code>.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Set it up</h2>
+  <p>
+    Paste this into your coding agent. Step 2 refers to a <em>skill</em> — a small
+    instruction file that agents like Claude Code, Cursor, or Codex load automatically;
+    the open <a href="https://github.com/vercel-labs/skills">skills CLI</a> installs the
+    one bundled with agent-reference so your agent knows to run <code>status</code> first.
+  </p>
   <div class="copy-wrap">
     <pre id="agent-prompt"><code>Set up agent-reference in this repository:
+
 1. Install the CLI: npm install -g agent-reference
-   (if that 404s, install from source into this project instead:
-   npm install -D github:mutewinter/agent-reference
-   and prefix the commands below with npx)
-2. Install the skill for this harness: npx skills add mutewinter/agent-reference
-3. Run agent-reference init and select the dependencies whose source
-   I am most likely to need, then run:
+   Not on npm yet? Install from source with this repo's package manager
+   (e.g. pnpm add -D github:mutewinter/agent-reference) and prefix every
+   agent-reference command below with its runner (pnpm exec / npx).
+2. Optional: npx skills add mutewinter/agent-reference
+   installs the agent-reference skill for this harness. If it fails or
+   prompts, skip it - the CLI works without it.
+3. Run: agent-reference list
+   Pick the dependencies whose source I'm most likely to need, then:
+   agent-reference init --package &lt;name&gt; (repeat --package per pick)
    agent-reference clone --non-interactive
-4. Verify with agent-reference status: every reference should be ready.
-   From now on, read dependency source from the paths that status
-   reports instead of node_modules.</code></pre>
+4. Add .agent-reference/ to .gitignore. Commit agent-reference.json.
+5. Verify: agent-reference status - every reference should be ready.
+   missing or stale? rerun agent-reference clone --non-interactive.
+   not-installed? the config names a package that is not in the
+   lockfile - ask me before changing anything.
+6. Append to this repo's CLAUDE.md or AGENTS.md:
+   "Run agent-reference status and read dependency source from the
+   paths it reports instead of node_modules."</code></pre>
     <button class="copy-chip" type="button" data-copy="agent-prompt">
       <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="5.5" y="5.5" width="9" height="9"/><path d="M10.5 3.5v-2h-9v9h2"/></svg>
-      <span>copy</span>
+      <span aria-live="polite">copy</span>
     </button>
   </div>
   <p style="margin-top:1.25rem" class="dim">Or by hand:</p>
@@ -218,35 +291,15 @@ npx skills add mutewinter/agent-reference</code></pre>
 </section>
 
 <section>
-  <span class="label">Status</span>
-  <h2>One command, absolute paths</h2>
-  <pre><code><span class="dim">$</span> agent-reference status
-
-kind     name          current  cloned   status  path
--------  ------------  -------  -------  ------  --------------------------------------
-package  react         18.2.0   18.2.0   <span class="ok">ready</span>   .agent-reference/packages/react/18.2.0
-package  zod           4.4.3    4.4.3    <span class="ok">ready</span>   .agent-reference/packages/zod/4.4.3
-git      typescript    -        -        <span class="ok">ready</span>   .agent-reference/git/typescript/main
-folder   design-notes  -        -        <span class="ok">ready</span>   references/design-notes</code></pre>
-  <p style="margin-top:1.25rem">
-    Every <code>ready</code> row is an absolute path to inspectable source.
-    If anything is <code>missing</code> or <code>stale</code>, one command fixes it:
-    <code>agent-reference clone --non-interactive</code>.
-  </p>
-</section>
-
-<section>
-  <span class="label">Workflow</span>
-  <h2>Three steps, then agents are on their own</h2>
+  <h2>Three steps for humans</h2>
   <ol class="steps">
     <li><code>agent-reference init --package react --package zod</code> <span class="dim">— pick the dependencies agents should be able to read; writes agent-reference.json.</span></li>
-    <li><code>agent-reference clone --non-interactive</code> <span class="dim">— checks out each reference at the exact published commit.</span></li>
-    <li><code>agent-reference status</code> <span class="dim">— agents run this and follow the paths. That's it.</span></li>
+    <li><code>agent-reference clone --non-interactive</code> <span class="dim">— checks each reference out at its publish commit, into the shared store.</span></li>
+    <li><code>agent-reference status</code> <span class="dim">— agents run this and follow the paths. Add .agent-reference/ to .gitignore.</span></li>
   </ol>
 </section>
 
 <section>
-  <span class="label">Config</span>
   <h2>One committed JSON file</h2>
   <p>Commit <code>agent-reference.json</code> to share references with every agent that touches the repo.</p>
   <pre><code>{
@@ -255,40 +308,28 @@ folder   design-notes  -        -        <span class="ok">ready</span>   referen
     "prettier": "3.6.2"
   },
   "git": {
-    "typescript": "github:microsoft/TypeScript#main"
+    "typescript": "github:microsoft/TypeScript#v5.9.2"
   },
   "folders": {
     "design-notes": "./references/design-notes"
   }
 }</code></pre>
   <p style="margin-top:1.25rem">
-    <code>"installed"</code> tracks the version in your lockfile.
+    <code>"installed"</code> tracks whatever version is in your lockfile.
+    Git references pin any repo at a tag, branch, or commit.
     Use <code>agent-reference.local.json</code> for personal, uncommitted paths.
   </p>
 </section>
 
 <section>
-  <span class="label">Internals</span>
-  <h2>Exact versions, real git checkouts</h2>
-  <ul class="plain">
-    <li>Reads exact versions from your lockfile — pnpm, npm, Bun, and Yarn are supported.</li>
-    <li>Resolves each package's repository and publish commit (<code>gitHead</code>, then release tags) from the npm registry.</li>
-    <li>Clones once into a global bare-repository cache; projects get cheap git worktrees under <code>.agent-reference/</code>.</li>
-    <li>Re-cloning prunes superseded worktrees, so on-disk source always matches the lockfile.</li>
-    <li>Ships a bundled skill so agents know to run <code>status</code> first.</li>
-  </ul>
-</section>
-
-<section>
-  <span class="label">Reference</span>
-  <h2>Four commands</h2>
+  <h2>Reference</h2>
   <table>
     <thead><tr><th>command</th><th>does</th></tr></thead>
     <tbody>
       <tr><td><code>status</code></td><td>Report every reference with version drift and absolute paths. <code>--json</code> for scripts.</td></tr>
       <tr><td><code>list</code></td><td>Show direct dependencies with exact lockfile versions.</td></tr>
       <tr><td><code>init</code></td><td>Write agent-reference.json for the selected packages.</td></tr>
-      <tr><td><code>clone</code></td><td>Materialize configured references; prunes stale checkouts.</td></tr>
+      <tr><td><code>clone</code></td><td>Materialize configured references into the store; prunes superseded manifest entries.</td></tr>
     </tbody>
   </table>
 </section>
@@ -303,8 +344,6 @@ folder   design-notes  -        -        <span class="ok">ready</span>   referen
 
 </main>
 <script>
-  const promptText = () => document.getElementById('agent-prompt').textContent.trim();
-
   async function copyToClipboard(text) {
     await navigator.clipboard.writeText(text);
   }
@@ -318,7 +357,7 @@ folder   design-notes  -        -        <span class="ok">ready</span>   referen
 
   document.getElementById('copy-prompt').addEventListener('click', async (event) => {
     try {
-      await copyToClipboard(promptText());
+      await copyToClipboard(document.getElementById('agent-prompt').textContent.trim());
       flashLabel(event.currentTarget, 'copied to clipboard');
     } catch {
       document.getElementById('agent-prompt').scrollIntoView({ behavior: 'smooth' });
