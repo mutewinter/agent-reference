@@ -57,7 +57,7 @@ export interface RegistryOptions {
 
 export interface GitWorktreeOptions {
   projectRoot: string;
-  bareStoreDir?: string;
+  storeDir?: string;
   worktreeRoot?: string;
   gitBin?: string;
   force?: boolean;
@@ -89,7 +89,7 @@ export interface GitReferenceWorktreeResult {
 export interface CloneReferencesOptions extends ScanProjectOptions, RegistryOptions {
   packages?: string[];
   all?: boolean;
-  bareStoreDir?: string;
+  storeDir?: string;
   worktreeRoot?: string;
   gitBin?: string;
   force?: boolean;
