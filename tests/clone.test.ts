@@ -160,6 +160,60 @@ test('preserves existing manifest references after a partial clone', async () =>
   assert.equal(manifest.references.some((reference) => reference.kind === 'git' && reference.name === 'tooling'), true);
 });
 
+test('prunes superseded worktrees and manifest entries when a reference version changes', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-prune-test-'));
+  const projectRoot = await copyFixtureProject(tempDir);
+  const sourceRepo = await createSourceRepo(tempDir, 'tiny-warning-source', 'index.js', 'export const v1 = true;\n');
+  await fs.writeFile(path.join(sourceRepo.path, 'index.js'), 'export const v2 = true;\n');
+  await git(['commit', '-am', 'second'], sourceRepo.path);
+  const secondCommit = await git(['rev-parse', 'HEAD'], sourceRepo.path);
+
+  const metadataFor = (version: string, commit: string) => ({
+    [`tiny-warning@${version}`]: {
+      name: 'tiny-warning',
+      version,
+      repository: { type: 'git', url: sourceRepo.path },
+      gitHead: commit
+    }
+  });
+  const configFor = async (version: string) =>
+    fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
+      packages: { 'tiny-warning': version }
+    }));
+
+  await configFor('1.0.3');
+  const first = await cloneReferences(path.join(projectRoot, 'package.json'), {
+    metadataMap: metadataFor('1.0.3', sourceRepo.commit),
+    bareStoreDir: path.join(tempDir, 'store')
+  });
+
+  await configFor('1.0.4');
+  const second = await cloneReferences(path.join(projectRoot, 'package.json'), {
+    metadataMap: metadataFor('1.0.4', secondCommit),
+    bareStoreDir: path.join(tempDir, 'store')
+  });
+
+  const manifest = JSON.parse(
+    await fs.readFile(path.join(projectRoot, '.agent-reference', 'manifest.json'), 'utf8')
+  ) as AgentReferenceManifest;
+  const versions = manifest.references.flatMap((reference) =>
+    reference.kind === 'package' && reference.name === 'tiny-warning' ? [reference.version] : []
+  );
+
+  assert.deepEqual(versions, ['1.0.4']);
+  assert.equal(await pathExists(first.cloned[0]?.worktreePath ?? ''), false);
+  assert.equal(await pathExists(second.cloned[0]?.worktreePath ?? ''), true);
+});
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function copyFixtureProject(tempDir: string): Promise<string> {
   const projectRoot = path.join(tempDir, 'project');
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), projectRoot, { recursive: true });
