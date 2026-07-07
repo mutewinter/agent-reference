@@ -119,7 +119,7 @@ test('reports stale git references when configured spec changes', async () => {
 async function copyFixtureProject(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-status-test-'));
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), tempDir, { recursive: true });
-  await fs.rm(path.join(tempDir, '.agent-reference'), { recursive: true, force: true });
+  await fs.rm(path.join(tempDir, '.agent-reference.json'), { force: true });
   return tempDir;
 }
 
@@ -152,6 +152,5 @@ async function writeManifest(
     ]
   };
 
-  await fs.mkdir(path.join(projectRoot, '.agent-reference'), { recursive: true });
-  await fs.writeFile(path.join(projectRoot, '.agent-reference', 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  await fs.writeFile(path.join(projectRoot, '.agent-reference.json'), `${JSON.stringify(manifest, null, 2)}\n`);
 }
