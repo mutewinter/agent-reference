@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>agent-reference — local source references for coding agents</title>
+<meta name="description" content="A CLI that materializes package, git, and folder references so coding agents read real source at exact versions.">
+<style>
+  :root {
+    --bg: #fafafa;
+    --fg: #111111;
+    --muted: #6b6b6b;
+    --line: #e2e2e2;
+    --block: #ffffff;
+    --accent: #111111;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0a0a0a;
+      --fg: #ededed;
+      --muted: #8a8a8a;
+      --line: #262626;
+      --block: #111111;
+      --accent: #ededed;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  ::selection { background: var(--fg); color: var(--bg); }
+  main {
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 0 1.25rem;
+  }
+  a { color: var(--fg); text-underline-offset: 3px; }
+  a:hover { color: var(--muted); }
+
+  header {
+    padding: 4.5rem 0 3rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .prompt { color: var(--muted); user-select: none; }
+  h1 {
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .tagline { margin-top: 1rem; max-width: 38rem; }
+  .tagline em { font-style: normal; color: var(--muted); }
+
+  section { padding: 2.5rem 0; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  .label {
+    display: block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+    margin-bottom: 1.25rem;
+  }
+  p + p { margin-top: 1rem; }
+  p { max-width: 38rem; }
+
+  pre {
+    background: var(--block);
+    border: 1px solid var(--line);
+    padding: 1rem 1.25rem;
+    overflow-x: auto;
+    line-height: 1.6;
+    margin: 1.25rem 0 0;
+  }
+  code { font-family: inherit; }
+  p code, li code {
+    background: var(--block);
+    border: 1px solid var(--line);
+    padding: 0.05rem 0.35rem;
+  }
+  .dim { color: var(--muted); }
+  .ok { font-weight: 600; }
+
+  ol.steps { list-style: none; counter-reset: step; margin-top: 0.25rem; }
+  ol.steps > li {
+    counter-increment: step;
+    padding: 1.1rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  ol.steps > li:last-child { border-bottom: none; padding-bottom: 0; }
+  ol.steps > li::before {
+    content: counter(step, decimal-leading-zero);
+    color: var(--muted);
+    margin-right: 1rem;
+  }
+  ul.plain { list-style: none; }
+  ul.plain li { padding-left: 1.4rem; text-indent: -1.4rem; max-width: 38rem; }
+  ul.plain li + li { margin-top: 0.6rem; }
+  ul.plain li::before { content: "—"; color: var(--muted); margin-right: 0.65rem; }
+
+  table { border-collapse: collapse; width: 100%; margin-top: 1.25rem; }
+  th, td {
+    text-align: left;
+    padding: 0.5rem 1rem 0.5rem 0;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    font-weight: 400;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+  td:first-child { white-space: nowrap; }
+
+  footer {
+    padding: 2.5rem 0 4.5rem;
+    color: var(--muted);
+    border-top: 1px solid var(--line);
+  }
+  footer nav a { margin-right: 1.5rem; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <h1><span class="prompt">$</span> agent-reference</h1>
+  <p class="tagline">
+    Materialize package, git, and folder references for coding agents.
+    <em>Agents read the real source of your dependencies, at the exact versions in your lockfile,
+    instead of guessing from config files or node_modules.</em>
+  </p>
+</header>
+
+<section>
+  <span class="label">Install</span>
+  <pre><code>npm install -g agent-reference</code></pre>
+</section>
+
+<section>
+  <span class="label">The one command agents run</span>
+  <pre><code><span class="dim">$</span> agent-reference status
+
+kind     name          current  cloned   status  path
+-------  ------------  -------  -------  ------  --------------------------------------
+package  react         18.2.0   18.2.0   <span class="ok">ready</span>   .agent-reference/packages/react/18.2.0
+package  zod           4.4.3    4.4.3    <span class="ok">ready</span>   .agent-reference/packages/zod/4.4.3
+git      typescript    -        -        <span class="ok">ready</span>   .agent-reference/git/typescript/main
+folder   design-notes  -        -        <span class="ok">ready</span>   references/design-notes</code></pre>
+  <p style="margin-top:1.25rem">
+    Every <code>ready</code> row is an absolute path to inspectable source.
+    If anything is <code>missing</code> or <code>stale</code>, one command fixes it:
+    <code>agent-reference clone --non-interactive</code>.
+  </p>
+</section>
+
+<section>
+  <span class="label">Workflow</span>
+  <ol class="steps">
+    <li><code>agent-reference init --package react --package zod</code> <span class="dim">— pick the dependencies agents should be able to read; writes agent-reference.json.</span></li>
+    <li><code>agent-reference clone --non-interactive</code> <span class="dim">— checks out each reference at the exact published commit.</span></li>
+    <li><code>agent-reference status</code> <span class="dim">— agents run this and follow the paths. That's it.</span></li>
+  </ol>
+</section>
+
+<section>
+  <span class="label">Config</span>
+  <p>Commit <code>agent-reference.json</code> to share references with every agent that touches the repo.</p>
+  <pre><code>{
+  "packages": {
+    "react": "installed",
+    "prettier": "3.6.2"
+  },
+  "git": {
+    "typescript": "github:microsoft/TypeScript#main"
+  },
+  "folders": {
+    "design-notes": "./references/design-notes"
+  }
+}</code></pre>
+  <p style="margin-top:1.25rem">
+    <code>"installed"</code> tracks the version in your lockfile.
+    Use <code>agent-reference.local.json</code> for personal, uncommitted paths.
+  </p>
+</section>
+
+<section>
+  <span class="label">How it works</span>
+  <ul class="plain">
+    <li>Reads exact versions from your lockfile — pnpm, npm, Bun, and Yarn are supported.</li>
+    <li>Resolves each package's repository and publish commit (<code>gitHead</code>, then release tags) from the npm registry.</li>
+    <li>Clones once into a global bare-repository cache; projects get cheap git worktrees under <code>.agent-reference/</code>.</li>
+    <li>Re-cloning prunes superseded worktrees, so on-disk source always matches the lockfile.</li>
+    <li>Ships a bundled skill so agents know to run <code>status</code> first.</li>
+  </ul>
+</section>
+
+<section>
+  <span class="label">Commands</span>
+  <table>
+    <thead><tr><th>command</th><th>does</th></tr></thead>
+    <tbody>
+      <tr><td><code>status</code></td><td>Report every reference with version drift and absolute paths. <code>--json</code> for scripts.</td></tr>
+      <tr><td><code>list</code></td><td>Show direct dependencies with exact lockfile versions.</td></tr>
+      <tr><td><code>init</code></td><td>Write agent-reference.json for the selected packages.</td></tr>
+      <tr><td><code>clone</code></td><td>Materialize configured references; prunes stale checkouts.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<footer>
+  <nav>
+    <a href="https://github.com/mutewinter/agent-reference">GitHub</a>
+    <a href="https://github.com/mutewinter/agent-reference#usage">Docs</a>
+    <span>MIT License</span>
+  </nav>
+</footer>
+
+</main>
+</body>
+</html>
