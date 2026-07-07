@@ -58,7 +58,11 @@ async function runInit(options: CliOptions): Promise<void> {
     configFile: options.configFile
   });
 
-  printResult(options, result, () => `config -> ${result.configPath}\n`);
+  printResult(
+    options,
+    result,
+    () => `config -> ${result.configPath}\ntip: install the agent skill with: npx skills add mutewinter/agent-reference\n`
+  );
 }
 
 async function runClone(options: CliOptions): Promise<void> {

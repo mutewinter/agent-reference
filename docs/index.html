@@ -12,7 +12,6 @@
     --muted: #6b6b6b;
     --line: #e2e2e2;
     --block: #ffffff;
-    --accent: #111111;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -21,7 +20,6 @@
       --muted: #8a8a8a;
       --line: #262626;
       --block: #111111;
-      --accent: #ededed;
     }
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -43,30 +41,61 @@
   a:hover { color: var(--muted); }
 
   header {
-    padding: 4.5rem 0 3rem;
+    padding: 5rem 0 3.25rem;
     border-bottom: 1px solid var(--line);
   }
-  .prompt { color: var(--muted); user-select: none; }
+  .prompt-char { color: var(--muted); user-select: none; }
   h1 {
-    font-size: 1.35rem;
+    font-size: 1.7rem;
     font-weight: 600;
     letter-spacing: -0.01em;
   }
-  .tagline { margin-top: 1rem; max-width: 38rem; }
-  .tagline em { font-style: normal; color: var(--muted); }
+  .tagline {
+    margin-top: 1.25rem;
+    max-width: 38rem;
+    font-size: 1rem;
+  }
+  .tagline em { display: block; margin-top: 0.5rem; font-style: normal; font-size: 0.875rem; color: var(--muted); }
 
-  section { padding: 2.5rem 0; border-bottom: 1px solid var(--line); }
+  .cta-row { margin-top: 2rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0.6rem 1.15rem;
+    border: 1px solid var(--fg);
+    background: none;
+    color: var(--fg);
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .btn:hover { color: var(--fg); background: var(--block); }
+  .btn-primary { background: var(--fg); color: var(--bg); }
+  .btn-primary:hover { background: var(--muted); border-color: var(--muted); color: var(--bg); }
+  .btn svg { flex: none; }
+
+  section { padding: 3rem 0; border-bottom: 1px solid var(--line); }
   section:last-of-type { border-bottom: none; }
   .label {
     display: block;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.16em;
     color: var(--muted);
-    margin-bottom: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+  h2 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 1.1rem;
   }
   p + p { margin-top: 1rem; }
   p { max-width: 38rem; }
+  .dim { color: var(--muted); }
+  .ok { font-weight: 600; }
 
   pre {
     background: var(--block);
@@ -82,8 +111,24 @@
     border: 1px solid var(--line);
     padding: 0.05rem 0.35rem;
   }
-  .dim { color: var(--muted); }
-  .ok { font-weight: 600; }
+
+  .copy-wrap { position: relative; }
+  .copy-chip {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font: inherit;
+    font-size: 0.72rem;
+    color: var(--muted);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+  }
+  .copy-chip:hover { color: var(--fg); border-color: var(--fg); }
 
   ol.steps { list-style: none; counter-reset: step; margin-top: 0.25rem; }
   ol.steps > li {
@@ -111,9 +156,9 @@
   }
   th {
     font-weight: 400;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     text-transform: uppercase;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.16em;
     color: var(--muted);
   }
   td:first-child { white-space: nowrap; }
@@ -124,44 +169,33 @@
     border-top: 1px solid var(--line);
   }
   footer nav a { margin-right: 1.5rem; }
-
-  .cta-row { margin-top: 1.75rem; display: flex; gap: 0.75rem; flex-wrap: wrap; }
-  .btn {
-    display: inline-block;
-    font: inherit;
-    font-size: 0.85rem;
-    padding: 0.55rem 1.1rem;
-    border: 1px solid var(--fg);
-    background: none;
-    color: var(--fg);
-    text-decoration: none;
-    cursor: pointer;
-  }
-  .btn:hover { color: var(--fg); background: var(--block); }
-  .btn-primary { background: var(--fg); color: var(--bg); }
-  .btn-primary:hover { background: var(--muted); border-color: var(--muted); color: var(--bg); }
 </style>
 </head>
 <body>
 <main>
 
 <header>
-  <h1><span class="prompt">$</span> agent-reference</h1>
+  <h1><span class="prompt-char">$</span> agent-reference</h1>
   <p class="tagline">
     Materialize package, git, and folder references for coding agents.
     <em>Agents read the real source of your dependencies, at the exact versions in your lockfile,
     instead of guessing from config files or node_modules.</em>
   </p>
   <div class="cta-row">
-    <button class="btn btn-primary" id="copy-prompt" type="button">copy install prompt for agent</button>
+    <button class="btn btn-primary" id="copy-prompt" type="button">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="5.5" y="5.5" width="9" height="9"/><path d="M10.5 3.5v-2h-9v9h2"/></svg>
+      <span>copy install prompt for agent</span>
+    </button>
     <a class="btn" href="https://github.com/mutewinter/agent-reference">view source</a>
   </div>
 </header>
 
 <section>
   <span class="label">Install</span>
+  <h2>Point your agent at it</h2>
   <p>Paste this into your agent — it installs the CLI, the skill, and sets up the repo:</p>
-  <pre id="agent-prompt"><code>Set up agent-reference in this repository:
+  <div class="copy-wrap">
+    <pre id="agent-prompt"><code>Set up agent-reference in this repository:
 1. Install the CLI: npm install -g agent-reference
 2. Install the skill for this harness: npx skills add mutewinter/agent-reference
 3. Run agent-reference init and select the dependencies whose source
@@ -170,13 +204,19 @@
 4. Verify with agent-reference status: every reference should be ready.
    From now on, read dependency source from the paths that status
    reports instead of node_modules.</code></pre>
+    <button class="copy-chip" type="button" data-copy="agent-prompt">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="5.5" y="5.5" width="9" height="9"/><path d="M10.5 3.5v-2h-9v9h2"/></svg>
+      <span>copy</span>
+    </button>
+  </div>
   <p style="margin-top:1.25rem" class="dim">Or by hand:</p>
   <pre><code>npm install -g agent-reference
 npx skills add mutewinter/agent-reference</code></pre>
 </section>
 
 <section>
-  <span class="label">The one command agents run</span>
+  <span class="label">Status</span>
+  <h2>One command, absolute paths</h2>
   <pre><code><span class="dim">$</span> agent-reference status
 
 kind     name          current  cloned   status  path
@@ -194,6 +234,7 @@ folder   design-notes  -        -        <span class="ok">ready</span>   referen
 
 <section>
   <span class="label">Workflow</span>
+  <h2>Three steps, then agents are on their own</h2>
   <ol class="steps">
     <li><code>agent-reference init --package react --package zod</code> <span class="dim">— pick the dependencies agents should be able to read; writes agent-reference.json.</span></li>
     <li><code>agent-reference clone --non-interactive</code> <span class="dim">— checks out each reference at the exact published commit.</span></li>
@@ -203,6 +244,7 @@ folder   design-notes  -        -        <span class="ok">ready</span>   referen
 
 <section>
   <span class="label">Config</span>
+  <h2>One committed JSON file</h2>
   <p>Commit <code>agent-reference.json</code> to share references with every agent that touches the repo.</p>
   <pre><code>{
   "packages": {
@@ -223,7 +265,8 @@ folder   design-notes  -        -        <span class="ok">ready</span>   referen
 </section>
 
 <section>
-  <span class="label">How it works</span>
+  <span class="label">Internals</span>
+  <h2>Exact versions, real git checkouts</h2>
   <ul class="plain">
     <li>Reads exact versions from your lockfile — pnpm, npm, Bun, and Yarn are supported.</li>
     <li>Resolves each package's repository and publish commit (<code>gitHead</code>, then release tags) from the npm registry.</li>
@@ -234,7 +277,8 @@ folder   design-notes  -        -        <span class="ok">ready</span>   referen
 </section>
 
 <section>
-  <span class="label">Commands</span>
+  <span class="label">Reference</span>
+  <h2>Four commands</h2>
   <table>
     <thead><tr><th>command</th><th>does</th></tr></thead>
     <tbody>
@@ -256,18 +300,39 @@ folder   design-notes  -        -        <span class="ok">ready</span>   referen
 
 </main>
 <script>
-  const copyButton = document.getElementById('copy-prompt');
-  copyButton.addEventListener('click', async () => {
-    const prompt = document.getElementById('agent-prompt').textContent.trim();
+  const promptText = () => document.getElementById('agent-prompt').textContent.trim();
+
+  async function copyToClipboard(text) {
+    await navigator.clipboard.writeText(text);
+  }
+
+  function flashLabel(button, message) {
+    const span = button.querySelector('span');
+    const original = span.textContent;
+    span.textContent = message;
+    setTimeout(() => { span.textContent = original; }, 2000);
+  }
+
+  document.getElementById('copy-prompt').addEventListener('click', async (event) => {
     try {
-      await navigator.clipboard.writeText(prompt);
-      copyButton.textContent = 'copied to clipboard';
+      await copyToClipboard(promptText());
+      flashLabel(event.currentTarget, 'copied to clipboard');
     } catch {
       document.getElementById('agent-prompt').scrollIntoView({ behavior: 'smooth' });
-      copyButton.textContent = 'copy blocked — prompt below';
+      flashLabel(event.currentTarget, 'copy blocked — prompt below');
     }
-    setTimeout(() => { copyButton.textContent = 'copy install prompt for agent'; }, 2200);
   });
+
+  for (const chip of document.querySelectorAll('.copy-chip')) {
+    chip.addEventListener('click', async () => {
+      try {
+        await copyToClipboard(document.getElementById(chip.dataset.copy).textContent.trim());
+        flashLabel(chip, 'copied');
+      } catch {
+        flashLabel(chip, 'select + copy manually');
+      }
+    });
+  }
 </script>
 </body>
 </html>
