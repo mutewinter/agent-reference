@@ -73,7 +73,7 @@ async function runClone(options: CliOptions): Promise<void> {
     allImporters: options.allImporters,
     registry: options.registry ?? undefined,
     metadataMap: await loadMetadataFile(options.metadataFile),
-    bareStoreDir: options.bareStoreDir ?? undefined,
+    storeDir: options.storeDir ?? undefined,
     worktreeRoot: options.worktreeRoot ?? undefined,
     configFile: options.configFile,
     force: options.force
@@ -188,7 +188,7 @@ Options:
   --config <path>       Config file. Defaults to agent-reference.json in the project root.
   --metadata-file <json> Use npm metadata from a local JSON map.
   --registry <url>      npm registry base URL. Defaults to https://registry.npmjs.org.
-  --cache-dir <dir>     Global bare repository store. Also accepted: --store-dir.
+  --cache-dir <dir>     Machine-wide store for bare repos and shared worktrees. Also: --store-dir.
   --worktree-dir <dir>  Project-visible dependency worktree directory.
   --non-interactive     Fail instead of prompting when no package is selected.
   --json                Print machine-readable JSON.

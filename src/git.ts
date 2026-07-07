@@ -47,20 +47,18 @@ export async function ensureDependencyWorktree(
     throw new Error(`No repository URL found for ${dependency.name}@${dependency.version}`);
   }
 
+  const repositoryUrl = metadata.repositoryUrl;
   const gitBin = options.gitBin ?? 'git';
-  const bareStoreDir = options.bareStoreDir ?? defaultBareStoreDir();
-  const worktreeRoot = options.worktreeRoot ?? path.join(options.projectRoot, '.agent-reference', 'packages');
-  const worktreePath = path.join(
-    worktreeRoot,
-    slugifyPackageName(dependency.name),
-    slugifyVersion(dependency.version)
-  );
-  const materialized = await ensureWorktree({
-    repositoryUrl: metadata.repositoryUrl,
-    bareStoreDir,
-    worktreePath,
+  const storeDir = options.storeDir ?? defaultStoreDir();
+  const materialized = await ensureWorktree<PackageCheckoutSource>({
+    repositoryUrl,
+    storeDir,
     gitBin,
     force: options.force,
+    worktreePathFor: (checkout) =>
+      options.worktreeRoot
+        ? path.join(options.worktreeRoot, slugifyPackageName(dependency.name), slugifyVersion(dependency.version))
+        : sharedWorktreePath(storeDir, repositoryUrl, checkout.sha),
     resolveCheckout: (bareRepositoryPath) => resolveCheckoutRef(bareRepositoryPath, dependency, metadata, gitBin)
   });
 
@@ -78,16 +76,17 @@ export async function ensureGitReferenceWorktree(
 ): Promise<GitReferenceWorktreeResult> {
   const parsed = parseGitReferenceSpec(spec, options.projectRoot);
   const gitBin = options.gitBin ?? 'git';
-  const bareStoreDir = options.bareStoreDir ?? defaultBareStoreDir();
+  const storeDir = options.storeDir ?? defaultStoreDir();
   const refName = parsed.ref ?? 'HEAD';
-  const worktreeRoot = options.worktreeRoot ?? path.join(options.projectRoot, '.agent-reference', 'git');
-  const worktreePath = path.join(worktreeRoot, slugifyPackageName(name), slugifyVersion(refName));
-  const materialized = await ensureWorktree({
+  const materialized = await ensureWorktree<GitReferenceCheckoutSource>({
     repositoryUrl: parsed.repositoryUrl,
-    bareStoreDir,
-    worktreePath,
+    storeDir,
     gitBin,
     force: options.force,
+    worktreePathFor: (checkout) =>
+      options.worktreeRoot
+        ? path.join(options.worktreeRoot, slugifyPackageName(name), slugifyVersion(refName))
+        : sharedWorktreePath(storeDir, parsed.repositoryUrl, checkout.sha),
     resolveCheckout: (bareRepositoryPath) => resolveConfiguredRef(bareRepositoryPath, refName, gitBin)
   });
 
@@ -99,29 +98,36 @@ export async function ensureGitReferenceWorktree(
   };
 }
 
+function sharedWorktreePath(storeDir: string, repositoryUrl: string, sha: string): string {
+  const parts = repositoryCacheParts(repositoryUrl);
+  const repo = (parts.pop() ?? 'repository').replace(/\.git$/, '');
+  return path.join(storeDir, 'worktrees', ...parts, repo, sha.slice(0, 12));
+}
+
 async function ensureWorktree<RefSource extends string>(options: {
   repositoryUrl: string;
-  bareStoreDir: string;
-  worktreePath: string;
+  storeDir: string;
   gitBin: string;
   force?: boolean;
+  worktreePathFor: (checkout: CheckoutRef<RefSource>) => string;
   resolveCheckout: (bareRepositoryPath: string) => Promise<CheckoutRef<RefSource>>;
 }): Promise<MaterializedWorktree<RefSource>> {
-  const bareRepositoryPath = path.join(options.bareStoreDir, ...repositoryCacheParts(options.repositoryUrl));
+  const bareRepositoryPath = path.join(options.storeDir, 'repositories', ...repositoryCacheParts(options.repositoryUrl));
   await ensureBareRepository(options.repositoryUrl, bareRepositoryPath, options.gitBin);
   const checkout = await options.resolveCheckout(bareRepositoryPath);
+  const worktreePath = options.worktreePathFor(checkout);
 
-  if (await pathExists(options.worktreePath)) {
-    const checkoutSha = await runGit(['-C', options.worktreePath, 'rev-parse', 'HEAD'], { gitBin: options.gitBin });
+  if (await pathExists(worktreePath)) {
+    const checkoutSha = await runGit(['-C', worktreePath, 'rev-parse', 'HEAD'], { gitBin: options.gitBin });
     if (checkoutSha.stdout.trim() !== checkout.sha && !options.force) {
       throw new Error(
-        `Worktree already exists at ${options.worktreePath} but is checked out at ${checkoutSha.stdout.trim()}`
+        `Worktree already exists at ${worktreePath} but is checked out at ${checkoutSha.stdout.trim()}`
       );
     }
 
     return {
       bareRepositoryPath,
-      worktreePath: options.worktreePath,
+      worktreePath,
       checkoutRef: checkout.ref,
       checkoutSha: checkoutSha.stdout.trim(),
       refSource: 'existing',
@@ -129,15 +135,15 @@ async function ensureWorktree<RefSource extends string>(options: {
     };
   }
 
-  await fs.mkdir(path.dirname(options.worktreePath), { recursive: true });
-  await runGit(['-C', bareRepositoryPath, 'worktree', 'add', '--detach', options.worktreePath, checkout.ref], {
+  await fs.mkdir(path.dirname(worktreePath), { recursive: true });
+  await runGit(['-C', bareRepositoryPath, 'worktree', 'add', '--detach', worktreePath, checkout.ref], {
     gitBin: options.gitBin
   });
-  const checkoutSha = await runGit(['-C', options.worktreePath, 'rev-parse', 'HEAD'], { gitBin: options.gitBin });
+  const checkoutSha = await runGit(['-C', worktreePath, 'rev-parse', 'HEAD'], { gitBin: options.gitBin });
 
   return {
     bareRepositoryPath,
-    worktreePath: options.worktreePath,
+    worktreePath,
     checkoutRef: checkout.ref,
     checkoutSha: checkoutSha.stdout.trim(),
     refSource: checkout.source,
@@ -260,17 +266,17 @@ async function resolveGitRevision(
   return result.exitCode === 0 && sha ? { ref: revision, sha } : null;
 }
 
-function defaultBareStoreDir(): string {
+function defaultStoreDir(): string {
   if (process.env.AGENT_REFERENCE_STORE_DIR) {
     return process.env.AGENT_REFERENCE_STORE_DIR;
   }
   if (process.env.XDG_CACHE_HOME) {
-    return path.join(process.env.XDG_CACHE_HOME, 'agent-reference', 'repositories');
+    return path.join(process.env.XDG_CACHE_HOME, 'agent-reference');
   }
   if (process.platform === 'darwin') {
-    return path.join(os.homedir(), 'Library', 'Caches', 'agent-reference', 'repositories');
+    return path.join(os.homedir(), 'Library', 'Caches', 'agent-reference');
   }
-  return path.join(os.homedir(), '.cache', 'agent-reference', 'repositories');
+  return path.join(os.homedir(), '.cache', 'agent-reference');
 }
 
 function parseGitReferenceSpec(spec: string, projectRoot: string): { repositoryUrl: string; ref: string | null } {

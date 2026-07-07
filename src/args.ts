@@ -8,7 +8,7 @@ export interface CliOptions {
   nonInteractive: boolean;
   metadataFile: string | null;
   registry: string | null;
-  bareStoreDir: string | null;
+  storeDir: string | null;
   worktreeRoot: string | null;
   configFile: string | null;
   force: boolean;
@@ -24,11 +24,11 @@ const BOOLEAN_FLAGS: Record<string, 'all' | 'allImporters' | 'json' | 'nonIntera
   '--force': 'force'
 };
 
-const VALUE_FLAGS: Record<string, 'metadataFile' | 'registry' | 'bareStoreDir' | 'worktreeRoot' | 'configFile'> = {
+const VALUE_FLAGS: Record<string, 'metadataFile' | 'registry' | 'storeDir' | 'worktreeRoot' | 'configFile'> = {
   '--metadata-file': 'metadataFile',
   '--registry': 'registry',
-  '--cache-dir': 'bareStoreDir',
-  '--store-dir': 'bareStoreDir',
+  '--cache-dir': 'storeDir',
+  '--store-dir': 'storeDir',
   '--worktree-dir': 'worktreeRoot',
   '--config': 'configFile'
 };
@@ -44,7 +44,7 @@ export function parseArgv(argv: string[]): CliOptions {
     nonInteractive: false,
     metadataFile: null,
     registry: null,
-    bareStoreDir: null,
+    storeDir: null,
     worktreeRoot: null,
     configFile: null,
     force: false

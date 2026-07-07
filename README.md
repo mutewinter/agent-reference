@@ -74,7 +74,7 @@ Use `agent-reference.local.json` for personal machine paths that should not be c
 
 `allPackages: true` can be used to keep every discovered direct dependency cloned. CLI flags override config values.
 
-Do not commit `.agent-reference/`. It contains generated machine state, including `manifest.json` and worktrees. The config says what should exist; the manifest says what was materialized on this computer.
+Do not commit `.agent-reference/`. It contains generated machine state (`manifest.json`). The config says what should exist; the manifest says what was materialized on this computer.
 
 ## Agent Workflow
 
@@ -92,14 +92,19 @@ If a package or git reference is `missing`, `stale`, or `missing-worktree`, run:
 agent-reference clone --non-interactive
 ```
 
-Then run status again and use the reported absolute paths. Re-cloning prunes worktrees and manifest entries for versions that are no longer current, so only one copy of each reference stays on disk. Folder references are never cloned; fix the configured path if a folder is missing.
+Then run status again and use the reported absolute paths. Re-cloning replaces superseded manifest entries, so each project always points at exactly one copy per reference; shared store worktrees are left in place for other projects, while project-local worktrees are deleted. Folder references are never cloned; fix the configured path if a folder is missing.
 
 ## Layout
 
-- Bare repositories: `$AGENT_REFERENCE_STORE_DIR`, `$XDG_CACHE_HOME/agent-reference/repositories`, or the OS cache directory.
-- Package worktrees: `.agent-reference/packages/<package>/<version>`.
-- Git worktrees: `.agent-reference/git/<name>/<ref>`.
-- Agent manifest: `.agent-reference/manifest.json`.
+Everything heavy lives in one machine-wide store, shared across every project and git worktree — like the pnpm store:
+
+- Store root: `$AGENT_REFERENCE_STORE_DIR`, `$XDG_CACHE_HOME/agent-reference`, or the OS cache directory (`~/Library/Caches/agent-reference` on macOS, `~/.cache/agent-reference` elsewhere).
+- Bare repositories: `<store>/repositories/<host>/<owner>/<repo>.git`.
+- Shared worktrees: `<store>/worktrees/<host>/<owner>/<repo>/<commit>` — keyed by commit, so two projects on the same version (or two packages from the same monorepo commit) share one checkout.
+- Inside each project, `.agent-reference/` holds only `manifest.json` and a README — no dependency source.
+- Set `worktreeDir` in config (or `--worktree-dir`) to keep worktrees inside the project instead; those are pruned when superseded.
+
+The store is a cache: delete it any time and `agent-reference clone --non-interactive` rebuilds it.
 
 ## Resolution Model
 
@@ -131,7 +136,7 @@ Supported now:
 - `agent-reference.json` desired-state config for shared references.
 - `agent-reference.local.json` for local folder references and overrides.
 - `agent-reference status` for agent-readable absolute path and drift reporting.
-- Global bare repository cache with project-local worktrees.
+- Machine-wide store of bare repositories and shared, commit-keyed worktrees.
 - A bundled `skills/agent-reference/SKILL.md` for agent awareness.
 
 Not supported yet:

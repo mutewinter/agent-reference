@@ -30,7 +30,7 @@ test('clones a selected dependency into a project worktree using local metadata'
         gitHead: sourceRepo.commit
       }
     },
-    bareStoreDir: path.join(tempDir, 'store'),
+    storeDir: path.join(tempDir, 'store'),
     worktreeRoot: path.join(tempDir, 'worktrees')
   });
 
@@ -57,7 +57,7 @@ test('clones packages selected by agent-reference.json', async () => {
         gitHead: sourceRepo.commit
       }
     },
-    bareStoreDir: path.join(tempDir, 'store'),
+    storeDir: path.join(tempDir, 'store'),
     worktreeRoot: path.join(tempDir, 'worktrees')
   });
 
@@ -88,7 +88,7 @@ test('clones config-declared packages that are not in package.json', async () =>
         gitHead: sourceRepo.commit
       }
     },
-    bareStoreDir: path.join(tempDir, 'store'),
+    storeDir: path.join(tempDir, 'store'),
     worktreeRoot: path.join(tempDir, 'worktrees')
   });
 
@@ -111,7 +111,7 @@ test('clones configured git references', async () => {
   }, null, 2));
 
   const result = await cloneReferences(path.join(projectRoot, 'package.json'), {
-    bareStoreDir: path.join(tempDir, 'store')
+    storeDir: path.join(tempDir, 'store')
   });
 
   assert.equal(result.cloned.length, 0);
@@ -137,7 +137,7 @@ test('preserves existing manifest references after a partial clone', async () =>
         gitHead: packageRepo.commit
       }
     },
-    bareStoreDir: path.join(tempDir, 'store')
+    storeDir: path.join(tempDir, 'store')
   });
 
   const gitRepo = await createSourceRepo(tempDir, 'tooling-source', 'tool.js', 'export const tool = true;\n');
@@ -149,7 +149,7 @@ test('preserves existing manifest references after a partial clone', async () =>
   }, null, 2));
 
   await cloneReferences(path.join(projectRoot, 'package.json'), {
-    bareStoreDir: path.join(tempDir, 'store')
+    storeDir: path.join(tempDir, 'store')
   });
 
   const manifest = JSON.parse(
@@ -160,50 +160,95 @@ test('preserves existing manifest references after a partial clone', async () =>
   assert.equal(manifest.references.some((reference) => reference.kind === 'git' && reference.name === 'tooling'), true);
 });
 
-test('prunes superseded worktrees and manifest entries when a reference version changes', async () => {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-prune-test-'));
+test('shares version-keyed worktrees in the store and prunes superseded manifest entries', async () => {
+  const { projectRoot, tempDir, metadataFor, configFor, firstCommit, secondCommit } = await createUpgradeScenario('prune');
+
+  await configFor('1.0.3');
+  const first = await cloneReferences(path.join(projectRoot, 'package.json'), {
+    metadataMap: metadataFor('1.0.3', firstCommit),
+    storeDir: path.join(tempDir, 'store')
+  });
+
+  await configFor('1.0.4');
+  const second = await cloneReferences(path.join(projectRoot, 'package.json'), {
+    metadataMap: metadataFor('1.0.4', secondCommit),
+    storeDir: path.join(tempDir, 'store')
+  });
+
+  assert.deepEqual(await manifestVersions(projectRoot), ['1.0.4']);
+  assert.match(second.cloned[0]?.worktreePath ?? '', /[\\/]store[\\/]worktrees[\\/]/);
+  // Store worktrees are shared across projects, so the old version stays on disk.
+  assert.equal(await pathExists(first.cloned[0]?.worktreePath ?? ''), true);
+  assert.equal(await pathExists(second.cloned[0]?.worktreePath ?? ''), true);
+});
+
+test('deletes superseded project-local worktrees when worktreeRoot is inside the project', async () => {
+  const { projectRoot, tempDir, metadataFor, configFor, firstCommit, secondCommit } = await createUpgradeScenario('local-prune');
+  const worktreeRoot = path.join(projectRoot, '.agent-reference', 'packages');
+
+  await configFor('1.0.3');
+  const first = await cloneReferences(path.join(projectRoot, 'package.json'), {
+    metadataMap: metadataFor('1.0.3', firstCommit),
+    storeDir: path.join(tempDir, 'store'),
+    worktreeRoot
+  });
+
+  await configFor('1.0.4');
+  const second = await cloneReferences(path.join(projectRoot, 'package.json'), {
+    metadataMap: metadataFor('1.0.4', secondCommit),
+    storeDir: path.join(tempDir, 'store'),
+    worktreeRoot
+  });
+
+  assert.deepEqual(await manifestVersions(projectRoot), ['1.0.4']);
+  assert.equal(await pathExists(first.cloned[0]?.worktreePath ?? ''), false);
+  assert.equal(await pathExists(second.cloned[0]?.worktreePath ?? ''), true);
+});
+
+async function createUpgradeScenario(label: string): Promise<{
+  projectRoot: string;
+  tempDir: string;
+  firstCommit: string;
+  secondCommit: string;
+  metadataFor: (version: string, commit: string) => Record<string, object>;
+  configFor: (version: string) => Promise<void>;
+}> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `agent-reference-${label}-test-`));
   const projectRoot = await copyFixtureProject(tempDir);
   const sourceRepo = await createSourceRepo(tempDir, 'tiny-warning-source', 'index.js', 'export const v1 = true;\n');
   await fs.writeFile(path.join(sourceRepo.path, 'index.js'), 'export const v2 = true;\n');
   await git(['commit', '-am', 'second'], sourceRepo.path);
   const secondCommit = await git(['rev-parse', 'HEAD'], sourceRepo.path);
 
-  const metadataFor = (version: string, commit: string) => ({
-    [`tiny-warning@${version}`]: {
-      name: 'tiny-warning',
-      version,
-      repository: { type: 'git', url: sourceRepo.path },
-      gitHead: commit
+  return {
+    projectRoot,
+    tempDir,
+    firstCommit: sourceRepo.commit,
+    secondCommit,
+    metadataFor: (version, commit) => ({
+      [`tiny-warning@${version}`]: {
+        name: 'tiny-warning',
+        version,
+        repository: { type: 'git', url: sourceRepo.path },
+        gitHead: commit
+      }
+    }),
+    configFor: async (version) => {
+      await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
+        packages: { 'tiny-warning': version }
+      }));
     }
-  });
-  const configFor = async (version: string) =>
-    fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-      packages: { 'tiny-warning': version }
-    }));
+  };
+}
 
-  await configFor('1.0.3');
-  const first = await cloneReferences(path.join(projectRoot, 'package.json'), {
-    metadataMap: metadataFor('1.0.3', sourceRepo.commit),
-    bareStoreDir: path.join(tempDir, 'store')
-  });
-
-  await configFor('1.0.4');
-  const second = await cloneReferences(path.join(projectRoot, 'package.json'), {
-    metadataMap: metadataFor('1.0.4', secondCommit),
-    bareStoreDir: path.join(tempDir, 'store')
-  });
-
+async function manifestVersions(projectRoot: string): Promise<string[]> {
   const manifest = JSON.parse(
     await fs.readFile(path.join(projectRoot, '.agent-reference', 'manifest.json'), 'utf8')
   ) as AgentReferenceManifest;
-  const versions = manifest.references.flatMap((reference) =>
+  return manifest.references.flatMap((reference) =>
     reference.kind === 'package' && reference.name === 'tiny-warning' ? [reference.version] : []
   );
-
-  assert.deepEqual(versions, ['1.0.4']);
-  assert.equal(await pathExists(first.cloned[0]?.worktreePath ?? ''), false);
-  assert.equal(await pathExists(second.cloned[0]?.worktreePath ?? ''), true);
-});
+}
 
 async function pathExists(filePath: string): Promise<boolean> {
   try {
