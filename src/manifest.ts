@@ -16,13 +16,13 @@ export interface ManifestUpdateResult {
   superseded: AgentReferenceManifestReference[];
 }
 
+export const MANIFEST_FILE = '.agent-reference.json';
+
 export async function writeManifest(
   projectRoot: string,
   packageResults: GitWorktreeResult[],
   gitResults: GitReferenceWorktreeResult[] = []
 ): Promise<ManifestUpdateResult> {
-  const referenceDir = path.join(projectRoot, '.agent-reference');
-  await fs.mkdir(referenceDir, { recursive: true });
   const existingReferences = (await readManifest(projectRoot))?.manifest.references ?? [];
   const updates = [
     ...packageResults.map(packageResultToManifestReference),
@@ -38,7 +38,7 @@ export async function writeManifest(
     references: mergeManifestReferences(kept, updates)
   };
 
-  const manifestPath = path.join(referenceDir, 'manifest.json');
+  const manifestPath = path.join(projectRoot, MANIFEST_FILE);
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   return { manifestPath, superseded };
 }
@@ -52,7 +52,7 @@ function isSuperseded(
 }
 
 export async function readManifest(projectRoot: string): Promise<{ path: string; manifest: AgentReferenceManifest } | null> {
-  const manifestPath = path.join(projectRoot, '.agent-reference', 'manifest.json');
+  const manifestPath = path.join(projectRoot, MANIFEST_FILE);
   try {
     const manifest = await readJsonFile<AgentReferenceManifest>(manifestPath);
     if (manifest.schemaVersion !== SCHEMA_VERSION) return null;
@@ -115,22 +115,3 @@ function manifestReferenceKey(reference: AgentReferenceManifestReference): strin
   return `git:${reference.name}`;
 }
 
-export async function writeAgentFiles(projectRoot: string): Promise<string> {
-  const referenceDir = path.join(projectRoot, '.agent-reference');
-  await fs.mkdir(referenceDir, { recursive: true });
-
-  const guidePath = path.join(referenceDir, 'README.md');
-  await fs.writeFile(
-    guidePath,
-    [
-      '# Agent Reference Notes',
-      '',
-      'Run `agent-reference status` from the project root to locate reference paths and check for stale versions.',
-      'Read `manifest.json` for the last materialized package and git references.',
-      'Prefer status output paths over `node_modules` when inspecting reference source.',
-      ''
-    ].join('\n')
-  );
-
-  return guidePath;
-}

@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { writeAgentReferenceConfig } from './config.ts';
 import { ensureDependencyWorktree, ensureGitReferenceWorktree, removeWorktree } from './git.ts';
-import { writeAgentFiles, writeManifest } from './manifest.ts';
+import { writeManifest } from './manifest.ts';
 import { dependencyKey } from './package-utils.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import { resolvePackageMetadata } from './registry.ts';
@@ -101,7 +101,6 @@ export async function cloneReferences(
       await removeWorktree(reference.bareRepositoryPath, reference.path, options.gitBin);
     }
   }
-  await writeAgentFiles(projectRoot);
 
   return { selected, cloned, clonedGit, skipped, manifestPath };
 }

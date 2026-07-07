@@ -74,7 +74,7 @@ Use `agent-reference.local.json` for personal machine paths that should not be c
 
 `allPackages: true` can be used to keep every discovered direct dependency cloned. CLI flags override config values.
 
-Do not commit `.agent-reference/`. It contains generated machine state (`manifest.json`). The config says what should exist; the manifest says what was materialized on this computer.
+Add `.agent-reference.json` to `.gitignore`. It is generated machine state with machine-specific absolute paths. The config says what should exist; the manifest says what was materialized on this computer.
 
 ## Agent Workflow
 
@@ -101,7 +101,7 @@ Everything heavy lives in one machine-wide store, shared across every project an
 - Store root: `$AGENT_REFERENCE_STORE_DIR`, `$XDG_CACHE_HOME/agent-reference`, or the OS cache directory (`~/Library/Caches/agent-reference` on macOS, `~/.cache/agent-reference` elsewhere).
 - Bare repositories: `<store>/repositories/<host>/<owner>/<repo>.git`.
 - Shared worktrees: `<store>/worktrees/<host>/<owner>/<repo>/<commit>` — keyed by commit, so two projects on the same version (or two packages from the same monorepo commit) share one checkout.
-- Inside each project, `.agent-reference/` holds only `manifest.json` and a README — no dependency source.
+- Inside each project there is exactly one generated file: the `.agent-reference.json` manifest at the root, next to `agent-reference.json`. No folder, no dependency source.
 - Set `worktreeDir` in config (or `--worktree-dir`) to keep worktrees inside the project instead; those are pruned when superseded.
 
 The store is a cache: delete it any time and `agent-reference clone --non-interactive` rebuilds it.
