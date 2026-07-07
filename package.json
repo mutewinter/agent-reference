@@ -23,7 +23,8 @@
     "build": "tsc -p tsconfig.json",
     "dev": "node --experimental-strip-types src/cli.ts",
     "test": "node --test --experimental-strip-types tests/*.test.ts",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "prepare": "npm run build"
   },
   "keywords": [
     "references",
