@@ -12,26 +12,16 @@ export interface ProjectContext {
 
 export interface ScanProjectOptions {
   allImporters?: boolean;
-  include?: DependencyType[];
-}
-
-export interface ListDependenciesOptions extends ScanProjectOptions {
   cwd?: string;
 }
 
 export interface PackageReference {
   name: string;
-  alias: string | null;
   version: string;
   specifier: string | null;
-  dependencyType: DependencyType;
-  dependencyTypes: DependencyType[];
-  importer: string;
-  importers: string[];
   packageManager: PackageManager;
-  packageJsonPath: string;
-  packageJsonPaths: string[];
-  lockfilePath: string;
+  dependencyTypes: DependencyType[];
+  importers: string[];
 }
 
 export type ManifestRepository =
@@ -48,37 +38,21 @@ export interface NpmPackageManifest {
   name?: string;
   version?: string;
   repository?: ManifestRepository;
-  repositoryUrl?: string;
-  repositoryDirectory?: string;
   gitHead?: string;
-  _resolvedGitHead?: string;
-  dist?: {
-    tarball?: string;
-    shasum?: string;
-    integrity?: string;
-  } | null;
 }
 
 export interface DependencyMetadata {
-  name: string;
-  version: string;
   repositoryUrl: string | null;
   repositoryDirectory: string | null;
   gitHead: string | null;
-  dist: NpmPackageManifest['dist'];
-  rawRepository: ManifestRepository;
 }
 
 export type MetadataMap = Record<string, NpmPackageManifest>;
 
-export interface MetadataResolverOptions {
+export interface RegistryOptions {
   registry?: string;
   fetchImpl?: typeof fetch;
   metadataMap?: MetadataMap | null;
-}
-
-export interface MetadataResolver {
-  resolve(dependency: PackageReference): Promise<DependencyMetadata>;
 }
 
 export interface GitWorktreeOptions {
@@ -112,13 +86,9 @@ export interface GitReferenceWorktreeResult {
   reused: boolean;
 }
 
-export interface CloneReferencesOptions extends ScanProjectOptions {
-  cwd?: string;
+export interface CloneReferencesOptions extends ScanProjectOptions, RegistryOptions {
   packages?: string[];
   all?: boolean;
-  registry?: string;
-  metadataMap?: MetadataMap | null;
-  metadataResolver?: MetadataResolver;
   bareStoreDir?: string;
   worktreeRoot?: string;
   gitBin?: string;
@@ -127,11 +97,11 @@ export interface CloneReferencesOptions extends ScanProjectOptions {
 }
 
 export interface CloneReferencesResult {
-  scanned: PackageReference[];
   selected: PackageReference[];
   cloned: GitWorktreeResult[];
   skipped: Array<{
-    dependency: PackageReference;
+    name: string;
+    version: string | null;
     reason: string;
   }>;
   clonedGit: GitReferenceWorktreeResult[];
@@ -143,11 +113,8 @@ export type AgentReferenceKind = 'package' | 'folder' | 'git';
 export interface PackageManifestReference {
   kind: 'package';
   name: string;
-  requested: string | null;
   version: string;
   packageManager: PackageManager;
-  importers: string[];
-  dependencyTypes: DependencyType[];
   repositoryUrl: string;
   repositoryDirectory: string | null;
   gitHead: string | null;
@@ -162,13 +129,7 @@ export interface GitManifestReference {
   kind: 'git';
   name: string;
   requested: string;
-  version: null;
-  packageManager: null;
-  importers: [];
-  dependencyTypes: [];
   repositoryUrl: string;
-  repositoryDirectory: null;
-  gitHead: null;
   bareRepositoryPath: string;
   path: string;
   checkoutRef: string;
@@ -179,7 +140,7 @@ export interface GitManifestReference {
 export type AgentReferenceManifestReference = PackageManifestReference | GitManifestReference;
 
 export interface AgentReferenceManifest {
-  schemaVersion: 1;
+  schemaVersion: 2;
   generatedAt: string;
   projectRoot: string;
   references: AgentReferenceManifestReference[];
@@ -198,11 +159,8 @@ export interface AgentReferenceStatusEntry {
   name: string;
   requested: string | null;
   packageManager: PackageManager | null;
-  configured: boolean;
   currentVersion: string | null;
   clonedVersion: string | null;
-  dependencyTypes: DependencyType[];
-  importers: string[];
   path: string | null;
   checkoutSha: string | null;
   status: AgentReferenceStatusState;
@@ -217,22 +175,6 @@ export interface AgentReferenceStatusReport {
   manifestPath: string | null;
   references: AgentReferenceStatusEntry[];
   summary: Record<AgentReferenceStatusState, number>;
-}
-
-export interface CliOptions {
-  command: 'list' | 'clone' | 'init' | 'status' | 'help' | 'version';
-  projectPath: string | null;
-  packages: string[];
-  all: boolean;
-  allImporters: boolean;
-  json: boolean;
-  nonInteractive: boolean;
-  metadataFile: string | null;
-  registry: string | null;
-  bareStoreDir: string | null;
-  worktreeRoot: string | null;
-  configFile: string | null;
-  force: boolean;
 }
 
 export interface AgentReferenceConfig {

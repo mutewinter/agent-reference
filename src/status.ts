@@ -1,12 +1,10 @@
-import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import { pathExists } from './fs-utils.ts';
 import { readManifest } from './manifest.ts';
-import { dependencyKey } from './package-utils.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import type {
-  AgentReferenceManifest,
   AgentReferenceStatusEntry,
   AgentReferenceStatusReport,
   AgentReferenceStatusState,
@@ -16,34 +14,44 @@ import type {
   ScanProjectOptions
 } from './types.ts';
 
+const READY_ACTION = 'Use path for source inspection.';
+const CLONE_ACTION = 'Run agent-reference clone --non-interactive to refresh local references.';
+
 export async function getStatusReport(
   projectPath: string | null | undefined,
-  options: ScanProjectOptions & { cwd?: string; configFile?: string | null } = {}
+  options: ScanProjectOptions & { configFile?: string | null } = {}
 ): Promise<AgentReferenceStatusReport> {
-  const referenceContext = await loadReferenceContext(projectPath, options);
-  const { config, configPackages, loadedConfig, packageUniverse, project } = referenceContext;
-  const loadedManifest = await readManifest(project.projectRoot);
-  const manifestReferences = loadedManifest?.manifest.references ?? [];
-  const packageManifestByExact = new Map(
-    manifestReferences
-      .filter(isPackageManifestReference)
-      .map((entry) => [dependencyKey(entry.name, entry.version), entry])
+  const { config, configPackages, loadedConfig, packageUniverse, project } = await loadReferenceContext(
+    projectPath,
+    options
   );
+  const loadedManifest = await readManifest(project.projectRoot);
+
+  const packageManifestByExact = new Map<string, PackageManifestReference>();
   const packageManifestByName = new Map<string, PackageManifestReference>();
   const gitManifestByName = new Map<string, GitManifestReference>();
-
-  for (const entry of manifestReferences) {
-    if (entry.kind === 'package') packageManifestByName.set(entry.name, entry);
-    if (entry.kind === 'git') gitManifestByName.set(entry.name, entry);
+  for (const reference of loadedManifest?.manifest.references ?? []) {
+    if (reference.kind === 'package') {
+      packageManifestByExact.set(`${reference.name}@${reference.version}`, reference);
+      packageManifestByName.set(reference.name, reference);
+    } else {
+      gitManifestByName.set(reference.name, reference);
+    }
   }
 
+  const hasConfig = Boolean(config);
+  const selectedPackages = hasConfig && !config?.allPackages ? configPackages.packages : packageUniverse;
   const entries: AgentReferenceStatusEntry[] = [];
-  const selectedPackages = selectStatusPackages(packageUniverse, configPackages.packages, Boolean(config?.allPackages), Boolean(config));
 
   for (const dependency of selectedPackages) {
-    const exactManifest = packageManifestByExact.get(dependencyKey(dependency.name, dependency.version));
-    const nearestManifest = packageManifestByName.get(dependency.name);
-    entries.push(await buildPackageStatus(dependency, exactManifest ?? null, nearestManifest ?? null, Boolean(config)));
+    entries.push(
+      await buildPackageStatus(
+        dependency,
+        packageManifestByExact.get(`${dependency.name}@${dependency.version}`) ?? null,
+        packageManifestByName.get(dependency.name) ?? null,
+        hasConfig
+      )
+    );
   }
 
   for (const name of configPackages.missingInstalled) {
@@ -53,11 +61,8 @@ export async function getStatusReport(
       name,
       requested: 'installed',
       packageManager: null,
-      configured: true,
       currentVersion: null,
       clonedVersion: manifestEntry?.version ?? null,
-      dependencyTypes: [],
-      importers: [],
       path: manifestEntry?.path ?? null,
       checkoutSha: manifestEntry?.checkoutSha ?? null,
       status: 'not-installed',
@@ -70,8 +75,7 @@ export async function getStatusReport(
   }
 
   for (const [name, requested] of Object.entries(config?.git ?? {})) {
-    const manifestEntry = gitManifestByName.get(name);
-    entries.push(await buildGitStatus(name, requested, manifestEntry ?? null));
+    entries.push(await buildGitStatus(name, requested, gitManifestByName.get(name) ?? null));
   }
 
   return {
@@ -85,43 +89,33 @@ export async function getStatusReport(
   };
 }
 
-function selectStatusPackages(
-  packageUniverse: PackageReference[],
-  configPackages: PackageReference[],
-  allPackages: boolean,
-  hasConfig: boolean
-): PackageReference[] {
-  if (allPackages) return packageUniverse;
-  if (hasConfig) return configPackages;
-  return packageUniverse;
-}
-
 async function buildPackageStatus(
   dependency: PackageReference,
   exactManifest: PackageManifestReference | null,
   nearestManifest: PackageManifestReference | null,
-  hasConfig: boolean
+  configured: boolean
 ): Promise<AgentReferenceStatusEntry> {
   const manifestEntry = exactManifest ?? nearestManifest;
-  const clonedVersion = manifestEntry?.version ?? null;
   const referencePath = manifestEntry?.path ?? null;
-  const pathExistsNow = referencePath ? await pathExists(referencePath) : false;
-  const status = getPackageStatusState(dependency, exactManifest, nearestManifest, pathExistsNow, hasConfig);
+  const status = getPackageStatusState(
+    dependency,
+    exactManifest,
+    nearestManifest,
+    referencePath ? await pathExists(referencePath) : false,
+    configured
+  );
 
   return {
     kind: 'package',
     name: dependency.name,
     requested: dependency.specifier,
     packageManager: dependency.packageManager,
-    configured: hasConfig,
     currentVersion: dependency.version,
-    clonedVersion,
-    dependencyTypes: dependency.dependencyTypes,
-    importers: dependency.importers,
+    clonedVersion: manifestEntry?.version ?? null,
     path: referencePath,
     checkoutSha: manifestEntry?.checkoutSha ?? null,
     status,
-    action: actionForStatus(status)
+    action: actionForPackageStatus(status)
   };
 }
 
@@ -134,15 +128,12 @@ async function buildFolderStatus(projectRoot: string, name: string, requested: s
     name,
     requested,
     packageManager: null,
-    configured: true,
     currentVersion: null,
     clonedVersion: null,
-    dependencyTypes: [],
-    importers: [],
     path: resolvedPath,
     checkoutSha: null,
     status: ready ? 'ready' : 'missing',
-    action: ready ? 'Use path for source inspection.' : 'Create or correct this folder reference path.'
+    action: ready ? READY_ACTION : 'Create or correct this folder reference path.'
   };
 }
 
@@ -160,16 +151,13 @@ async function buildGitStatus(
     name,
     requested,
     packageManager: null,
-    configured: true,
     currentVersion: null,
     clonedVersion: null,
-    dependencyTypes: [],
-    importers: [],
     path: referencePath,
     checkoutSha: manifestEntry?.checkoutSha ?? null,
     status,
     action: status === 'ready'
-      ? 'Use path for source inspection.'
+      ? READY_ACTION
       : 'Run agent-reference clone --non-interactive to materialize this git reference.'
   };
 }
@@ -198,16 +186,10 @@ function getGitStatusState(
   return 'ready';
 }
 
-function isPackageManifestReference(
-  reference: AgentReferenceManifest['references'][number]
-): reference is PackageManifestReference {
-  return reference.kind === 'package';
-}
-
-function actionForStatus(status: AgentReferenceStatusState): string {
-  if (status === 'ready') return 'Use path for source inspection.';
+function actionForPackageStatus(status: AgentReferenceStatusState): string {
+  if (status === 'ready') return READY_ACTION;
   if (status === 'unconfigured') return 'Add this package to agent-reference.json if agents should inspect it.';
-  return 'Run agent-reference clone --non-interactive to refresh local references.';
+  return CLONE_ACTION;
 }
 
 function summarizeStatus(entries: AgentReferenceStatusEntry[]): Record<AgentReferenceStatusState, number> {
@@ -233,13 +215,4 @@ function resolveReferencePath(projectRoot: string, requested: string): string {
   }
   if (path.isAbsolute(requested)) return requested;
   return path.resolve(projectRoot, requested);
-}
-
-async function pathExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
 }

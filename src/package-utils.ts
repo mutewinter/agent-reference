@@ -1,10 +1,4 @@
-import type { PackageReference, DependencyType } from './types.ts';
-
-export const DEPENDENCY_SECTIONS: DependencyType[] = [
-  'dependencies',
-  'devDependencies',
-  'optionalDependencies'
-];
+import type { PackageReference } from './types.ts';
 
 export function dependencyKey(name: string, version: string): string {
   return `${name}@${version}`;
@@ -61,21 +55,21 @@ export function mergeDependencyEntries(entries: PackageReference[]): PackageRefe
     if (!existing) {
       byKey.set(key, {
         ...entry,
-        dependencyTypes: [entry.dependencyType],
-        importers: [entry.importer],
-        packageJsonPaths: entry.packageJsonPath ? [entry.packageJsonPath] : []
+        dependencyTypes: [...entry.dependencyTypes],
+        importers: [...entry.importers]
       });
       continue;
     }
 
-    if (!existing.dependencyTypes.includes(entry.dependencyType)) {
-      existing.dependencyTypes.push(entry.dependencyType);
+    for (const dependencyType of entry.dependencyTypes) {
+      if (!existing.dependencyTypes.includes(dependencyType)) {
+        existing.dependencyTypes.push(dependencyType);
+      }
     }
-    if (!existing.importers.includes(entry.importer)) {
-      existing.importers.push(entry.importer);
-    }
-    if (entry.packageJsonPath && !existing.packageJsonPaths.includes(entry.packageJsonPath)) {
-      existing.packageJsonPaths.push(entry.packageJsonPath);
+    for (const importer of entry.importers) {
+      if (!existing.importers.includes(importer)) {
+        existing.importers.push(importer);
+      }
     }
   }
 

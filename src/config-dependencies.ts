@@ -1,24 +1,17 @@
-import path from 'node:path';
+import { mergeDependencyEntries } from './package-utils.ts';
+import { resolveRegistryVersion } from './registry.ts';
+import type { AgentReferenceConfig, PackageReference, RegistryOptions } from './types.ts';
 
-import { createDependencyEntry } from './lock-utils.ts';
-import { dependencyKey, mergeDependencyEntries } from './package-utils.ts';
-import { resolveRegistryVersion } from './registry-version.ts';
-import type {
-  AgentReferenceConfig,
-  PackageReference,
-  MetadataResolverOptions,
-  ProjectContext
-} from './types.ts';
+export interface ConfigPackageReferences {
+  packages: PackageReference[];
+  missingInstalled: string[];
+}
 
 export async function resolveConfigPackageReferences(
   config: AgentReferenceConfig | undefined,
-  context: ProjectContext,
   installedPackages: PackageReference[],
-  options: MetadataResolverOptions & { configPath?: string } = {}
-): Promise<{
-  packages: PackageReference[];
-  missingInstalled: string[];
-}> {
+  options: RegistryOptions = {}
+): Promise<ConfigPackageReferences> {
   if (!config?.packages) {
     return { packages: [], missingInstalled: [] };
   }
@@ -26,7 +19,6 @@ export async function resolveConfigPackageReferences(
   const packages: PackageReference[] = [];
   const missingInstalled: string[] = [];
   const installedByName = new Map(installedPackages.map((dependency) => [dependency.name, dependency]));
-  const configPath = options.configPath ?? path.join(context.projectRoot, 'agent-reference.json');
 
   for (const [name, specifier] of Object.entries(config.packages)) {
     if (specifier === 'installed') {
@@ -39,32 +31,18 @@ export async function resolveConfigPackageReferences(
       continue;
     }
 
-    const version = await resolveRegistryVersion(name, specifier, options);
-    packages.push(createDependencyEntry({
+    packages.push({
       name,
-      version,
+      version: await resolveRegistryVersion(name, specifier, options),
       specifier,
-      dependencyType: 'dependencies',
       packageManager: 'config',
-      importer: 'agent-reference.json',
-      projectRoot: context.projectRoot,
-      packageJsonPath: configPath,
-      lockfilePath: context.lockfilePath
-    }));
+      dependencyTypes: [],
+      importers: ['agent-reference.json']
+    });
   }
 
   return {
     packages: mergeDependencyEntries(packages),
     missingInstalled
   };
-}
-
-export function packageReferenceSelectors(config: AgentReferenceConfig | undefined): string[] {
-  return Object.entries(config?.packages ?? {})
-    .filter(([, specifier]) => specifier === 'installed')
-    .map(([name]) => name);
-}
-
-export function exactPackageReferenceKey(reference: PackageReference): string {
-  return dependencyKey(reference.name, reference.version);
 }

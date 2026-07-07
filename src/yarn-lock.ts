@@ -1,21 +1,19 @@
 import fs from 'node:fs/promises';
 
+import { dependenciesFromPackageJsonDirectives } from './package-json.ts';
 import { isExactRegistryVersion } from './package-utils.ts';
-import { dependenciesFromPackageJsonDirectives } from './lock-utils.ts';
-import type { PackageReference, ProjectContext, ScanProjectOptions } from './types.ts';
+import { splitOutsideQuotes, stripQuotes } from './text-utils.ts';
+import type { PackageReference, ProjectContext } from './types.ts';
 
 interface YarnLockEntry {
   descriptors: string[];
   version: string | null;
 }
 
-export async function scanYarnDependencies(
-  context: ProjectContext,
-  options: ScanProjectOptions = {}
-): Promise<PackageReference[]> {
+export async function scanYarnDependencies(context: ProjectContext): Promise<PackageReference[]> {
   const lockEntries = parseYarnLock(await fs.readFile(context.lockfilePath, 'utf8'));
 
-  return dependenciesFromPackageJsonDirectives(context, options, ({ name, specifier }) => {
+  return dependenciesFromPackageJsonDirectives(context, ({ name, specifier }) => {
     const candidates = yarnDescriptorCandidates(name, specifier);
     const match = lockEntries.find((entry) => entry.descriptors.some((descriptor) => candidates.has(descriptor)));
     return match?.version && isExactRegistryVersion(match.version) ? match.version : null;
@@ -60,36 +58,7 @@ function yarnDescriptorCandidates(name: string, specifier: string): Set<string> 
 }
 
 function parseYarnDescriptorLine(line: string): string[] {
-  return splitTopLevelCommas(line)
-    .map((descriptor) => descriptor.trim())
-    .map(stripQuotes)
+  return splitOutsideQuotes(line, ',')
+    .map((descriptor) => stripQuotes(descriptor.trim()))
     .filter(Boolean);
-}
-
-function splitTopLevelCommas(value: string): string[] {
-  const parts: string[] = [];
-  let quote: string | null = null;
-  let start = 0;
-
-  for (let index = 0; index < value.length; index += 1) {
-    const char = value[index];
-    if ((char === '"' || char === "'") && value[index - 1] !== '\\') {
-      quote = quote === char ? null : quote ?? char;
-    }
-    if (char === ',' && !quote) {
-      parts.push(value.slice(start, index));
-      start = index + 1;
-    }
-  }
-
-  parts.push(value.slice(start));
-  return parts;
-}
-
-function stripQuotes(value: string): string {
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-    return value.slice(1, -1);
-  }
-
-  return value;
 }

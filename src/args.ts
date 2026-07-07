@@ -1,6 +1,37 @@
-import type { CliOptions } from './types.ts';
+export interface CliOptions {
+  command: 'list' | 'clone' | 'init' | 'status' | 'help' | 'version';
+  projectPath: string | null;
+  packages: string[];
+  all: boolean;
+  allImporters: boolean;
+  json: boolean;
+  nonInteractive: boolean;
+  metadataFile: string | null;
+  registry: string | null;
+  bareStoreDir: string | null;
+  worktreeRoot: string | null;
+  configFile: string | null;
+  force: boolean;
+}
 
 const COMMANDS = new Set(['list', 'clone', 'init', 'status', 'help', 'version']);
+
+const BOOLEAN_FLAGS: Record<string, 'all' | 'allImporters' | 'json' | 'nonInteractive' | 'force'> = {
+  '--all': 'all',
+  '--all-importers': 'allImporters',
+  '--json': 'json',
+  '--non-interactive': 'nonInteractive',
+  '--force': 'force'
+};
+
+const VALUE_FLAGS: Record<string, 'metadataFile' | 'registry' | 'bareStoreDir' | 'worktreeRoot' | 'configFile'> = {
+  '--metadata-file': 'metadataFile',
+  '--registry': 'registry',
+  '--cache-dir': 'bareStoreDir',
+  '--store-dir': 'bareStoreDir',
+  '--worktree-dir': 'worktreeRoot',
+  '--config': 'configFile'
+};
 
 export function parseArgv(argv: string[]): CliOptions {
   const options: CliOptions = {
@@ -25,73 +56,28 @@ export function parseArgv(argv: string[]): CliOptions {
     const arg = argv[index];
     if (!arg) continue;
 
+    const booleanFlag = BOOLEAN_FLAGS[arg];
+    const valueFlag = VALUE_FLAGS[arg];
+
     if (arg === '--help' || arg === '-h') {
       options.command = 'help';
-      continue;
-    }
-    if (arg === '--version' || arg === '-v') {
+    } else if (arg === '--version' || arg === '-v') {
       options.command = 'version';
-      continue;
-    }
-    if (arg === '--all') {
-      options.all = true;
-      continue;
-    }
-    if (arg === '--all-importers') {
-      options.allImporters = true;
-      continue;
-    }
-    if (arg === '--json') {
-      options.json = true;
-      continue;
-    }
-    if (arg === '--non-interactive') {
-      options.nonInteractive = true;
-      continue;
-    }
-    if (arg === '--force') {
-      options.force = true;
-      continue;
-    }
-    if (arg === '--package' || arg === '-p') {
+    } else if (booleanFlag) {
+      options[booleanFlag] = true;
+    } else if (arg === '--package' || arg === '-p') {
       options.packages.push(readFlagValue(argv, index, arg));
       index += 1;
-      continue;
-    }
-    if (arg.startsWith('--package=')) {
+    } else if (arg.startsWith('--package=')) {
       options.packages.push(arg.slice('--package='.length));
-      continue;
-    }
-    if (arg === '--metadata-file') {
-      options.metadataFile = readFlagValue(argv, index, arg);
+    } else if (valueFlag) {
+      options[valueFlag] = readFlagValue(argv, index, arg);
       index += 1;
-      continue;
-    }
-    if (arg === '--registry') {
-      options.registry = readFlagValue(argv, index, arg);
-      index += 1;
-      continue;
-    }
-    if (arg === '--cache-dir' || arg === '--store-dir') {
-      options.bareStoreDir = readFlagValue(argv, index, arg);
-      index += 1;
-      continue;
-    }
-    if (arg === '--worktree-dir') {
-      options.worktreeRoot = readFlagValue(argv, index, arg);
-      index += 1;
-      continue;
-    }
-    if (arg === '--config') {
-      options.configFile = readFlagValue(argv, index, arg);
-      index += 1;
-      continue;
-    }
-    if (arg.startsWith('-')) {
+    } else if (arg.startsWith('-')) {
       throw new Error(`Unknown option: ${arg}`);
+    } else {
+      positional.push(arg);
     }
-
-    positional.push(arg);
   }
 
   if (positional[0] && COMMANDS.has(positional[0])) {

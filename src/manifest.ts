@@ -1,9 +1,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import type { AgentReferenceManifest, GitReferenceWorktreeResult, GitWorktreeResult } from './types.ts';
+import { readJsonFile } from './fs-utils.ts';
+import type {
+  AgentReferenceManifest,
+  AgentReferenceManifestReference,
+  GitReferenceWorktreeResult,
+  GitWorktreeResult
+} from './types.ts';
 
-type ManifestReference = AgentReferenceManifest['references'][number];
+const SCHEMA_VERSION = 2;
 
 export async function writeManifest(
   projectRoot: string,
@@ -19,7 +25,7 @@ export async function writeManifest(
   ]);
 
   const manifest: AgentReferenceManifest = {
-    schemaVersion: 1,
+    schemaVersion: SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
     projectRoot,
     references: updatedReferences
@@ -30,7 +36,18 @@ export async function writeManifest(
   return manifestPath;
 }
 
-function packageResultToManifestReference(result: GitWorktreeResult): ManifestReference {
+export async function readManifest(projectRoot: string): Promise<{ path: string; manifest: AgentReferenceManifest } | null> {
+  const manifestPath = path.join(projectRoot, '.agent-reference', 'manifest.json');
+  try {
+    const manifest = await readJsonFile<AgentReferenceManifest>(manifestPath);
+    if (manifest.schemaVersion !== SCHEMA_VERSION) return null;
+    return { path: manifestPath, manifest };
+  } catch {
+    return null;
+  }
+}
+
+function packageResultToManifestReference(result: GitWorktreeResult): AgentReferenceManifestReference {
   if (!result.metadata.repositoryUrl) {
     throw new Error(`Cannot write manifest entry for ${result.dependency.name}@${result.dependency.version} without a repository URL.`);
   }
@@ -38,11 +55,8 @@ function packageResultToManifestReference(result: GitWorktreeResult): ManifestRe
   return {
     kind: 'package',
     name: result.dependency.name,
-    requested: result.dependency.specifier,
     version: result.dependency.version,
     packageManager: result.dependency.packageManager,
-    importers: result.dependency.importers,
-    dependencyTypes: result.dependency.dependencyTypes,
     repositoryUrl: result.metadata.repositoryUrl,
     repositoryDirectory: result.metadata.repositoryDirectory,
     gitHead: result.metadata.gitHead,
@@ -54,18 +68,12 @@ function packageResultToManifestReference(result: GitWorktreeResult): ManifestRe
   };
 }
 
-function gitResultToManifestReference(result: GitReferenceWorktreeResult): ManifestReference {
+function gitResultToManifestReference(result: GitReferenceWorktreeResult): AgentReferenceManifestReference {
   return {
     kind: 'git',
     name: result.name,
     requested: result.requested,
-    version: null,
-    packageManager: null,
-    importers: [],
-    dependencyTypes: [],
     repositoryUrl: result.repositoryUrl,
-    repositoryDirectory: null,
-    gitHead: null,
     bareRepositoryPath: result.bareRepositoryPath,
     path: result.worktreePath,
     checkoutRef: result.checkoutRef,
@@ -74,7 +82,10 @@ function gitResultToManifestReference(result: GitReferenceWorktreeResult): Manif
   };
 }
 
-function mergeManifestReferences(existing: ManifestReference[], updates: ManifestReference[]): ManifestReference[] {
+function mergeManifestReferences(
+  existing: AgentReferenceManifestReference[],
+  updates: AgentReferenceManifestReference[]
+): AgentReferenceManifestReference[] {
   const byKey = new Map(existing.map((reference) => [manifestReferenceKey(reference), reference]));
   for (const reference of updates) {
     byKey.set(manifestReferenceKey(reference), reference);
@@ -82,24 +93,11 @@ function mergeManifestReferences(existing: ManifestReference[], updates: Manifes
   return [...byKey.values()];
 }
 
-function manifestReferenceKey(reference: ManifestReference): string {
+function manifestReferenceKey(reference: AgentReferenceManifestReference): string {
   if (reference.kind === 'package') {
-    return `${reference.kind}:${reference.name}@${reference.version ?? ''}`;
+    return `package:${reference.name}@${reference.version}`;
   }
-  return `${reference.kind}:${reference.name}`;
-}
-
-export async function readManifest(projectRoot: string): Promise<{ path: string; manifest: AgentReferenceManifest } | null> {
-  const manifestPath = path.join(projectRoot, '.agent-reference', 'manifest.json');
-  try {
-    const raw = await fs.readFile(manifestPath, 'utf8');
-    return {
-      path: manifestPath,
-      manifest: JSON.parse(raw) as AgentReferenceManifest
-    };
-  } catch {
-    return null;
-  }
+  return `git:${reference.name}`;
 }
 
 export async function writeAgentFiles(projectRoot: string): Promise<string> {
