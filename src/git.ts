@@ -145,6 +145,15 @@ async function ensureWorktree<RefSource extends string>(options: {
   };
 }
 
+export async function removeWorktree(
+  bareRepositoryPath: string,
+  worktreePath: string,
+  gitBin: string = 'git'
+): Promise<void> {
+  await fs.rm(worktreePath, { recursive: true, force: true });
+  await runGit(['-C', bareRepositoryPath, 'worktree', 'prune'], { gitBin, allowFailure: true });
+}
+
 export async function runGit(
   args: string[],
   options: { gitBin?: string; cwd?: string; allowFailure?: boolean } = {}

@@ -1,7 +1,7 @@
 import path from 'node:path';
 
 import { writeAgentReferenceConfig } from './config.ts';
-import { ensureDependencyWorktree, ensureGitReferenceWorktree } from './git.ts';
+import { ensureDependencyWorktree, ensureGitReferenceWorktree, removeWorktree } from './git.ts';
 import { writeAgentFiles, writeManifest } from './manifest.ts';
 import { dependencyKey } from './package-utils.ts';
 import { loadReferenceContext } from './reference-context.ts';
@@ -95,7 +95,10 @@ export async function cloneReferences(
     clonedGit.push(await ensureGitReferenceWorktree(name, spec, worktreeOptions));
   }
 
-  const manifestPath = await writeManifest(projectRoot, cloned, clonedGit);
+  const { manifestPath, superseded } = await writeManifest(projectRoot, cloned, clonedGit);
+  for (const reference of superseded) {
+    await removeWorktree(reference.bareRepositoryPath, reference.path, options.gitBin);
+  }
   await writeAgentFiles(projectRoot);
 
   return { selected, cloned, clonedGit, skipped, manifestPath };

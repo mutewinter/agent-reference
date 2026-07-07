@@ -11,29 +11,44 @@ import type {
 
 const SCHEMA_VERSION = 2;
 
+export interface ManifestUpdateResult {
+  manifestPath: string;
+  superseded: AgentReferenceManifestReference[];
+}
+
 export async function writeManifest(
   projectRoot: string,
   packageResults: GitWorktreeResult[],
   gitResults: GitReferenceWorktreeResult[] = []
-): Promise<string> {
+): Promise<ManifestUpdateResult> {
   const referenceDir = path.join(projectRoot, '.agent-reference');
   await fs.mkdir(referenceDir, { recursive: true });
   const existingReferences = (await readManifest(projectRoot))?.manifest.references ?? [];
-  const updatedReferences = mergeManifestReferences(existingReferences, [
+  const updates = [
     ...packageResults.map(packageResultToManifestReference),
     ...gitResults.map(gitResultToManifestReference)
-  ]);
+  ];
+  const superseded = existingReferences.filter((reference) => isSuperseded(reference, updates));
+  const kept = existingReferences.filter((reference) => !isSuperseded(reference, updates));
 
   const manifest: AgentReferenceManifest = {
     schemaVersion: SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
     projectRoot,
-    references: updatedReferences
+    references: mergeManifestReferences(kept, updates)
   };
 
   const manifestPath = path.join(referenceDir, 'manifest.json');
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  return manifestPath;
+  return { manifestPath, superseded };
+}
+
+function isSuperseded(
+  existing: AgentReferenceManifestReference,
+  updates: AgentReferenceManifestReference[]
+): boolean {
+  const sameReference = updates.filter((update) => update.kind === existing.kind && update.name === existing.name);
+  return sameReference.length > 0 && sameReference.every((update) => update.path !== existing.path);
 }
 
 export async function readManifest(projectRoot: string): Promise<{ path: string; manifest: AgentReferenceManifest } | null> {
