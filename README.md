@@ -92,7 +92,7 @@ If a package or git reference is `missing`, `stale`, or `missing-worktree`, run:
 agent-reference clone --non-interactive
 ```
 
-Then run status again and use the reported absolute paths. Folder references are never cloned; fix the configured path if a folder is missing.
+Then run status again and use the reported absolute paths. Re-cloning prunes worktrees and manifest entries for versions that are no longer current, so only one copy of each reference stays on disk. Folder references are never cloned; fix the configured path if a folder is missing.
 
 ## Layout
 
