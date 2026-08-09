@@ -24,7 +24,7 @@ export async function resolveProjectInput(
   const inputStat = await fs.stat(input).catch(() => null);
   if (!inputStat) {
     throw new Error(
-      `No such project path: ${projectPath}. Pass a directory or package.json, or select a reference with --package/--group/--reference.`
+      `No such project path: ${projectPath}. Pass a directory or package.json, or name a reference.`
     );
   }
   const packageJsonPath = inputStat.isDirectory() ? path.join(input, 'package.json') : input;

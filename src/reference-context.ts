@@ -1,17 +1,14 @@
 import { resolveConfigPackageReferences, type ConfigPackageReferences } from './config-dependencies.ts';
 import { loadAgentReferenceConfig } from './config.ts';
-import { mergeDependencyEntries } from './package-utils.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
 import type {
   AgentReferenceConfig,
   LoadedAgentReferenceConfig,
-  PackageReference,
   ProjectContext,
   ScanProjectOptions
 } from './types.ts';
 
 export interface LoadReferenceContextOptions extends ScanProjectOptions {
-  configFile?: string | null;
   registry?: string;
 }
 
@@ -21,7 +18,6 @@ export interface LoadedReferenceContext {
   loadedConfig: LoadedAgentReferenceConfig | null;
   config: AgentReferenceConfig | undefined;
   configPackages: ConfigPackageReferences;
-  packageUniverse: PackageReference[];
 }
 
 export async function loadReferenceContext(
@@ -30,9 +26,7 @@ export async function loadReferenceContext(
 ): Promise<LoadedReferenceContext> {
   const cwd = options.cwd ?? process.cwd();
   const project = await resolveProjectInput(projectPath, cwd);
-  const loadedConfig = await loadAgentReferenceConfig(project.projectRoot, {
-    configFile: options.configFile
-  });
+  const loadedConfig = await loadAgentReferenceConfig(project.projectRoot);
   const config = loadedConfig?.config;
   const installedPackages = await scanResolvedProject(project, {
     ...options,
@@ -42,12 +36,5 @@ export async function loadReferenceContext(
     registry: options.registry ?? config?.registry
   });
 
-  return {
-    cwd,
-    project,
-    loadedConfig,
-    config,
-    configPackages,
-    packageUniverse: mergeDependencyEntries([...installedPackages, ...configPackages.packages])
-  };
+  return { cwd, project, loadedConfig, config, configPackages };
 }

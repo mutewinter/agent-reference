@@ -12,58 +12,47 @@ import type {
 
 const SCHEMA_VERSION = 5;
 
-export interface ManifestUpdateResult {
-  manifestPath: string;
-  superseded: AgentReferenceManifestReference[];
-}
-
 export const MANIFEST_FILE = 'agent-reference.lock.json';
 
+/**
+ * One entry per reference name, so upgrading a package replaces its entry rather than
+ * accumulating versions. Worktrees are shared across projects and keyed by commit, so
+ * nothing on disk needs cleaning up when an entry is replaced.
+ */
 export async function writeManifest(
   projectRoot: string,
   packageResults: GitWorktreeResult[],
   gitResults: GitReferenceWorktreeResult[] = [],
   unresolved: UnresolvedManifestReference[] = []
-): Promise<ManifestUpdateResult> {
+): Promise<string> {
   const existing = (await readManifest(projectRoot))?.manifest;
-  const existingReferences = existing?.references ?? [];
   const updates = [
     ...packageResults.map(packageResultToManifestReference),
     ...gitResults.map(gitResultToManifestReference)
   ];
-  const superseded = existingReferences.filter((reference) => isSuperseded(reference, updates));
-  const kept = existingReferences.filter((reference) => !isSuperseded(reference, updates));
-  const references = mergeManifestReferences(kept, updates);
+
+  const byKey = new Map((existing?.references ?? []).map((reference) => [referenceKey(reference), reference]));
+  for (const reference of updates) {
+    byKey.set(referenceKey(reference), reference);
+  }
 
   const manifest: AgentReferenceManifest = {
     schemaVersion: SCHEMA_VERSION,
-    references
+    // The lockfile is committed: keep ordering deterministic so diffs stay minimal.
+    references: [...byKey.values()].sort((a, b) => referenceKey(a).localeCompare(referenceKey(b)))
   };
 
-  const mergedUnresolved = mergeUnresolved(existing?.unresolved ?? [], unresolved, references);
+  const mergedUnresolved = mergeUnresolved(existing?.unresolved ?? [], unresolved, manifest.references);
   if (mergedUnresolved.length > 0) manifest.unresolved = mergedUnresolved;
 
   const manifestPath = path.join(projectRoot, MANIFEST_FILE);
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  return { manifestPath, superseded };
+  return manifestPath;
 }
 
-function isSuperseded(
-  existing: AgentReferenceManifestReference,
-  updates: AgentReferenceManifestReference[]
-): boolean {
-  const sameReference = updates.filter((update) => update.kind === existing.kind && update.name === existing.name);
-  return sameReference.length > 0 && sameReference.every((update) => manifestReferenceIdentity(update) !== manifestReferenceIdentity(existing));
-}
-
-function manifestReferenceIdentity(reference: AgentReferenceManifestReference): string {
-  if (reference.kind === 'package') {
-    return `package:${reference.name}@${reference.version}`;
-  }
-  return `git:${reference.name}@${reference.checkoutSha}`;
-}
-
-export async function readManifest(projectRoot: string): Promise<{ path: string; manifest: AgentReferenceManifest } | null> {
+export async function readManifest(
+  projectRoot: string
+): Promise<{ path: string; manifest: AgentReferenceManifest } | null> {
   const manifestPath = path.join(projectRoot, MANIFEST_FILE);
   try {
     const manifest = await readJsonFile<AgentReferenceManifest>(manifestPath);
@@ -72,6 +61,10 @@ export async function readManifest(projectRoot: string): Promise<{ path: string;
   } catch {
     return null;
   }
+}
+
+function referenceKey(reference: AgentReferenceManifestReference): string {
+  return `${reference.kind}:${reference.name}`;
 }
 
 function packageResultToManifestReference(result: GitWorktreeResult): AgentReferenceManifestReference {
@@ -121,29 +114,8 @@ function mergeUnresolved(
   );
   const updatedNames = new Set(updates.map((entry) => entry.name));
 
-  const merged = [
+  return [
     ...existing.filter((entry) => !updatedNames.has(entry.name) && !resolvedNames.has(entry.name)),
     ...updates.filter((entry) => !resolvedNames.has(entry.name))
-  ];
-
-  return merged.sort((a, b) => `${a.name}@${a.version}`.localeCompare(`${b.name}@${b.version}`));
-}
-
-function mergeManifestReferences(
-  existing: AgentReferenceManifestReference[],
-  updates: AgentReferenceManifestReference[]
-): AgentReferenceManifestReference[] {
-  const byKey = new Map(existing.map((reference) => [manifestReferenceKey(reference), reference]));
-  for (const reference of updates) {
-    byKey.set(manifestReferenceKey(reference), reference);
-  }
-  // The lockfile is committed: keep ordering deterministic so diffs stay minimal.
-  return [...byKey.values()].sort((a, b) => manifestReferenceKey(a).localeCompare(manifestReferenceKey(b)));
-}
-
-function manifestReferenceKey(reference: AgentReferenceManifestReference): string {
-  if (reference.kind === 'package') {
-    return `package:${reference.name}@${reference.version}`;
-  }
-  return `git:${reference.name}`;
+  ].sort((a, b) => a.name.localeCompare(b.name));
 }

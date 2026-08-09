@@ -54,7 +54,7 @@ test('editing the failed overrides makes the reference worth cloning again', asy
 
   const retryReport = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir });
   assert.equal(retryReport.references[0]?.status, 'missing');
-  assert.deepEqual(retryReport.nextSteps, ['agent-reference clone --non-interactive']);
+  assert.deepEqual(retryReport.nextSteps, ['agent-reference clone']);
 
   const clone = await cloneReferences(path.join(projectRoot, 'package.json'), { storeDir });
   assert.equal(clone.cloned[0]?.confidence, 'pinned');

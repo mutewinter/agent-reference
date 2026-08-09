@@ -1,55 +1,41 @@
 # agent-reference
 
-`agent-reference` is a TypeScript CLI/library for materializing local reference source for coding agents.
+Keeps the upstream source behind a project's dependencies checked out locally, so a coding
+agent can read the real thing instead of guessing from `node_modules` or the network.
 
-It can track:
+`node_modules` holds only what a package chose to publish. `agent-reference` checks out the
+package's repository at the exact published commit, which is the only way to read its
+tests, examples, CI config, git history, or the source of anything that ships built output.
+It also tracks plain folders and arbitrary git repositories as references.
 
-- `packages`: npm ecosystem packages, resolved from the current lockfile or an explicit registry version.
-- `git`: arbitrary git repositories.
-- `folders`: local folders that should appear in agent-readable status output.
-
-The key agent command is:
-
-```sh
-agent-reference status
-```
-
-That output contains absolute paths for every ready reference. Agents should use those paths instead of inferring locations from config files or `node_modules`. Use `--json` only when a script needs structured output.
-
-## Requirements
-
-Node 20 or newer, and git 2.19 or newer on `PATH` (partial clones and worktrees). `list`,
-`status`, `validate`, and `schema` work without git; `clone` reports a clear error if git
-is missing or too old. Use `--git-bin` to point at a specific git executable.
-
-## Usage
+## Install
 
 ```sh
-agent-reference status
-agent-reference status zod
-agent-reference clone zod
-agent-reference list ./package.json
-agent-reference status ./package.json
-agent-reference status ./package.json --group documentation
-agent-reference init ./package.json --package react --package zod
-agent-reference clone ./package.json --package react
-agent-reference clone ./package.json --group documentation
-agent-reference clone ./package.json --non-interactive
-agent-reference clone ./package.json --all --non-interactive
-agent-reference validate ./package.json
-agent-reference schema
+npm install -g agent-reference
+npx skills add mutewinter/agent-reference   # teaches your agent to use it
 ```
 
-For local development before building:
+Needs Node 20+ and git 2.19+ on `PATH`.
+
+## Use
 
 ```sh
-npm run dev -- list fixtures/pnpm-basic/package.json
-npm run dev -- clone fixtures/pnpm-basic/package.json --package react
+agent-reference status                       # every reference, with absolute paths
+agent-reference status zod                   # one reference
+agent-reference status --group documentation # a named set
+agent-reference clone                        # materialize everything configured
+agent-reference validate                     # check agent-reference.json
+agent-reference schema                       # print the config JSON Schema
 ```
 
-## Config
+`status` is the command an agent runs. It reports each reference with its absolute path,
+and leads with `problems:` and `next steps:` when something needs doing. Add `--json` for
+structured output.
 
-Commit `agent-reference.json` when a repo should have shared references:
+## Configure
+
+Commit `agent-reference.json`. There are no commands for adding references; agents and
+humans edit this file directly, and `validate` checks it.
 
 ```json
 {
@@ -58,192 +44,105 @@ Commit `agent-reference.json` when a repo should have shared references:
     "prettier": "3.6.2"
   },
   "folders": {
-    "design-notes": "./references/design-notes"
-  },
-  "git": {
-    "typescript": "github:microsoft/TypeScript#main"
-  },
-  "allImporters": false
-}
-```
-
-Use `agent-reference.local.json` for personal machine paths that should not be committed:
-
-```json
-{
-  "folders": {
-    "company-ui": "../company-ui",
-    "notes": "~/notes/frontend"
-  }
-}
-```
-
-Entries in the local file override same-named entries in the shared one.
-
-`packages` values can be:
-
-- `"installed"` to use the exact version in the active lockfile.
-- An exact version, range, or dist-tag resolved through the npm registry.
-
-`git` values can be `github:owner/repo#ref`, `file:../repo#ref`, or a git URL with an optional `#ref`.
-
-`allPackages: true` can be used to keep every discovered direct dependency cloned. CLI flags override config values.
-
-### Descriptions and groups
-
-Any reference can be written as an object instead of a string, which adds an optional
-`description` and `groups`. Descriptions matter most for hand-declared folder and git
-references, where the reason a reference exists is not obvious from its name:
-
-```json
-{
-  "folders": {
+    "design-notes": "./references/design-notes",
     "api-docs": {
       "path": "../platform/docs",
       "description": "Source of truth for endpoint contracts",
       "groups": ["documentation"]
-    },
-    "design-notes": "./references/design-notes"
+    }
+  },
+  "git": {
+    "typescript": "github:microsoft/TypeScript#main"
   },
   "groups": {
-    "documentation": {
-      "description": "Read all of these before writing docs",
-      "references": ["design-notes"]
+    "documentation": "Read all of these before writing docs"
+  }
+}
+```
+
+Every reference is a shorthand string or an object adding `description` and `groups`.
+`packages` values are `"installed"` (follow the lockfile) or an exact version, range, or
+dist-tag. `git` values are `github:owner/repo#ref`, a git URL, or `file:../repo#ref`.
+
+Groups give a set of references one shorthand name, so five documentation folders can be
+addressed at once with `--group documentation`. Membership can be declared on the reference
+(`"groups": [...]`) or on the group (`"references": [...]`); both are unioned.
+
+Put machine-specific paths in `agent-reference.local.json`, same format, not committed.
+Its entries override same-named entries in the shared file.
+
+Other keys: `allImporters` to scan every workspace importer, `registry` for a private npm
+registry, `cacheDir` to move the store. Unknown keys are rejected with a suggestion.
+
+## How versions resolve
+
+Package versions come from the lockfile (PNPM, npm, Bun text lockfiles, and Yarn), not from
+`package.json` ranges. For each `name@version`, the registry manifest gives the git remote
+and, when present, the publish commit. Otherwise `agent-reference` tries the usual tags
+(`pkg@1.2.3`, `v1.2.3`, `1.2.3`), then searches the tag list for the version.
+
+Every candidate commit is verified before use: the package's `package.json` at that commit
+must report the same name and version. This matters in monorepos, where a `v1.2.3` tag can
+belong to an unrelated package's release. Each reference records how sure the result is:
+
+| confidence | meaning |
+| --- | --- |
+| `pinned` | the ref was chosen by hand in the config, which overrides everything below |
+| `verified` | package.json at the checkout reported exactly this name and version |
+| `unverified` | the commit looked right but no package.json confirmed it |
+| `fallback` | nothing matched, so the default branch was checked out; not the published version |
+
+For a monorepo package the whole repository is checked out but `path` points at the
+package's own directory; the repository root is `repositoryPath` in `--json`.
+
+## When resolution fails
+
+Some repositories tag releases in ways no tool can guess, and some packages have no
+repository in their registry metadata. Failures are recorded in the lockfile and reported
+by `status` as `unresolvable`, together with the fix and the JSON to add. `status` does
+*not* suggest re-running `clone` for these, because it would fail identically.
+
+Three package keys exist for this:
+
+| key | use when |
+| --- | --- |
+| `ref` | the right commit or tag cannot be guessed; a pin always wins |
+| `repository` | registry metadata has no repository, or the wrong one |
+| `directory` | the monorepo subdirectory was not detected |
+
+```json
+{
+  "packages": {
+    "odd-tags": {
+      "version": "1.2.3",
+      "ref": "release-1.2.3",
+      "description": "Pinned by hand: tags follow no known pattern"
     }
   }
 }
 ```
 
-A group is a shorthand name for a set of references, so five documentation folders can be
-addressed at once:
-
-```sh
-agent-reference status --group documentation
-agent-reference clone --group documentation --non-interactive
-```
-
-Membership can be declared on the reference (`groups`) or on the group (`references`);
-both are unioned. Use `kind:name` (`folder:api-docs`) in a group's `references` when the
-same name is used by more than one kind. `--reference <name>` narrows to a single entry.
-
-### Editing the config
-
-Agents are expected to write this file directly rather than drive a set of `add`/`remove`
-commands, so the format is self-describing:
-
-```sh
-agent-reference schema      # print the JSON Schema for agent-reference.json
-agent-reference validate    # check the file, with located errors and warnings
-```
-
-Unknown keys are rejected with a suggestion (`unknown key packages.react.descripton. Did
-you mean "description"?`) rather than silently ignored. `init` writes a `$schema` key so
-editors validate the file too.
-
-Commit `agent-reference.lock.json` alongside the config. Like a package-manager lockfile, it records the resolved repository URL and checkout commit for every reference and contains no machine-specific paths, so the whole team (and every agent) shares one pinned resolution. Local paths are derived from each machine's store at read time.
-
-## Agent Workflow
-
-Agents should start with:
-
-```sh
-agent-reference status
-```
-
-Status reports configured references, current lockfile versions, cloned versions, status, and absolute paths when a reference is locally available. For programmatic integrations, `agent-reference status --json` returns the same information with `references[].path`, checkout SHAs, and action strings.
-
-If a package or git reference is `missing`, `stale`, or `missing-worktree`, run:
-
-```sh
-agent-reference clone --non-interactive
-```
-
-Then run status again and use the reported absolute paths. Re-cloning replaces superseded manifest entries, so each project always points at exactly one copy per reference; shared store worktrees are left in place for other projects, while project-local worktrees are deleted. Folder references are never cloned; fix the configured path if a folder is missing.
+Setting both `repository` and `ref` skips the registry entirely, which is how unpublished
+and private packages work. Editing any of them makes the reference worth retrying, so
+`status` goes back to recommending `clone`. One unresolvable reference never stops the
+others.
 
 ## Layout
 
-Everything heavy lives in one machine-wide store, shared across every project and git worktree — like the pnpm store:
+Everything heavy lives in one machine-wide store, shared across projects and worktrees,
+like the pnpm store:
 
-- Store root: `$AGENT_REFERENCE_STORE_DIR`, `$XDG_CACHE_HOME/agent-reference`, or the OS cache directory (`~/Library/Caches/agent-reference` on macOS, `~/.cache/agent-reference` elsewhere).
-- Bare repositories: `<store>/repositories/<host>/<owner>/<repo>.git`.
-- Shared worktrees: `<store>/worktrees/<host>/<owner>/<repo>/<commit>` — keyed by commit, so two projects on the same version (or two packages from the same monorepo commit) share one checkout.
-- Inside each project there are exactly two root files, both committed: `agent-reference.json` (what to reference) and the generated `agent-reference.lock.json` (what it resolved to). No folder, no dependency source, no absolute paths.
-- Set `worktreeDir` in config (or `--worktree-dir`) to keep worktrees inside the project instead; those are pruned when superseded.
+- Store root: `$AGENT_REFERENCE_STORE_DIR`, `$XDG_CACHE_HOME/agent-reference`, or the OS cache directory.
+- Bare repositories at `<store>/repositories/<host>/<owner>/<repo>.git`.
+- Checkouts at `<store>/worktrees/<host>/<owner>/<repo>/<commit>`, keyed by commit, so two
+  projects on the same version share one.
 
-The store is a cache: delete it any time and `agent-reference clone --non-interactive` rebuilds it.
+Inside a project there are exactly two files, both committed: `agent-reference.json` and the
+generated `agent-reference.lock.json`, which records the resolved repository and commit for
+each reference and contains no machine-specific paths. Local paths are derived from each
+machine's store at read time.
 
-## Resolution Model
-
-`agent-reference` uses the lockfile for installed package versions, not `package.json` ranges. Current package manager support covers PNPM, npm, Bun text lockfiles, and Yarn lockfiles.
-
-For each selected `name@version`, it fetches the npm package manifest from the registry. The manifest's `repository` field gives the git remote, and `gitHead` is used when available to check out the publish commit. If `gitHead` is absent, `agent-reference` tries common tags such as `pkg@1.2.3`, `v1.2.3`, and `1.2.3`, then searches the tag list for any tag containing the version, then falls back to the repository default branch.
-
-Every candidate commit is checked before it is used: `agent-reference` reads the package's
-`package.json` at that commit and requires the recorded name and version to match. This
-matters in monorepos, where a `v1.2.3` tag can belong to an unrelated package's release.
-Candidates that disagree are rejected rather than checked out.
-
-The result is recorded per reference as a `confidence`:
-
-| confidence | meaning |
-| --- | --- |
-| `verified` | package.json at the checkout reported exactly this name and version |
-| `unverified` | the commit looked right but no package.json confirmed it |
-| `fallback` | nothing matched; the default branch was checked out, and this is not the published version |
-
-A `pinned` confidence means the ref was chosen by hand and overrides all of the above.
-
-### When resolution fails
-
-Automatic resolution cannot cover every tagging scheme, and some packages have no
-repository in their registry metadata at all. Rather than leaving an agent stuck, failures
-are recorded in the lockfile and reported by `status` as `unresolvable`, with the fix:
-
-```
-problems:
-  [error] package:left-pad: left-pad@1.3.0 could not be materialized. npm metadata for
-          left-pad@1.3.0 has no repository field.
-    fix: The registry has no repository for this package. Find its source repository, then
-         set packages.left-pad.repository in agent-reference.json ...
-    add to agent-reference.json:
-    {
-      "packages": {
-        "left-pad": { "version": "1.3.0", "repository": "<github:owner/repo>", "ref": "<commit-or-tag>" }
-      }
-    }
-```
-
-Critically, `status` does *not* tell the agent to run `clone` again for these, because that
-would fail identically. Three package keys exist for this:
-
-| key | use when |
-| --- | --- |
-| `ref` | the right commit or tag cannot be guessed; a pin always wins over resolution |
-| `repository` | registry metadata has no repository, or the wrong one |
-| `directory` | the monorepo subdirectory was not detected |
-
-Setting both `repository` and `ref` skips the registry entirely, which is how unpublished
-and private packages work. Editing any of these marks the reference worth retrying, so
-`status` switches back to recommending `clone`. One unresolvable reference never stops the
-others from cloning.
-
-`status` also prints a `problems:` section for folder paths that do not exist, packages
-configured as `"installed"` that left the lockfile, and a missing or too-old git, each with
-its own fix. In `--json`, these are `problems[]` with `severity`, `summary`, `fix`, and a
-`configPatch` to merge, plus an ordered `nextSteps[]`.
-
-`clone` prints the same problems inline rather than telling the caller to go run `status`,
-because an agent acts on the output of the command it just ran.
-
-### Monorepo packages
-
-When a package is published from a monorepo the whole repository is checked out, but the
-reported `path` is the package's own directory within it (`.../packages/react-router`).
-The repository root stays available as `references[].repositoryPath` in `--json` output.
-The directory comes from the registry's `repository.directory` when it is correct, and is
-otherwise located by matching `package.json` names inside the checkout.
-
-This matches the common npm ecosystem path without depending on a registry API beyond package manifests.
+The store is a cache. Delete it any time and `agent-reference clone` rebuilds it.
 
 ## Development
 
@@ -254,26 +153,5 @@ npm run build
 
 Tests use fixture lockfiles and local git repositories. They do not call npm or GitHub.
 
-## Status
-
-Supported now:
-
-- PNPM direct dependency scanning from `pnpm-lock.yaml`.
-- npm direct dependency scanning from `package-lock.json`.
-- Bun direct dependency scanning from text `bun.lock`.
-- Yarn direct dependency scanning from `yarn.lock`.
-- Workspace importer resolution when pointed at a nested `package.json`.
-- Interactive and non-interactive package selection.
-- `agent-reference.json` desired-state config for shared references.
-- `agent-reference.local.json` for local folder references and overrides.
-- Optional `description` and `groups` on every reference, with `--group` selection.
-- `agent-reference status` for agent-readable absolute path and drift reporting.
-- `agent-reference schema` and `agent-reference validate` so agents can edit the config directly.
-- Checkout verification against the published `package.json`, including monorepo packages.
-- Machine-wide store of bare repositories and shared, commit-keyed worktrees.
-- A bundled `skills/agent-reference/SKILL.md` for agent awareness.
-
-Not supported yet:
-
-- Binary `bun.lockb` inspection. Generate a text `bun.lock` first.
-- Full all-workspaces scanning for npm, Bun, and Yarn. Point `agent-reference` at the specific workspace package for now.
+Not supported yet: binary `bun.lockb` (generate a text `bun.lock` first), and
+all-workspaces scanning for npm, Bun, and Yarn (point at the specific workspace package).

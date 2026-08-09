@@ -4,16 +4,6 @@ export function dependencyKey(name: string, version: string): string {
   return `${name}@${version}`;
 }
 
-export function slugifyPackageName(name: string): string {
-  return name
-    .replaceAll('/', '__')
-    .replace(/[^a-zA-Z0-9@._-]/g, '_');
-}
-
-export function slugifyVersion(version: string): string {
-  return String(version).replace(/[^a-zA-Z0-9._+-]/g, '_');
-}
-
 export function stripPnpmPeerSuffix(version: string | null | undefined): string | null {
   if (!version) return null;
   return String(version).split('(')[0] ?? null;

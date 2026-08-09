@@ -7,11 +7,6 @@ export function resolveConfigPath(projectRoot: string, cwd: string, configuredPa
   return path.resolve(cwd, configuredPath);
 }
 
-export function isInsideDirectory(directory: string, candidate: string): boolean {
-  const relative = path.relative(directory, candidate);
-  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
-}
-
 export async function pathExists(filePath: string): Promise<boolean> {
   try {
     await fs.access(filePath);

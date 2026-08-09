@@ -30,7 +30,7 @@ export interface ValidationReport {
  */
 export async function validateConfig(
   projectPath: string | null | undefined,
-  options: { cwd?: string; configFile?: string | null } = {}
+  options: { cwd?: string } = {}
 ): Promise<ValidationReport> {
   const cwd = options.cwd ?? process.cwd();
   const projectRoot = await resolveConfigRoot(projectPath, cwd);
@@ -47,7 +47,7 @@ export async function validateConfig(
 
   let loaded;
   try {
-    loaded = await loadAgentReferenceConfig(projectRoot, { configFile: options.configFile });
+    loaded = await loadAgentReferenceConfig(projectRoot);
   } catch (error) {
     report.errors.push(error instanceof Error ? error.message : String(error));
     return report;

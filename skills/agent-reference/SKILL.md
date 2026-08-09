@@ -47,7 +47,7 @@ Rules:
 - Use the `path` column as the source location only when it is an absolute path and the status is `ready`.
 - For a package published from a monorepo, `path` is the package's own directory inside the checkout. The whole repository is at `references[].repositoryPath` in `--json` output.
 - Treat `package` references as exact to `currentVersion`.
-- If a package or git reference is `missing`, `stale`, or `missing-worktree`, run `agent-reference clone --non-interactive`, then run `agent-reference status` again.
+- If a package or git reference is `missing`, `stale`, or `missing-worktree`, run `agent-reference clone`, then run `agent-reference status` again.
 - If a package reference is `unresolvable`, cloning already failed for it. **Do not run clone again**; it will fail the same way. Follow the matching entry under `problems`, which usually means pinning `ref` or `repository` (see "When a reference cannot resolve" below).
 - If a package reference is `not-installed`, the configured `"installed"` package no longer exists in the active lockfile. Do not use an old clone as current source.
 - If a folder reference is `missing`, it cannot be cloned. The user or repo config needs to create or correct that path.
@@ -62,10 +62,10 @@ References can be grouped under a shorthand name, so the user can say "read the 
 
 ```sh
 agent-reference status --group documentation
-agent-reference clone --group documentation --non-interactive
+agent-reference clone --group documentation
 ```
 
-`--reference <name>` narrows to a single reference. Use `kind:name` (`folder:api-docs`) when the same name is used by more than one kind.
+A bare name narrows to one reference: `agent-reference status zod`, `agent-reference clone zod`. Use `kind:name` (`folder:api-docs`) when the same name is used by more than one kind.
 
 ### Checkout confidence
 
@@ -107,7 +107,7 @@ supported escape hatch, not a workaround.
    }
    ```
 
-4. Run `agent-reference clone --non-interactive`, then `agent-reference status` again. The
+4. Run `agent-reference clone`, then `agent-reference status` again. The
    reference should read `ready` with `pinned` confidence.
 
 Other keys for the same situation:
@@ -171,4 +171,4 @@ Editing rules:
 - A group whose value is a plain string is a description with no members yet.
 - Put machine-specific paths in `agent-reference.local.json` (same format, not committed). Entries there override same-named entries in `agent-reference.json`.
 - Unknown keys are rejected with a suggestion. If `validate` reports one, fix the key rather than dropping the field.
-- After changing `packages` or `git`, run `agent-reference clone --non-interactive` so the lockfile and checkouts catch up.
+- After changing `packages` or `git`, run `agent-reference clone` so the lockfile and checkouts catch up.

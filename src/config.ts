@@ -1,4 +1,3 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { pathExists, readJsonFile } from './fs-utils.ts';
@@ -13,7 +12,6 @@ import type {
 
 export const DEFAULT_CONFIG_FILE = 'agent-reference.json';
 export const DEFAULT_LOCAL_CONFIG_FILE = 'agent-reference.local.json';
-export const CONFIG_SCHEMA_URL = 'https://unpkg.com/agent-reference/schema/agent-reference.schema.json';
 
 const TOP_LEVEL_KEYS = [
   '$schema',
@@ -21,10 +19,8 @@ const TOP_LEVEL_KEYS = [
   'folders',
   'git',
   'groups',
-  'allPackages',
   'allImporters',
   'registry',
-  'worktreeDir',
   'cacheDir'
 ];
 const PACKAGE_KEYS = ['version', 'ref', 'repository', 'directory', 'description', 'groups'];
@@ -32,17 +28,12 @@ const FOLDER_KEYS = ['path', 'description', 'groups'];
 const GIT_KEYS = ['repository', 'ref', 'description', 'groups'];
 const GROUP_KEYS = ['description', 'references'];
 
-export function emptyConfig(): AgentReferenceConfig {
+function emptyConfig(): AgentReferenceConfig {
   return { packages: [], folders: [], git: [], groups: [] };
 }
 
-export async function loadAgentReferenceConfig(
-  projectRoot: string,
-  options: { configFile?: string | null } = {}
-): Promise<LoadedAgentReferenceConfig | null> {
-  const configPath = options.configFile
-    ? path.resolve(projectRoot, options.configFile)
-    : await findConfigFile(projectRoot, DEFAULT_CONFIG_FILE);
+export async function loadAgentReferenceConfig(projectRoot: string): Promise<LoadedAgentReferenceConfig | null> {
+  const configPath = await findConfigFile(projectRoot, DEFAULT_CONFIG_FILE);
   const localPath = await findConfigFile(projectRoot, DEFAULT_LOCAL_CONFIG_FILE);
 
   if (!configPath && !localPath) return null;
@@ -55,23 +46,6 @@ export async function loadAgentReferenceConfig(
     localPath,
     config: mergeConfigs(baseConfig, localConfig)
   };
-}
-
-export async function writeAgentReferenceConfig(
-  projectRoot: string,
-  config: AgentReferenceConfig,
-  options: { configFile?: string | null; force?: boolean } = {}
-): Promise<string> {
-  const configPath = options.configFile
-    ? path.resolve(projectRoot, options.configFile)
-    : path.join(projectRoot, DEFAULT_CONFIG_FILE);
-
-  if (!options.force && (await pathExists(configPath))) {
-    throw new Error(`${path.basename(configPath)} already exists. Use --force to overwrite it.`);
-  }
-
-  await fs.writeFile(configPath, `${JSON.stringify(serializeConfig(config), null, 2)}\n`);
-  return configPath;
 }
 
 async function readConfigJson(configPath: string): Promise<unknown> {
@@ -102,10 +76,8 @@ export function parseConfig(value: unknown, configPath: string): AgentReferenceC
     config.groups.push(parseGroupEntry(name, entry, configPath));
   }
 
-  if (object.allPackages !== undefined) config.allPackages = expectBoolean(object.allPackages, configPath, 'allPackages');
   if (object.allImporters !== undefined) config.allImporters = expectBoolean(object.allImporters, configPath, 'allImporters');
   if (object.registry !== undefined) config.registry = expectString(object.registry, configPath, 'registry');
-  if (object.worktreeDir !== undefined) config.worktreeDir = expectString(object.worktreeDir, configPath, 'worktreeDir');
   if (object.cacheDir !== undefined) config.cacheDir = expectString(object.cacheDir, configPath, 'cacheDir');
 
   return config;
@@ -212,7 +184,7 @@ function gitReference(
   return { kind: 'git', name, repository, ref, spec: gitSpec(repository, ref), description, groups };
 }
 
-export function gitSpec(repository: string, ref: string | null): string {
+function gitSpec(repository: string, ref: string | null): string {
   return ref ? `${repository}#${ref}` : repository;
 }
 
@@ -263,10 +235,8 @@ function mergeConfigs(base: AgentReferenceConfig, local: AgentReferenceConfig): 
     folders: mergeByName(base.folders, local.folders),
     git: mergeByName(base.git, local.git),
     groups: mergeByName(base.groups, local.groups),
-    allPackages: local.allPackages ?? base.allPackages,
     allImporters: local.allImporters ?? base.allImporters,
     registry: local.registry ?? base.registry,
-    worktreeDir: local.worktreeDir ?? base.worktreeDir,
     cacheDir: local.cacheDir ?? base.cacheDir
   };
 }
@@ -277,79 +247,6 @@ function mergeByName<T extends { name: string }>(base: T[], local: T[]): T[] {
     byName.set(entry.name, entry);
   }
   return [...byName.values()];
-}
-
-function serializeConfig(config: AgentReferenceConfig): Record<string, unknown> {
-  const serialized: Record<string, unknown> = { $schema: CONFIG_SCHEMA_URL };
-
-  if (config.packages.length > 0) {
-    serialized.packages = Object.fromEntries(
-      config.packages.map((entry) => [
-        entry.name,
-        compact(
-          entry.version,
-          entry,
-          {
-            version: entry.version,
-            ...(entry.ref ? { ref: entry.ref } : {}),
-            ...(entry.repository ? { repository: entry.repository } : {}),
-            ...(entry.directory ? { directory: entry.directory } : {})
-          },
-          Boolean(entry.ref || entry.repository || entry.directory)
-        )
-      ])
-    );
-  }
-  if (config.folders.length > 0) {
-    serialized.folders = Object.fromEntries(
-      config.folders.map((entry) => [entry.name, compact(entry.path, entry, { path: entry.path })])
-    );
-  }
-  if (config.git.length > 0) {
-    serialized.git = Object.fromEntries(
-      config.git.map((entry) => [
-        entry.name,
-        compact(
-          entry.spec,
-          entry,
-          entry.ref ? { repository: entry.repository, ref: entry.ref } : { repository: entry.repository }
-        )
-      ])
-    );
-  }
-  if (config.groups.length > 0) {
-    serialized.groups = Object.fromEntries(
-      config.groups.map((group) => [
-        group.name,
-        group.references.length > 0
-          ? { ...(group.description ? { description: group.description } : {}), references: group.references }
-          : (group.description ?? '')
-      ])
-    );
-  }
-
-  if (config.allPackages) serialized.allPackages = true;
-  if (config.allImporters) serialized.allImporters = true;
-  if (config.registry) serialized.registry = config.registry;
-  if (config.worktreeDir) serialized.worktreeDir = config.worktreeDir;
-  if (config.cacheDir) serialized.cacheDir = config.cacheDir;
-
-  return serialized;
-}
-
-/** Shorthand only round-trips when the entry carries nothing the string cannot express. */
-function compact(
-  shorthand: string,
-  entry: { description: string | null; groups: string[] },
-  longhand: Record<string, string>,
-  forceLonghand = false
-): string | Record<string, unknown> {
-  if (!forceLonghand && !entry.description && entry.groups.length === 0) return shorthand;
-  return {
-    ...longhand,
-    ...(entry.description ? { description: entry.description } : {}),
-    ...(entry.groups.length > 0 ? { groups: entry.groups } : {})
-  };
 }
 
 function recordEntries(value: unknown, configPath: string, field: string): Array<[string, unknown]> {

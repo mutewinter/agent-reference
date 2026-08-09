@@ -1,7 +1,7 @@
 import { bareRepositoryPathFor } from './git.ts';
 import type { AgentReferenceProblem, UnresolvedManifestReference } from './types.ts';
 
-export const CLONE_COMMAND: string = 'agent-reference clone --non-interactive';
+export const CLONE_COMMAND: string = 'agent-reference clone';
 
 /**
  * Whoever reports a failure has to report its fix too. An agent acts on the output of the

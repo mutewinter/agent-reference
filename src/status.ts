@@ -30,42 +30,27 @@ import type {
 } from './types.ts';
 
 const READY_ACTION = 'Use path for source inspection.';
-const CLONE_ACTION = 'Run agent-reference clone --non-interactive to refresh local references.';
+const CLONE_ACTION = `Run ${CLONE_COMMAND} to refresh local references.`;
 
-export type StatusReportOptions = ScanProjectOptions &
-  ReferenceSelectionOptions & {
-    configFile?: string | null;
-    storeDir?: string;
-    worktreeRoot?: string;
-    gitBin?: string;
-  };
+export type StatusReportOptions = ScanProjectOptions & ReferenceSelectionOptions & { storeDir?: string };
 
 export async function getStatusReport(
   projectPath: string | null | undefined,
   options: StatusReportOptions = {}
 ): Promise<AgentReferenceStatusReport> {
-  const { config, configPackages, cwd, loadedConfig, packageUniverse, project } = await loadReferenceContext(
-    projectPath,
-    options
-  );
+  const { config, configPackages, cwd, loadedConfig, project } = await loadReferenceContext(projectPath, options);
   const loadedManifest = await readManifest(project.projectRoot);
   const configuredStore = options.storeDir ?? config?.cacheDir;
   const storeDir = configuredStore
     ? resolveConfigPath(project.projectRoot, cwd, configuredStore)
     : defaultStoreDir();
-  const configuredWorktreeRoot = options.worktreeRoot ?? config?.worktreeDir;
-  const worktreeRoot = configuredWorktreeRoot
-    ? resolveConfigPath(project.projectRoot, cwd, configuredWorktreeRoot)
-    : undefined;
   const referencePathFor = (reference: PackageManifestReference | GitManifestReference): string =>
-    manifestReferencePath(storeDir, worktreeRoot, reference);
+    manifestReferencePath(storeDir, reference);
 
-  const packageManifestByExact = new Map<string, PackageManifestReference>();
   const packageManifestByName = new Map<string, PackageManifestReference>();
   const gitManifestByName = new Map<string, GitManifestReference>();
   for (const reference of loadedManifest?.manifest.references ?? []) {
     if (reference.kind === 'package') {
-      packageManifestByExact.set(`${reference.name}@${reference.version}`, reference);
       packageManifestByName.set(reference.name, reference);
     } else {
       gitManifestByName.set(reference.name, reference);
@@ -73,21 +58,17 @@ export async function getStatusReport(
   }
 
   const annotations = referenceAnnotations(config);
-  const hasConfig = Boolean(config);
-  const selectedPackages = hasConfig && !config?.allPackages ? configPackages.packages : packageUniverse;
   const pinsByName = new Map((config?.packages ?? []).map((entry) => [entry.name, entry]));
   const unresolvedByName = new Map(
     (loadedManifest?.manifest.unresolved ?? []).map((entry) => [entry.name, entry])
   );
   const entries: AgentReferenceStatusEntry[] = [];
 
-  for (const dependency of selectedPackages) {
+  for (const dependency of configPackages.packages) {
     entries.push(
       await buildPackageStatus(
         dependency,
-        packageManifestByExact.get(`${dependency.name}@${dependency.version}`) ?? null,
         packageManifestByName.get(dependency.name) ?? null,
-        hasConfig,
         referencePathFor,
         annotations.get(`package:${dependency.name}`),
         pinsByName.get(dependency.name) ?? null,
@@ -139,10 +120,10 @@ export async function getStatusReport(
   if (filter && references.length === 0) {
     // Silently printing an empty table would read as "this reference has no problems".
     throw new Error(
-      `Nothing matched ${describeSelection(options)}. ${knownSelectorsMessage(config, packageUniverse.map((dependency) => dependency.name))}`
+      `Nothing matched ${describeSelection(options)}. ${knownSelectorsMessage(config)}`
     );
   }
-  const problems = await collectProblems(references, unresolvedByName, storeDir, loadedConfig?.path ?? null, options);
+  const problems = await collectProblems(references, unresolvedByName, storeDir, loadedConfig?.path ?? null);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -170,8 +151,7 @@ async function collectProblems(
   entries: AgentReferenceStatusEntry[],
   unresolvedByName: Map<string, UnresolvedManifestReference>,
   storeDir: string,
-  configPath: string | null,
-  options: StatusReportOptions
+  configPath: string | null
 ): Promise<AgentReferenceProblem[]> {
   const problems: AgentReferenceProblem[] = [];
   const configFile = configPath ? path.basename(configPath) : 'agent-reference.json';
@@ -230,7 +210,7 @@ async function collectProblems(
   }
 
   if (entries.some((entry) => NEEDS_CLONE.has(entry.status))) {
-    const gitProblem = await gitUnavailableProblem(options.gitBin);
+    const gitProblem = await gitUnavailableProblem();
     if (gitProblem) problems.push(gitProblem);
   }
 
@@ -260,9 +240,9 @@ function pinPatch(entry: AgentReferenceStatusEntry): Record<string, unknown> {
   };
 }
 
-async function gitUnavailableProblem(gitBin: string | undefined): Promise<AgentReferenceProblem | null> {
+async function gitUnavailableProblem(): Promise<AgentReferenceProblem | null> {
   try {
-    await ensureGitAvailable(gitBin);
+    await ensureGitAvailable();
     return null;
   } catch (error) {
     return {
@@ -311,22 +291,17 @@ function referenceAnnotations(config: AgentReferenceConfig | undefined): Map<str
 
 async function buildPackageStatus(
   dependency: PackageReference,
-  exactManifest: PackageManifestReference | null,
-  nearestManifest: PackageManifestReference | null,
-  hasConfig: boolean,
+  manifestEntry: PackageManifestReference | null,
   referencePathFor: (reference: PackageManifestReference | GitManifestReference) => string,
   annotation: ReferenceAnnotation | undefined,
   configEntry: ConfiguredPackageReference | null,
   unresolved: UnresolvedManifestReference | null
 ): Promise<AgentReferenceStatusEntry> {
-  const manifestEntry = exactManifest ?? nearestManifest;
   const worktreePath = manifestEntry ? referencePathFor(manifestEntry) : null;
   const status = getPackageStatusState(
     dependency,
-    exactManifest,
-    nearestManifest,
+    manifestEntry,
     worktreePath ? await pathExists(worktreePath) : false,
-    hasConfig,
     configEntry,
     unresolved
   );
@@ -406,33 +381,32 @@ async function buildGitStatus(
     status,
     action: status === 'ready'
       ? READY_ACTION
-      : 'Run agent-reference clone --non-interactive to materialize this git reference.'
+      : `Run ${CLONE_COMMAND} to materialize this git reference.`
   };
 }
 
 function getPackageStatusState(
   dependency: PackageReference,
-  exactManifest: PackageManifestReference | null,
-  nearestManifest: PackageManifestReference | null,
+  manifestEntry: PackageManifestReference | null,
   pathExistsNow: boolean,
-  hasConfig: boolean,
   configEntry: ConfiguredPackageReference | null,
   unresolved: UnresolvedManifestReference | null
 ): AgentReferenceStatusState {
   const pinnedRef = configEntry?.ref ?? null;
+  const current = manifestEntry?.version === dependency.version;
 
   // A recorded failure outranks "missing", because re-running clone unchanged would fail
   // the same way. Editing the overrides it failed on makes it worth retrying again.
-  if (!exactManifest && unresolved && unresolved.version === dependency.version) {
+  if (!current && unresolved && unresolved.version === dependency.version) {
     const retryWorthwhile =
       unresolved.pinnedRef !== pinnedRef || unresolved.repository !== (configEntry?.repository ?? null);
     if (!retryWorthwhile) return 'unresolvable';
   }
 
-  if (!exactManifest && nearestManifest && nearestManifest.version !== dependency.version) return 'stale';
-  if (!exactManifest) return hasConfig ? 'missing' : 'unconfigured';
+  if (!manifestEntry) return 'missing';
+  if (!current) return 'stale';
   // Re-pinning in the config must invalidate a checkout made under the old pin.
-  if ((exactManifest.pinnedRef ?? null) !== pinnedRef) return 'stale';
+  if ((manifestEntry.pinnedRef ?? null) !== pinnedRef) return 'stale';
   if (!pathExistsNow) return 'missing-worktree';
   return 'ready';
 }
@@ -450,7 +424,6 @@ function getGitStatusState(
 
 function actionForPackageStatus(status: AgentReferenceStatusState, name: string): string {
   if (status === 'ready') return READY_ACTION;
-  if (status === 'unconfigured') return 'Add this package to agent-reference.json if agents should inspect it.';
   if (status === 'unresolvable') {
     return `Cloning already failed for this reference; running clone again will not help. See problems for the fix, which usually means setting packages.${name}.ref or .repository.`;
   }
@@ -464,8 +437,7 @@ function summarizeStatus(entries: AgentReferenceStatusEntry[]): Record<AgentRefe
     'missing-worktree': 0,
     stale: 0,
     'not-installed': 0,
-    unresolvable: 0,
-    unconfigured: 0
+    unresolvable: 0
   };
 
   for (const entry of entries) {

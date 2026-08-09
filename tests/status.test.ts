@@ -4,14 +4,16 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
+import { manifestReferencePath } from '../src/git.ts';
 import { getStatusReport } from '../src/status.ts';
-import type { AgentReferenceManifest } from '../src/types.ts';
+import type { AgentReferenceManifest, AgentReferenceManifestReference } from '../src/types.ts';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
+const STORE_DIR = '/tmp/agent-reference-status-test-store';
 
 test('reports configured dependencies missing from local worktrees', async () => {
   const projectRoot = await copyFixtureProject();
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'));
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
 
   assert.equal(report.references.length, 1);
   assert.equal(report.references[0]?.kind, 'package');
@@ -20,14 +22,14 @@ test('reports configured dependencies missing from local worktrees', async () =>
   assert.equal(report.references[0]?.status, 'missing');
 });
 
-test('reports ready dependencies with local worktree paths', async () => {
+test('reports ready dependencies with store worktree paths', async () => {
   const projectRoot = await copyFixtureProject();
-  const worktreePath = path.join(projectRoot, 'refs', 'tiny-invariant', '1.3.3');
+  await useConfig(projectRoot);
+  const [reference] = await writeManifest(projectRoot, '1.3.3');
+  const worktreePath = manifestReferencePath(STORE_DIR, reference!);
   await fs.mkdir(worktreePath, { recursive: true });
-  await useLocalWorktreeConfig(projectRoot);
-  await writeManifest(projectRoot, '1.3.3');
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'));
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
 
   assert.equal(report.references[0]?.status, 'ready');
   assert.equal(report.references[0]?.path, worktreePath);
@@ -36,10 +38,10 @@ test('reports ready dependencies with local worktree paths', async () => {
 
 test('reports stale dependencies when cloned version differs from lockfile', async () => {
   const projectRoot = await copyFixtureProject();
-  await useLocalWorktreeConfig(projectRoot);
+  await useConfig(projectRoot);
   await writeManifest(projectRoot, '1.2.0');
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'));
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
 
   assert.equal(report.references[0]?.status, 'stale');
   assert.equal(report.references[0]?.currentVersion, '1.3.3');
@@ -54,7 +56,7 @@ test('reports config-only packages as configured references', async () => {
     }
   }, null, 2));
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'));
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
 
   assert.equal(report.references.length, 1);
   assert.equal(report.references[0]?.kind, 'package');
@@ -75,7 +77,7 @@ test('reports local folder references with absolute paths', async () => {
     }
   }, null, 2));
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'));
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
 
   assert.equal(report.references.length, 1);
   assert.equal(report.references[0]?.kind, 'folder');
@@ -89,28 +91,26 @@ test('reports stale git references when configured spec changes', async () => {
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
     git: {
       tooling: 'github:example/tooling#main'
-    },
-    worktreeDir: './refs'
-  }, null, 2));
-  await writeManifest(projectRoot, '1.3.3', [
-    {
-      kind: 'git',
-      name: 'tooling',
-      requested: 'github:example/tooling#old',
-      repositoryUrl: 'https://github.com/example/tooling.git',
-      checkoutRef: 'old',
-      checkoutSha: 'abc123',
-      refSource: 'configured'
     }
-  ]);
+  }, null, 2));
+  const gitReference: AgentReferenceManifestReference = {
+    kind: 'git',
+    name: 'tooling',
+    requested: 'github:example/tooling#old',
+    repositoryUrl: 'https://github.com/example/tooling.git',
+    checkoutRef: 'old',
+    checkoutSha: 'abc123',
+    refSource: 'configured'
+  };
+  await writeManifest(projectRoot, '1.3.3', [gitReference]);
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'));
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
 
   assert.equal(report.references.length, 1);
   assert.equal(report.references[0]?.kind, 'git');
   assert.equal(report.references[0]?.name, 'tooling');
   assert.equal(report.references[0]?.status, 'stale');
-  assert.equal(report.references[0]?.path, path.join(projectRoot, 'refs', 'tooling', 'old'));
+  assert.equal(report.references[0]?.path, manifestReferencePath(STORE_DIR, gitReference));
 });
 
 async function copyFixtureProject(): Promise<string> {
@@ -120,10 +120,9 @@ async function copyFixtureProject(): Promise<string> {
   return tempDir;
 }
 
-async function useLocalWorktreeConfig(projectRoot: string): Promise<void> {
+async function useConfig(projectRoot: string): Promise<void> {
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    packages: { 'tiny-invariant': 'installed' },
-    worktreeDir: './refs'
+    packages: { 'tiny-invariant': 'installed' }
   }, null, 2));
 }
 
@@ -131,7 +130,7 @@ async function writeManifest(
   projectRoot: string,
   version: string,
   extraReferences: AgentReferenceManifest['references'] = []
-): Promise<void> {
+): Promise<AgentReferenceManifest['references']> {
   const manifest: AgentReferenceManifest = {
     schemaVersion: 5,
     references: [
@@ -154,4 +153,5 @@ async function writeManifest(
   };
 
   await fs.writeFile(path.join(projectRoot, 'agent-reference.lock.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  return manifest.references;
 }

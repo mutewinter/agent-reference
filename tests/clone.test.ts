@@ -18,7 +18,7 @@ test('clones a selected dependency into a project worktree using local metadata'
   const sourceRepo = await createSourceRepo(tempDir, 'tiny-invariant-source', 'index.js', 'export const ok = true;\n');
 
   const result = await cloneReferences(path.join(projectRoot, 'package.json'), {
-    packages: ['tiny-invariant'],
+    references: ['tiny-invariant'],
     metadataMap: {
       'tiny-invariant@1.3.3': {
         name: 'tiny-invariant',
@@ -30,8 +30,7 @@ test('clones a selected dependency into a project worktree using local metadata'
         gitHead: sourceRepo.commit
       }
     },
-    storeDir: path.join(tempDir, 'store'),
-    worktreeRoot: path.join(tempDir, 'worktrees')
+    storeDir: path.join(tempDir, 'store')
   });
 
   assert.equal(result.cloned.length, 1);
@@ -57,11 +56,10 @@ test('clones packages selected by agent-reference.json', async () => {
         gitHead: sourceRepo.commit
       }
     },
-    storeDir: path.join(tempDir, 'store'),
-    worktreeRoot: path.join(tempDir, 'worktrees')
+    storeDir: path.join(tempDir, 'store')
   });
 
-  assert.deepEqual(result.selected.map((dependency) => dependency.name), ['tiny-invariant']);
+  assert.deepEqual(result.cloned.map((clone) => clone.dependency.name), ['tiny-invariant']);
   assert.equal(result.cloned[0]?.checkoutSha, sourceRepo.commit);
 });
 
@@ -88,11 +86,10 @@ test('clones config-declared packages that are not in package.json', async () =>
         gitHead: sourceRepo.commit
       }
     },
-    storeDir: path.join(tempDir, 'store'),
-    worktreeRoot: path.join(tempDir, 'worktrees')
+    storeDir: path.join(tempDir, 'store')
   });
 
-  assert.deepEqual(result.selected.map((dependency) => `${dependency.name}@${dependency.version}`), [
+  assert.deepEqual(result.cloned.map((clone) => `${clone.dependency.name}@${clone.dependency.version}`), [
     'tiny-warning@1.0.3'
   ]);
   assert.equal(result.cloned[0]?.checkoutSha, sourceRepo.commit);
@@ -160,7 +157,7 @@ test('preserves existing manifest references after a partial clone', async () =>
   assert.equal(manifest.references.some((reference) => reference.kind === 'git' && reference.name === 'tooling'), true);
 });
 
-test('shares version-keyed worktrees in the store and prunes superseded manifest entries', async () => {
+test('replaces the manifest entry on upgrade and leaves shared worktrees in place', async () => {
   const { projectRoot, tempDir, metadataFor, configFor, firstCommit, secondCommit } = await createUpgradeScenario('prune');
 
   await configFor('1.0.3');
@@ -179,29 +176,6 @@ test('shares version-keyed worktrees in the store and prunes superseded manifest
   assert.match(second.cloned[0]?.worktreePath ?? '', /[\\/]store[\\/]worktrees[\\/]/);
   // Store worktrees are shared across projects, so the old version stays on disk.
   assert.equal(await pathExists(first.cloned[0]?.worktreePath ?? ''), true);
-  assert.equal(await pathExists(second.cloned[0]?.worktreePath ?? ''), true);
-});
-
-test('deletes superseded project-local worktrees when worktreeRoot is inside the project', async () => {
-  const { projectRoot, tempDir, metadataFor, configFor, firstCommit, secondCommit } = await createUpgradeScenario('local-prune');
-  const worktreeRoot = path.join(projectRoot, '.agent-reference', 'packages');
-
-  await configFor('1.0.3');
-  const first = await cloneReferences(path.join(projectRoot, 'package.json'), {
-    metadataMap: metadataFor('1.0.3', firstCommit),
-    storeDir: path.join(tempDir, 'store'),
-    worktreeRoot
-  });
-
-  await configFor('1.0.4');
-  const second = await cloneReferences(path.join(projectRoot, 'package.json'), {
-    metadataMap: metadataFor('1.0.4', secondCommit),
-    storeDir: path.join(tempDir, 'store'),
-    worktreeRoot
-  });
-
-  assert.deepEqual(await manifestVersions(projectRoot), ['1.0.4']);
-  assert.equal(await pathExists(first.cloned[0]?.worktreePath ?? ''), false);
   assert.equal(await pathExists(second.cloned[0]?.worktreePath ?? ''), true);
 });
 

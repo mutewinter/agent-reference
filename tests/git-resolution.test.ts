@@ -7,26 +7,24 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { cloneReferences } from '../src/core.ts';
-import { ensureGitAvailable } from '../src/git.ts';
 import { getStatusReport } from '../src/status.ts';
 
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(import.meta.dirname, '..');
 
 test('fails with an actionable message when git cannot be run', async () => {
-  await assert.rejects(
-    ensureGitAvailable(path.join(os.tmpdir(), 'agent-reference-no-such-git')),
-    /git is required to materialize references.*could not be executed/s
-  );
-
   const { projectRoot, tempDir } = await createMonorepoScenario('missing-git');
-  await assert.rejects(
-    cloneReferences(path.join(projectRoot, 'package.json'), {
-      storeDir: path.join(tempDir, 'store'),
-      gitBin: path.join(os.tmpdir(), 'agent-reference-no-such-git')
-    }),
-    /git is required to materialize references/
-  );
+  const realPath = process.env.PATH;
+  process.env.PATH = path.join(tempDir, 'no-binaries-here');
+
+  try {
+    await assert.rejects(
+      cloneReferences(path.join(projectRoot, 'package.json'), { storeDir: path.join(tempDir, 'store') }),
+      /git is required to materialize references.*Install git/s
+    );
+  } finally {
+    process.env.PATH = realPath;
+  }
 });
 
 test('checks out the commit whose package.json matches, not a same-numbered monorepo tag', async () => {

@@ -57,10 +57,7 @@ export interface RegistryOptions {
 
 export interface GitWorktreeOptions {
   projectRoot: string;
-  storeDir?: string;
-  worktreeRoot?: string;
-  gitBin?: string;
-  force?: boolean;
+  storeDir: string;
   /** Checkout chosen by hand in the config; skips version resolution entirely. */
   pinnedRef?: string | null;
 }
@@ -77,7 +74,6 @@ export type PackageRefSource = 'pinned' | 'gitHead' | 'tag' | 'tagSearch' | 'def
 export interface GitWorktreeResult {
   dependency: PackageReference;
   metadata: DependencyMetadata;
-  bareRepositoryPath: string;
   worktreePath: string;
   packagePath: string;
   checkoutRef: string;
@@ -85,26 +81,22 @@ export interface GitWorktreeResult {
   refSource: PackageRefSource;
   confidence: CheckoutConfidence;
   pinnedRef: string | null;
-  reused: boolean;
 }
 
 export interface GitReferenceWorktreeResult {
   name: string;
   requested: string;
   repositoryUrl: string;
-  bareRepositoryPath: string;
   worktreePath: string;
   checkoutRef: string;
   checkoutSha: string;
   refSource: 'configured' | 'defaultBranch';
-  reused: boolean;
 }
 
+/** Empty selects every configured reference. */
 export interface ReferenceSelectionOptions {
-  packages?: string[];
-  groups?: string[];
   references?: string[];
-  all?: boolean;
+  groups?: string[];
 }
 
 export interface CloneReferencesOptions
@@ -112,14 +104,9 @@ export interface CloneReferencesOptions
     RegistryOptions,
     ReferenceSelectionOptions {
   storeDir?: string;
-  worktreeRoot?: string;
-  gitBin?: string;
-  force?: boolean;
-  configFile?: string | null;
 }
 
 export interface CloneReferencesResult {
-  selected: PackageReference[];
   cloned: GitWorktreeResult[];
   skipped: Array<{
     name: string;
@@ -195,8 +182,7 @@ export type AgentReferenceStatusState =
   | 'missing-worktree'
   | 'stale'
   | 'not-installed'
-  | 'unresolvable'
-  | 'unconfigured';
+  | 'unresolvable';
 
 export interface AgentReferenceStatusEntry {
   kind: AgentReferenceKind;
@@ -312,10 +298,8 @@ export interface AgentReferenceConfig {
   folders: ConfiguredFolderReference[];
   git: ConfiguredGitReference[];
   groups: ConfiguredGroup[];
-  allPackages?: boolean;
   allImporters?: boolean;
   registry?: string;
-  worktreeDir?: string;
   cacheDir?: string;
 }
 

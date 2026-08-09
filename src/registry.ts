@@ -1,11 +1,10 @@
 import semver from 'semver';
 
-import { readJsonFile } from './fs-utils.ts';
 import {
   repositoryDirectoryFromManifestRepository,
   repositoryUrlFromManifestRepository
 } from './repository.ts';
-import type { DependencyMetadata, MetadataMap, NpmPackageManifest, RegistryOptions } from './types.ts';
+import type { DependencyMetadata, NpmPackageManifest, RegistryOptions } from './types.ts';
 
 interface Packument {
   versions?: Record<string, unknown>;
@@ -52,11 +51,6 @@ export async function resolveRegistryVersion(
   if (match) return match;
 
   throw new Error(`Unable to resolve ${name}@${specifier} to an exact registry version.`);
-}
-
-export async function loadMetadataFile(metadataFile: string | null | undefined): Promise<MetadataMap | null> {
-  if (!metadataFile) return null;
-  return readJsonFile<MetadataMap>(metadataFile);
 }
 
 function toDependencyMetadata(manifest: NpmPackageManifest): DependencyMetadata {
