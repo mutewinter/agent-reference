@@ -10,7 +10,7 @@ import {
   slugifyVersion,
   tagCandidatesForDependency
 } from './package-utils.ts';
-import { repositoryCacheParts } from './repository.ts';
+import { normalizeConfiguredRepository, repositoryCacheParts } from './repository.ts';
 import type {
   AgentReferenceManifestReference,
   CheckoutConfidence,
@@ -73,7 +73,9 @@ export async function ensureDependencyWorktree(
         ? path.join(options.worktreeRoot, slugifyPackageName(dependency.name), slugifyVersion(dependency.version))
         : sharedWorktreePath(storeDir, repositoryUrl, checkout.sha),
     resolveCheckout: (bareRepositoryPath) =>
-      resolvePackageCheckout(bareRepositoryPath, dependency, metadata, locator, gitBin)
+      options.pinnedRef
+        ? resolvePinnedCheckout(bareRepositoryPath, dependency, options.pinnedRef, locator, gitBin)
+        : resolvePackageCheckout(bareRepositoryPath, dependency, metadata, locator, gitBin)
   });
 
   const packageDirectory = locator.directory() ?? normalizeDirectory(metadata.repositoryDirectory);
@@ -81,6 +83,7 @@ export async function ensureDependencyWorktree(
     dependency,
     metadata: { ...metadata, repositoryDirectory: packageDirectory },
     ...materialized,
+    pinnedRef: options.pinnedRef ?? null,
     packagePath: await resolvePackagePath(materialized.worktreePath, packageDirectory)
   };
 }
@@ -515,6 +518,46 @@ async function resolvePackageCheckout(
   return { ref: 'HEAD', sha: head.sha, source: 'defaultBranch', confidence: 'fallback' };
 }
 
+/**
+ * Uses the ref an agent or human chose in the config, no questions asked. Automatic
+ * resolution cannot cover every tagging scheme, so a pin is the documented way out and
+ * must win even when it disagrees with the package.json at that commit.
+ */
+async function resolvePinnedCheckout(
+  bareRepositoryPath: string,
+  dependency: PackageReference,
+  pinnedRef: string,
+  locator: PackageLocator,
+  gitBin: string
+): Promise<CheckoutRef<PackageCheckoutSource>> {
+  const candidates = [
+    `${pinnedRef}^{commit}`,
+    `refs/tags/${pinnedRef}^{commit}`,
+    `refs/heads/${pinnedRef}^{commit}`,
+    `refs/remotes/origin/${pinnedRef}^{commit}`
+  ];
+
+  for (const candidate of candidates) {
+    const resolved = await resolveGitRevision(bareRepositoryPath, candidate, gitBin);
+    if (!resolved) continue;
+
+    // Locate the package directory even though the version is not in question.
+    await locator.inspect(bareRepositoryPath, resolved.sha);
+    return { ref: pinnedRef, sha: resolved.sha, source: 'pinned', confidence: 'pinned' };
+  }
+
+  await ensureCommitAvailable(bareRepositoryPath, pinnedRef, gitBin);
+  const fetched = await resolveGitRevision(bareRepositoryPath, `${pinnedRef}^{commit}`, gitBin);
+  if (fetched) {
+    await locator.inspect(bareRepositoryPath, fetched.sha);
+    return { ref: pinnedRef, sha: fetched.sha, source: 'pinned', confidence: 'pinned' };
+  }
+
+  throw new Error(
+    `packages.${dependency.name}.ref is "${pinnedRef}", which is not a commit, tag, or branch in ${bareRepositoryPath}.`
+  );
+}
+
 /** Catches release tags this tool does not know how to spell, such as `release-1.2.3`. */
 async function searchTagsForVersion(
   bareRepositoryPath: string,
@@ -583,21 +626,11 @@ function parseGitReferenceSpec(spec: string, projectRoot: string): { repositoryU
   const hashIndex = spec.lastIndexOf('#');
   const rawUrl = hashIndex === -1 ? spec : spec.slice(0, hashIndex);
   const ref = hashIndex === -1 ? null : spec.slice(hashIndex + 1);
-  const repositoryUrl = normalizeGitReferenceUrl(rawUrl, projectRoot);
+  const repositoryUrl = normalizeConfiguredRepository(rawUrl, projectRoot);
   if (!repositoryUrl) {
     throw new Error(`Invalid git reference spec: ${spec}`);
   }
   return { repositoryUrl, ref: ref || null };
-}
-
-function normalizeGitReferenceUrl(rawUrl: string, projectRoot: string): string | null {
-  if (rawUrl.startsWith('file:')) {
-    return path.resolve(projectRoot, rawUrl.slice('file:'.length));
-  }
-  if (rawUrl.startsWith('github:')) {
-    return `https://github.com/${rawUrl.slice('github:'.length).replace(/\.git$/, '')}.git`;
-  }
-  return rawUrl || null;
 }
 
 async function resolveConfiguredRef(

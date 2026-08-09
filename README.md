@@ -188,7 +188,46 @@ The result is recorded per reference as a `confidence`:
 | `unverified` | the commit looked right but no package.json confirmed it |
 | `fallback` | nothing matched; the default branch was checked out, and this is not the published version |
 
-`status` prints a warning section for anything that is not `verified`.
+A `pinned` confidence means the ref was chosen by hand and overrides all of the above.
+
+### When resolution fails
+
+Automatic resolution cannot cover every tagging scheme, and some packages have no
+repository in their registry metadata at all. Rather than leaving an agent stuck, failures
+are recorded in the lockfile and reported by `status` as `unresolvable`, with the fix:
+
+```
+problems:
+  [error] package:left-pad: left-pad@1.3.0 could not be materialized. npm metadata for
+          left-pad@1.3.0 has no repository field.
+    fix: The registry has no repository for this package. Find its source repository, then
+         set packages.left-pad.repository in agent-reference.json ...
+    add to agent-reference.json:
+    {
+      "packages": {
+        "left-pad": { "version": "1.3.0", "repository": "<github:owner/repo>", "ref": "<commit-or-tag>" }
+      }
+    }
+```
+
+Critically, `status` does *not* tell the agent to run `clone` again for these, because that
+would fail identically. Three package keys exist for this:
+
+| key | use when |
+| --- | --- |
+| `ref` | the right commit or tag cannot be guessed; a pin always wins over resolution |
+| `repository` | registry metadata has no repository, or the wrong one |
+| `directory` | the monorepo subdirectory was not detected |
+
+Setting both `repository` and `ref` skips the registry entirely, which is how unpublished
+and private packages work. Editing any of these marks the reference worth retrying, so
+`status` switches back to recommending `clone`. One unresolvable reference never stops the
+others from cloning.
+
+`status` also prints a `problems:` section for folder paths that do not exist, packages
+configured as `"installed"` that left the lockfile, and a missing or too-old git, each with
+its own fix. In `--json`, these are `problems[]` with `severity`, `summary`, `fix`, and a
+`configPatch` to merge, plus an ordered `nextSteps[]`.
 
 ### Monorepo packages
 

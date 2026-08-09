@@ -27,7 +27,7 @@ const TOP_LEVEL_KEYS = [
   'worktreeDir',
   'cacheDir'
 ];
-const PACKAGE_KEYS = ['version', 'description', 'groups'];
+const PACKAGE_KEYS = ['version', 'ref', 'repository', 'directory', 'description', 'groups'];
 const FOLDER_KEYS = ['path', 'description', 'groups'];
 const GIT_KEYS = ['repository', 'ref', 'description', 'groups'];
 const GROUP_KEYS = ['description', 'references'];
@@ -114,7 +114,16 @@ export function parseConfig(value: unknown, configPath: string): AgentReferenceC
 function parsePackageEntry(name: string, entry: unknown, configPath: string): ConfiguredPackageReference {
   const field = `packages.${name}`;
   if (typeof entry === 'string') {
-    return { kind: 'package', name, version: requireNonEmpty(entry, configPath, field), description: null, groups: [] };
+    return {
+      kind: 'package',
+      name,
+      version: requireNonEmpty(entry, configPath, field),
+      ref: null,
+      repository: null,
+      directory: null,
+      description: null,
+      groups: []
+    };
   }
 
   const object = expectObject(entry, configPath, field, 'a version string or an object');
@@ -127,6 +136,9 @@ function parsePackageEntry(name: string, entry: unknown, configPath: string): Co
     kind: 'package',
     name,
     version: requireNonEmpty(expectString(object.version, configPath, `${field}.version`), configPath, `${field}.version`),
+    ref: optionalString(object.ref, configPath, `${field}.ref`),
+    repository: optionalString(object.repository, configPath, `${field}.repository`),
+    directory: optionalString(object.directory, configPath, `${field}.directory`),
     description: parseDescription(object.description, configPath, field),
     groups: parseNameList(object.groups, configPath, field, 'groups')
   };
@@ -225,6 +237,11 @@ function parseDescription(value: unknown, configPath: string, field: string): st
   return expectString(value, configPath, `${field}.description`).trim() || null;
 }
 
+function optionalString(value: unknown, configPath: string, field: string): string | null {
+  if (value === undefined || value === null) return null;
+  return expectString(value, configPath, field).trim() || null;
+}
+
 function parseNameList(value: unknown, configPath: string, field: string, key: string): string[] {
   if (value === undefined || value === null) return [];
   const values = typeof value === 'string' ? [value] : value;
@@ -267,7 +284,20 @@ function serializeConfig(config: AgentReferenceConfig): Record<string, unknown> 
 
   if (config.packages.length > 0) {
     serialized.packages = Object.fromEntries(
-      config.packages.map((entry) => [entry.name, compact(entry.version, entry, { version: entry.version })])
+      config.packages.map((entry) => [
+        entry.name,
+        compact(
+          entry.version,
+          entry,
+          {
+            version: entry.version,
+            ...(entry.ref ? { ref: entry.ref } : {}),
+            ...(entry.repository ? { repository: entry.repository } : {}),
+            ...(entry.directory ? { directory: entry.directory } : {})
+          },
+          Boolean(entry.ref || entry.repository || entry.directory)
+        )
+      ])
     );
   }
   if (config.folders.length > 0) {
@@ -307,12 +337,14 @@ function serializeConfig(config: AgentReferenceConfig): Record<string, unknown> 
   return serialized;
 }
 
+/** Shorthand only round-trips when the entry carries nothing the string cannot express. */
 function compact(
   shorthand: string,
   entry: { description: string | null; groups: string[] },
-  longhand: Record<string, string>
+  longhand: Record<string, string>,
+  forceLonghand = false
 ): string | Record<string, unknown> {
-  if (!entry.description && entry.groups.length === 0) return shorthand;
+  if (!forceLonghand && !entry.description && entry.groups.length === 0) return shorthand;
   return {
     ...longhand,
     ...(entry.description ? { description: entry.description } : {}),

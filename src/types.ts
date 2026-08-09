@@ -61,15 +61,18 @@ export interface GitWorktreeOptions {
   worktreeRoot?: string;
   gitBin?: string;
   force?: boolean;
+  /** Checkout chosen by hand in the config; skips version resolution entirely. */
+  pinnedRef?: string | null;
 }
 
 /**
  * How confident the resolver is that a checkout really is the requested package version.
  * `verified` means the package.json at that commit reported the exact name and version.
+ * `pinned` means a human or agent chose the ref by hand, which overrides any guess.
  */
-export type CheckoutConfidence = 'verified' | 'unverified' | 'fallback';
+export type CheckoutConfidence = 'pinned' | 'verified' | 'unverified' | 'fallback';
 
-export type PackageRefSource = 'gitHead' | 'tag' | 'tagSearch' | 'defaultBranch';
+export type PackageRefSource = 'pinned' | 'gitHead' | 'tag' | 'tagSearch' | 'defaultBranch';
 
 export interface GitWorktreeResult {
   dependency: PackageReference;
@@ -81,6 +84,7 @@ export interface GitWorktreeResult {
   checkoutSha: string;
   refSource: PackageRefSource;
   confidence: CheckoutConfidence;
+  pinnedRef: string | null;
   reused: boolean;
 }
 
@@ -125,6 +129,7 @@ export interface CloneReferencesResult {
   clonedGit: GitReferenceWorktreeResult[];
   /** Names of selected folder references. They are already local, so nothing is cloned. */
   folders: string[];
+  unresolved: UnresolvedManifestReference[];
   manifestPath: string;
 }
 
@@ -142,6 +147,26 @@ export interface PackageManifestReference {
   checkoutSha: string;
   refSource: PackageRefSource;
   confidence: CheckoutConfidence;
+  /** The config's `ref` at clone time, so drift from a re-pin is detectable. */
+  pinnedRef: string | null;
+}
+
+export type UnresolvedReason = 'no-repository' | 'registry-error' | 'unresolved-ref' | 'clone-failed';
+
+/**
+ * A reference that could not be materialized. Recorded in the lockfile so `status` can
+ * explain the failure and its fix without repeating the network work that discovered it.
+ */
+export interface UnresolvedManifestReference {
+  kind: 'package';
+  name: string;
+  version: string;
+  reason: UnresolvedReason;
+  detail: string;
+  repositoryUrl: string | null;
+  /** Config overrides in effect when this failed, so a later edit is known to be a retry. */
+  pinnedRef: string | null;
+  repository: string | null;
 }
 
 export interface GitManifestReference {
@@ -157,8 +182,9 @@ export interface GitManifestReference {
 export type AgentReferenceManifestReference = PackageManifestReference | GitManifestReference;
 
 export interface AgentReferenceManifest {
-  schemaVersion: 4;
+  schemaVersion: 5;
   references: AgentReferenceManifestReference[];
+  unresolved?: UnresolvedManifestReference[];
 }
 
 export type AgentReferenceStatusState =
@@ -167,6 +193,7 @@ export type AgentReferenceStatusState =
   | 'missing-worktree'
   | 'stale'
   | 'not-installed'
+  | 'unresolvable'
   | 'unconfigured';
 
 export interface AgentReferenceStatusEntry {
@@ -181,10 +208,25 @@ export interface AgentReferenceStatusEntry {
   path: string | null;
   /** Repository checkout root. Differs from `path` for a package inside a monorepo. */
   repositoryPath: string | null;
+  repositoryUrl: string | null;
   checkoutSha: string | null;
   confidence: CheckoutConfidence | null;
   status: AgentReferenceStatusState;
   action: string;
+}
+
+export type ProblemSeverity = 'error' | 'warning';
+
+/**
+ * A problem an agent has to resolve, stated so it can act without reading this source.
+ * `configPatch` is the literal JSON to merge into agent-reference.json when one exists.
+ */
+export interface AgentReferenceProblem {
+  reference: string | null;
+  severity: ProblemSeverity;
+  summary: string;
+  fix: string;
+  configPatch: Record<string, unknown> | null;
 }
 
 export interface AgentReferenceStatusGroup {
@@ -201,6 +243,9 @@ export interface AgentReferenceStatusReport {
   manifestPath: string | null;
   groups: AgentReferenceStatusGroup[];
   references: AgentReferenceStatusEntry[];
+  problems: AgentReferenceProblem[];
+  /** Commands to run now, in order. Empty when every reference is usable. */
+  nextSteps: string[];
   summary: Record<AgentReferenceStatusState, number>;
 }
 
@@ -209,6 +254,12 @@ export interface ConfiguredPackageReference {
   name: string;
   /** `installed` to follow the lockfile, or an exact version, range, or dist-tag. */
   version: string;
+  /** Commit, tag, or branch to check out, overriding automatic version resolution. */
+  ref: string | null;
+  /** Git remote to use when registry metadata has none or points at the wrong repo. */
+  repository: string | null;
+  /** Package subdirectory within the repository, for monorepos the resolver misreads. */
+  directory: string | null;
   description: string | null;
   groups: string[];
 }

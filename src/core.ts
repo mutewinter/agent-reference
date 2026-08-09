@@ -14,13 +14,20 @@ import { writeManifest } from './manifest.ts';
 import { dependencyKey, mergeDependencyEntries } from './package-utils.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import { resolvePackageMetadata } from './registry.ts';
+import { normalizeConfiguredRepository } from './repository.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
 import type {
   AgentReferenceConfig,
   CloneReferencesOptions,
   CloneReferencesResult,
   ConfiguredGitReference,
-  PackageReference
+  ConfiguredPackageReference,
+  DependencyMetadata,
+  GitWorktreeOptions,
+  PackageReference,
+  RegistryOptions,
+  UnresolvedManifestReference,
+  UnresolvedReason
 } from './types.ts';
 
 export function selectDependencies(dependencies: PackageReference[], selectors: string[]): PackageReference[] {
@@ -87,20 +94,22 @@ export async function cloneReferences(
   };
 
   const cloned: CloneReferencesResult['cloned'] = [];
+  const unresolved: UnresolvedManifestReference[] = [];
   const skipped: CloneReferencesResult['skipped'] = configPackages.missingInstalled.map((name) => ({
     name,
     version: null,
     reason: 'Configured as "installed" but not present in the active lockfile.'
   }));
+  const overrides = new Map((config?.packages ?? []).map((entry) => [entry.name, entry]));
 
   for (const dependency of selected) {
-    const metadata = await resolvePackageMetadata(dependency, registryOptions);
-    if (!metadata.repositoryUrl) {
-      skipped.push({ name: dependency.name, version: dependency.version, reason: 'No repository URL in npm metadata.' });
-      continue;
+    const override = overrides.get(dependency.name);
+    // One unresolvable package must not abort the references that would have worked.
+    const failure = await cloneOnePackage(dependency, override, registryOptions, worktreeOptions, cloned);
+    if (failure) {
+      unresolved.push(failure);
+      skipped.push({ name: dependency.name, version: dependency.version, reason: failure.detail });
     }
-
-    cloned.push(await ensureDependencyWorktree(dependency, metadata, worktreeOptions));
   }
 
   const clonedGit: CloneReferencesResult['clonedGit'] = [];
@@ -108,7 +117,7 @@ export async function cloneReferences(
     clonedGit.push(await ensureGitReferenceWorktree(reference.name, reference.spec, worktreeOptions));
   }
 
-  const { manifestPath, superseded } = await writeManifest(projectRoot, cloned, clonedGit);
+  const { manifestPath, superseded } = await writeManifest(projectRoot, cloned, clonedGit, unresolved);
   for (const reference of superseded) {
     const supersededPath = manifestReferencePath(storeDir, worktreeRoot, reference);
     if (isInsideDirectory(projectRoot, supersededPath)) {
@@ -116,7 +125,71 @@ export async function cloneReferences(
     }
   }
 
-  return { selected, cloned, clonedGit, folders, skipped, manifestPath };
+  return { selected, cloned, clonedGit, folders, skipped, unresolved, manifestPath };
+}
+
+/**
+ * Materializes one package, returning a recordable failure instead of throwing so a single
+ * bad reference cannot take down the whole run, and so `status` can explain it later.
+ */
+async function cloneOnePackage(
+  dependency: PackageReference,
+  override: ConfiguredPackageReference | undefined,
+  registryOptions: RegistryOptions,
+  worktreeOptions: GitWorktreeOptions,
+  cloned: CloneReferencesResult['cloned']
+): Promise<UnresolvedManifestReference | null> {
+  const unresolvable = (reason: UnresolvedReason, detail: string, repositoryUrl: string | null = null) => ({
+    kind: 'package' as const,
+    name: dependency.name,
+    version: dependency.version,
+    reason,
+    detail,
+    repositoryUrl,
+    pinnedRef: override?.ref ?? null,
+    repository: override?.repository ?? null
+  });
+
+  let metadata: DependencyMetadata;
+  if (override?.repository && override.ref) {
+    // Fully pinned: no registry round trip, so unpublished and private packages work.
+    metadata = { repositoryUrl: null, repositoryDirectory: override.directory ?? null, gitHead: null };
+  } else {
+    try {
+      metadata = await resolvePackageMetadata(dependency, registryOptions);
+    } catch (error) {
+      if (!override?.repository) {
+        return unresolvable('registry-error', error instanceof Error ? error.message : String(error));
+      }
+      metadata = { repositoryUrl: null, repositoryDirectory: null, gitHead: null };
+    }
+  }
+
+  const repositoryUrl = override?.repository
+    ? normalizeConfiguredRepository(override.repository, worktreeOptions.projectRoot)
+    : metadata.repositoryUrl;
+  if (!repositoryUrl) {
+    return unresolvable('no-repository', `npm metadata for ${dependency.name}@${dependency.version} has no repository field.`);
+  }
+
+  const resolvedMetadata: DependencyMetadata = {
+    ...metadata,
+    repositoryUrl,
+    repositoryDirectory: override?.directory ?? metadata.repositoryDirectory
+  };
+
+  try {
+    cloned.push(
+      await ensureDependencyWorktree(dependency, resolvedMetadata, {
+        ...worktreeOptions,
+        pinnedRef: override?.ref ?? null
+      })
+    );
+    return null;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    return unresolvable(override?.ref ? 'unresolved-ref' : 'clone-failed', detail, repositoryUrl);
+  }
 }
 
 /** Folder references need no cloning, but a folder-only group must not read as "nothing matched". */
@@ -172,6 +245,9 @@ export async function initConfig(
       kind: 'package' as const,
       name: dependency.name,
       version: 'installed',
+      ref: null,
+      repository: null,
+      directory: null,
       description: null,
       groups: []
     }))

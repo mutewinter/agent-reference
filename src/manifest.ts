@@ -6,10 +6,11 @@ import type {
   AgentReferenceManifest,
   AgentReferenceManifestReference,
   GitReferenceWorktreeResult,
-  GitWorktreeResult
+  GitWorktreeResult,
+  UnresolvedManifestReference
 } from './types.ts';
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 export interface ManifestUpdateResult {
   manifestPath: string;
@@ -21,20 +22,26 @@ export const MANIFEST_FILE = 'agent-reference.lock.json';
 export async function writeManifest(
   projectRoot: string,
   packageResults: GitWorktreeResult[],
-  gitResults: GitReferenceWorktreeResult[] = []
+  gitResults: GitReferenceWorktreeResult[] = [],
+  unresolved: UnresolvedManifestReference[] = []
 ): Promise<ManifestUpdateResult> {
-  const existingReferences = (await readManifest(projectRoot))?.manifest.references ?? [];
+  const existing = (await readManifest(projectRoot))?.manifest;
+  const existingReferences = existing?.references ?? [];
   const updates = [
     ...packageResults.map(packageResultToManifestReference),
     ...gitResults.map(gitResultToManifestReference)
   ];
   const superseded = existingReferences.filter((reference) => isSuperseded(reference, updates));
   const kept = existingReferences.filter((reference) => !isSuperseded(reference, updates));
+  const references = mergeManifestReferences(kept, updates);
 
   const manifest: AgentReferenceManifest = {
     schemaVersion: SCHEMA_VERSION,
-    references: mergeManifestReferences(kept, updates)
+    references
   };
+
+  const mergedUnresolved = mergeUnresolved(existing?.unresolved ?? [], unresolved, references);
+  if (mergedUnresolved.length > 0) manifest.unresolved = mergedUnresolved;
 
   const manifestPath = path.join(projectRoot, MANIFEST_FILE);
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
@@ -83,7 +90,8 @@ function packageResultToManifestReference(result: GitWorktreeResult): AgentRefer
     checkoutRef: result.checkoutRef,
     checkoutSha: result.checkoutSha,
     refSource: result.refSource,
-    confidence: result.confidence
+    confidence: result.confidence,
+    pinnedRef: result.pinnedRef
   };
 }
 
@@ -97,6 +105,28 @@ function gitResultToManifestReference(result: GitReferenceWorktreeResult): Agent
     checkoutSha: result.checkoutSha,
     refSource: result.refSource
   };
+}
+
+/**
+ * Failures survive between runs so `status` can explain them without redoing the network
+ * work, but they are dropped as soon as the same package resolves.
+ */
+function mergeUnresolved(
+  existing: UnresolvedManifestReference[],
+  updates: UnresolvedManifestReference[],
+  references: AgentReferenceManifestReference[]
+): UnresolvedManifestReference[] {
+  const resolvedNames = new Set(
+    references.filter((reference) => reference.kind === 'package').map((reference) => reference.name)
+  );
+  const updatedNames = new Set(updates.map((entry) => entry.name));
+
+  const merged = [
+    ...existing.filter((entry) => !updatedNames.has(entry.name) && !resolvedNames.has(entry.name)),
+    ...updates.filter((entry) => !resolvedNames.has(entry.name))
+  ];
+
+  return merged.sort((a, b) => `${a.name}@${a.version}`.localeCompare(`${b.name}@${b.version}`));
 }
 
 function mergeManifestReferences(
@@ -117,4 +147,3 @@ function manifestReferenceKey(reference: AgentReferenceManifestReference): strin
   }
   return `git:${reference.name}`;
 }
-

@@ -71,6 +71,20 @@ export function normalizeGitRepositoryUrl(value: string | null | undefined): str
   return null;
 }
 
+/**
+ * Resolves a repository written in a config file, where `file:` paths are relative to the
+ * project and `github:owner/repo` shorthand is expected to work.
+ */
+export function normalizeConfiguredRepository(rawUrl: string, projectRoot: string): string | null {
+  if (rawUrl.startsWith('file:')) {
+    return path.resolve(projectRoot, rawUrl.slice('file:'.length));
+  }
+  if (rawUrl.startsWith('github:')) {
+    return `https://github.com/${rawUrl.slice('github:'.length).replace(/\.git$/, '')}.git`;
+  }
+  return rawUrl || null;
+}
+
 export function repositoryCacheParts(repoUrl: string): string[] {
   if (path.isAbsolute(repoUrl) || repoUrl.startsWith('file://')) {
     const hash = crypto.createHash('sha256').update(repoUrl).digest('hex').slice(0, 16);

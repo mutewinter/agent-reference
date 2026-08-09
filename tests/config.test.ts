@@ -31,6 +31,9 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
     kind: 'package',
     name: 'react',
     version: 'installed',
+    ref: null,
+    repository: null,
+    directory: null,
     description: null,
     groups: []
   });

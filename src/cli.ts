@@ -11,7 +11,12 @@ import { loadMetadataFile } from './registry.ts';
 import { resolveProjectInput, scanProject } from './scanner.ts';
 import { getStatusReport } from './status.ts';
 import { validateConfig, type ValidationReport } from './validate.ts';
-import type { AgentReferenceStatusReport, PackageReference, AgentReferenceStatusEntry } from './types.ts';
+import type {
+  AgentReferenceProblem,
+  AgentReferenceStatusReport,
+  PackageReference,
+  AgentReferenceStatusEntry
+} from './types.ts';
 
 async function main(argv: string[]): Promise<void> {
   const options = parseArgv(argv);
@@ -42,7 +47,8 @@ async function main(argv: string[]): Promise<void> {
         groups: options.groups,
         references: options.references,
         storeDir: options.storeDir ?? undefined,
-        worktreeRoot: options.worktreeRoot ?? undefined
+        worktreeRoot: options.worktreeRoot ?? undefined,
+        gitBin: options.gitBin ?? undefined
       });
       printResult(options, report, formatStatusReport);
       return;
@@ -107,7 +113,10 @@ async function runClone(options: CliOptions): Promise<void> {
       ...result.skipped.map((skip) => `${skip.version ? dependencyKey(skip.name, skip.version) : skip.name} skipped: ${skip.reason}`),
       ...result.clonedGit.map((clone) => `git:${clone.name} -> ${clone.worktreePath}`),
       ...result.folders.map((name) => `folder:${name} is already local, nothing to clone`),
-      `manifest -> ${result.manifestPath}`
+      `manifest -> ${result.manifestPath}`,
+      ...(result.unresolved.length > 0
+        ? ['', 'Run agent-reference status for the fix for each unresolved reference.']
+        : [])
     ];
     return `${lines.join('\n')}\n`;
   });
@@ -148,16 +157,32 @@ function formatStatusReport(report: AgentReferenceStatusReport): string {
     sections.push(`groups:\n${lines.join('\n')}\n`);
   }
 
-  const unverified = report.references.filter((entry) => entry.status === 'ready' && entry.confidence && entry.confidence !== 'verified');
-  if (unverified.length > 0) {
-    const lines = unverified.map(
-      (entry) =>
-        `  ${entry.name}@${entry.currentVersion}: checkout could not be matched to the published package.json (${entry.confidence}). Confirm the version before trusting this source.`
-    );
-    sections.push(`warnings:\n${lines.join('\n')}\n`);
+  if (report.problems.length > 0) {
+    sections.push(`problems:\n${report.problems.map(formatProblem).join('\n')}\n`);
+  }
+
+  if (report.nextSteps.length > 0) {
+    sections.push(`next steps:\n${report.nextSteps.map((step) => `  ${step}`).join('\n')}\n`);
   }
 
   return sections.join('\n');
+}
+
+function formatProblem(problem: AgentReferenceProblem): string {
+  const lines = [
+    `  [${problem.severity}] ${problem.reference ? `${problem.reference}: ` : ''}${problem.summary}`,
+    `    fix: ${problem.fix}`
+  ];
+
+  if (problem.configPatch) {
+    const patch = JSON.stringify(problem.configPatch, null, 2)
+      .split('\n')
+      .map((line) => `    ${line}`)
+      .join('\n');
+    lines.push(`    add to agent-reference.json:\n${patch}`);
+  }
+
+  return lines.join('\n');
 }
 
 function formatStatusTable(entries: AgentReferenceStatusEntry[]): string {
