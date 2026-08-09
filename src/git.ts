@@ -1,4 +1,4 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -240,15 +240,54 @@ function compareVersions(a: readonly number[], b: readonly number[]): number {
 async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string): Promise<void> {
   if (await pathExists(bareRepositoryPath)) {
     await ensureFetchRefspec(bareRepositoryPath);
-    await runGit(['-C', bareRepositoryPath, 'fetch', '--tags', '--prune', '--filter=blob:none', 'origin'], {
-      allowFailure: true
-    });
+    await reportProgress(
+      ['-C', bareRepositoryPath, 'fetch', '--tags', '--prune', '--filter=blob:none', 'origin'],
+      `updating ${describeRepository(repoUrl)}`,
+      { allowFailure: true }
+    );
     return;
   }
 
   await fs.mkdir(path.dirname(bareRepositoryPath), { recursive: true });
-  await runGit(['clone', '--bare', '--filter=blob:none', repoUrl, bareRepositoryPath]);
+  await reportProgress(
+    ['clone', '--bare', '--filter=blob:none', repoUrl, bareRepositoryPath],
+    `cloning ${describeRepository(repoUrl)} (a large repository can take several minutes)`
+  );
   await ensureFetchRefspec(bareRepositoryPath);
+}
+
+function describeRepository(repositoryUrl: string): string {
+  const parts = repositoryCacheParts(repositoryUrl);
+  return parts.slice(1).join('/').replace(/\.git$/, '') || repositoryUrl;
+}
+
+/**
+ * Fetching a big repository runs for minutes. With output captured that is
+ * indistinguishable from a hang, so say what is happening and, when a human is watching,
+ * let git draw its own progress.
+ */
+async function reportProgress(
+  args: string[],
+  label: string,
+  options: { allowFailure?: boolean } = {}
+): Promise<void> {
+  process.stderr.write(`agent-reference: ${label}\n`);
+
+  if (!process.stderr.isTTY) {
+    await runGit(args, options);
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn('git', [...args, '--progress'], { stdio: ['ignore', 'ignore', 'inherit'] });
+    child.on('error', (error: NodeJS.ErrnoException) => {
+      reject(error.code === 'ENOENT' ? new Error(GIT_MISSING_MESSAGE) : error);
+    });
+    child.on('close', (code) => {
+      if (code === 0 || options.allowFailure) resolve();
+      else reject(new Error(`git ${args.join(' ')} failed with exit code ${code}`));
+    });
+  });
 }
 
 /**
