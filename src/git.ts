@@ -256,7 +256,7 @@ async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string)
   await fs.mkdir(path.dirname(bareRepositoryPath), { recursive: true });
   await reportProgress(
     ['clone', '--bare', '--filter=blob:none', repoUrl, bareRepositoryPath],
-    `cloning ${describeRepository(repoUrl)} (a large repository can take several minutes)`
+    `cloning ${describeRepository(repoUrl)}`
   );
   await ensureFetchRefspec(bareRepositoryPath);
 }
