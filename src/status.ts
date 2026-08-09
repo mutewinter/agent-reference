@@ -8,7 +8,14 @@ import {
   manifestReferencePath,
   resolvePackagePath
 } from './git.ts';
-import { describeSelection, groupMemberKey, knownSelectorsMessage, resolveReferenceGroups, selectionFilter } from './groups.ts';
+import {
+  configuredReferences,
+  describeSelection,
+  groupMemberKey,
+  knownSelectorsMessage,
+  resolveReferenceGroups,
+  selectionFilter
+} from './groups.ts';
 import { readManifest } from './manifest.ts';
 import { CLONE_COMMAND, pinFix, unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';
@@ -80,24 +87,24 @@ export async function getStatusReport(
   for (const name of configPackages.missingInstalled) {
     const manifestEntry = packageManifestByName.get(name);
     const worktreePath = manifestEntry ? referencePathFor(manifestEntry) : null;
-    entries.push({
-      kind: 'package',
-      name,
-      ...(annotations.get(`package:${name}`) ?? { description: null, groups: [] }),
-      requested: 'installed',
-      packageManager: null,
-      currentVersion: null,
-      clonedVersion: manifestEntry?.version ?? null,
-      path: worktreePath && manifestEntry
-        ? await resolvePackagePath(worktreePath, manifestEntry.repositoryDirectory)
-        : null,
-      repositoryPath: worktreePath,
-      repositoryUrl: manifestEntry?.repositoryUrl ?? null,
-      checkoutSha: manifestEntry?.checkoutSha ?? null,
-      confidence: manifestEntry?.confidence ?? null,
-      status: 'not-installed',
-      action: 'Install this package or update agent-reference.json. Do not use an old clone as current project source.'
-    });
+    entries.push(
+      statusEntry({
+        kind: 'package',
+        name,
+        ...(annotations.get(`package:${name}`) ?? {}),
+        requested: 'installed',
+        clonedVersion: manifestEntry?.version ?? null,
+        path: worktreePath && manifestEntry
+          ? await resolvePackagePath(worktreePath, manifestEntry.repositoryDirectory)
+          : null,
+        repositoryPath: worktreePath,
+        repositoryUrl: manifestEntry?.repositoryUrl ?? null,
+        checkoutSha: manifestEntry?.checkoutSha ?? null,
+        confidence: manifestEntry?.confidence ?? null,
+        status: 'not-installed',
+        action: 'Install this package or update agent-reference.json. Do not use an old clone as current project source.'
+      })
+    );
   }
 
   for (const folder of config?.folders ?? []) {
@@ -260,33 +267,43 @@ interface ReferenceAnnotation {
   groups: string[];
 }
 
+/** Group members are always configured references, so the config is the whole key set. */
 function referenceAnnotations(config: AgentReferenceConfig | undefined): Map<string, ReferenceAnnotation> {
-  const groupsByReference = new Map<string, ReferenceAnnotation>();
-  if (!config) return groupsByReference;
+  const annotations = new Map<string, ReferenceAnnotation>(
+    configuredReferences(config).map((reference) => [
+      `${reference.kind}:${reference.name}`,
+      { description: reference.description, groups: [] }
+    ])
+  );
 
   for (const group of resolveReferenceGroups(config)) {
     for (const member of group.members) {
-      const key = groupMemberKey(member);
-      const existing = groupsByReference.get(key);
-      if (existing) {
-        existing.groups.push(group.name);
-      } else {
-        groupsByReference.set(key, { description: null, groups: [group.name] });
-      }
+      annotations.get(groupMemberKey(member))?.groups.push(group.name);
     }
   }
 
-  for (const reference of [...config.packages, ...config.folders, ...config.git]) {
-    const key = `${reference.kind}:${reference.name}`;
-    const existing = groupsByReference.get(key);
-    if (existing) {
-      existing.description = reference.description;
-    } else {
-      groupsByReference.set(key, { description: reference.description, groups: [] });
-    }
-  }
+  return annotations;
+}
 
-  return groupsByReference;
+type StatusEntryInput = Partial<AgentReferenceStatusEntry> &
+  Pick<AgentReferenceStatusEntry, 'kind' | 'name' | 'status' | 'action'>;
+
+/** Most fields do not apply to most kinds, so only the meaningful ones are passed in. */
+function statusEntry(input: StatusEntryInput): AgentReferenceStatusEntry {
+  return {
+    description: null,
+    groups: [],
+    requested: null,
+    packageManager: null,
+    currentVersion: null,
+    clonedVersion: null,
+    path: null,
+    repositoryPath: null,
+    repositoryUrl: null,
+    checkoutSha: null,
+    confidence: null,
+    ...input
+  };
 }
 
 async function buildPackageStatus(
@@ -306,7 +323,7 @@ async function buildPackageStatus(
     unresolved
   );
 
-  return {
+  return statusEntry({
     kind: 'package',
     name: dependency.name,
     description: annotation?.description ?? null,
@@ -324,7 +341,7 @@ async function buildPackageStatus(
     confidence: manifestEntry?.confidence ?? null,
     status,
     action: actionForPackageStatus(status, dependency.name)
-  };
+  });
 }
 
 async function buildFolderStatus(
@@ -335,23 +352,16 @@ async function buildFolderStatus(
   const resolvedPath = resolveReferencePath(projectRoot, folder.path);
   const ready = await pathExists(resolvedPath);
 
-  return {
+  return statusEntry({
     kind: 'folder',
     name: folder.name,
     description: folder.description,
-    groups: annotation?.groups ?? folder.groups,
+    groups: annotation?.groups ?? [],
     requested: folder.path,
-    packageManager: null,
-    currentVersion: null,
-    clonedVersion: null,
     path: resolvedPath,
-    repositoryPath: null,
-    repositoryUrl: null,
-    checkoutSha: null,
-    confidence: null,
     status: ready ? 'ready' : 'missing',
     action: ready ? READY_ACTION : 'Create or correct this folder reference path.'
-  };
+  });
 }
 
 async function buildGitStatus(
@@ -364,25 +374,19 @@ async function buildGitStatus(
   const ready = referencePath ? await pathExists(referencePath) : false;
   const status = getGitStatusState(reference.spec, manifestEntry, ready);
 
-  return {
+  return statusEntry({
     kind: 'git',
     name: reference.name,
     description: reference.description,
-    groups: annotation?.groups ?? reference.groups,
+    groups: annotation?.groups ?? [],
     requested: reference.spec,
-    packageManager: null,
-    currentVersion: null,
-    clonedVersion: null,
     path: referencePath,
     repositoryPath: referencePath,
     repositoryUrl: manifestEntry?.repositoryUrl ?? null,
     checkoutSha: manifestEntry?.checkoutSha ?? null,
-    confidence: null,
     status,
-    action: status === 'ready'
-      ? READY_ACTION
-      : `Run ${CLONE_COMMAND} to materialize this git reference.`
-  };
+    action: status === 'ready' ? READY_ACTION : `Run ${CLONE_COMMAND} to materialize this git reference.`
+  });
 }
 
 function getPackageStatusState(
