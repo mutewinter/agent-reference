@@ -204,8 +204,8 @@
 
 kind     name                   current  cloned   status  groups         path
 -------  ---------------------  -------  -------  ------  -------------  --------------------------------------------------------
-package  @tanstack/react-table  8.21.3   8.21.3   <span class="ok">ready</span>   -              ~/.cache/agent-reference/worktrees/github.com/TanStack/table/f4dc742b7b8b/packages/react-table
-package  zod                    3.25.76  3.25.76  <span class="ok">ready</span>   -              ~/.cache/agent-reference/worktrees/github.com/colinhacks/zod/50606616c0d2/packages/zod
+package  @tanstack/react-table  8.21.3   8.21.3   <span class="ok">ready</span>   -              ~/.agent-reference/src/github.com/TanStack/table/f4dc742b7b8b/packages/react-table
+package  zod                    3.25.76  3.25.76  <span class="ok">ready</span>   -              ~/.agent-reference/src/github.com/colinhacks/zod/50606616c0d2/packages/zod
 folder   api-docs               -        -        <span class="ok">ready</span>   documentation  ~/work/platform/docs
 
 notes:
@@ -292,10 +292,10 @@ groups:
 <section>
   <h2>Where it lands</h2>
   <ul class="plain">
-    <li>One machine-wide store (<code>~/.cache/agent-reference</code>), holding bare repos and worktrees keyed by commit, shared across every project like the pnpm store.</li>
+    <li>One machine-wide store at <code>~/.agent-reference</code>, the same path on every platform, holding mirrors under <code>git/</code> and checkouts under <code>src/</code> keyed by commit, shared across every project like the pnpm store.</li>
     <li>Your repo gets two small committed files: <code>agent-reference.json</code> and the generated <code>agent-reference.lock.json</code>, which records resolved repos and commits with no machine-specific paths.</li>
     <li>Network access is exactly two things: the npm registry, and <code>git clone</code> of each declared repository.</li>
-    <li>The store is a cache. <code>rm -rf ~/.cache/agent-reference</code> any time; <code>agent-reference clone</code> rebuilds it.</li>
+    <li>The store is a cache. <code>agent-reference store</code> shows what has accumulated and <code>--prune</code> trims it; <code>rm -rf ~/.agent-reference</code> is always safe, and <code>clone</code> rebuilds.</li>
   </ul>
 </section>
 
@@ -308,6 +308,7 @@ groups:
       <tr><td><code>clone</code></td><td>Materialize configured references into the store.</td></tr>
       <tr><td><code>validate</code></td><td>Check agent-reference.json and report located errors.</td></tr>
       <tr><td><code>schema</code></td><td>Print the JSON Schema for the config file.</td></tr>
+      <tr><td><code>store</code></td><td>Show what the shared store holds and how big it is. <code>--prune</code> trims old checkouts.</td></tr>
     </tbody>
   </table>
   <p style="margin-top:1.25rem" class="dim">

@@ -20,6 +20,11 @@ import type {
 
 const execFileAsync = promisify(execFile);
 
+export const STORE_DIR_NAME = '.agent-reference';
+/** Short on purpose: these two segments appear in every path the tool prints. */
+export const BARE_DIR = 'git';
+export const CHECKOUT_DIR = 'src';
+
 /** `--filter=blob:none` partial clones need git 2.19. */
 const MINIMUM_GIT_VERSION = [2, 19, 0] as const;
 /** Bound the tree walk used to locate a package inside an unfamiliar monorepo. */
@@ -95,11 +100,11 @@ export async function ensureGitReferenceWorktree(
 function sharedWorktreePath(storeDir: string, repositoryUrl: string, sha: string): string {
   const parts = repositoryCacheParts(repositoryUrl);
   const repo = (parts.pop() ?? 'repository').replace(/\.git$/, '');
-  return path.join(storeDir, 'worktrees', ...parts, repo, sha.slice(0, 12));
+  return path.join(storeDir, CHECKOUT_DIR, ...parts, repo, sha.slice(0, 12));
 }
 
 export function bareRepositoryPathFor(storeDir: string, repositoryUrl: string): string {
-  return path.join(storeDir, 'repositories', ...repositoryCacheParts(repositoryUrl));
+  return path.join(storeDir, BARE_DIR, ...repositoryCacheParts(repositoryUrl));
 }
 
 export function manifestReferencePath(
@@ -538,20 +543,12 @@ async function resolveGitRevision(
   return result.exitCode === 0 && sha ? { ref: revision, sha } : null;
 }
 
+/**
+ * One short, identical location on every platform. These paths are read by humans in
+ * terminal output, so predictability beats following each OS's cache convention.
+ */
 export function defaultStoreDir(): string {
-  if (process.env.AGENT_REFERENCE_STORE_DIR) {
-    return process.env.AGENT_REFERENCE_STORE_DIR;
-  }
-  if (process.env.XDG_CACHE_HOME) {
-    return path.join(process.env.XDG_CACHE_HOME, 'agent-reference');
-  }
-  if (process.platform === 'darwin') {
-    return path.join(os.homedir(), 'Library', 'Caches', 'agent-reference');
-  }
-  if (process.platform === 'win32') {
-    return path.join(process.env.LOCALAPPDATA ?? path.join(os.homedir(), 'AppData', 'Local'), 'agent-reference', 'cache');
-  }
-  return path.join(os.homedir(), '.cache', 'agent-reference');
+  return process.env.AGENT_REFERENCE_STORE_DIR ?? path.join(os.homedir(), STORE_DIR_NAME);
 }
 
 function parseGitReferenceSpec(spec: string, projectRoot: string): { repositoryUrl: string; ref: string | null } {

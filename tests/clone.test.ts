@@ -173,7 +173,7 @@ test('replaces the manifest entry on upgrade and leaves shared worktrees in plac
   });
 
   assert.deepEqual(await manifestVersions(projectRoot), ['1.0.4']);
-  assert.match(second.cloned[0]?.worktreePath ?? '', /[\\/]store[\\/]worktrees[\\/]/);
+  assert.match(second.cloned[0]?.worktreePath ?? '', /[\\/]store[\\/]src[\\/]/);
   // Store worktrees are shared across projects, so the old version stays on disk.
   assert.equal(await pathExists(first.cloned[0]?.worktreePath ?? ''), true);
   assert.equal(await pathExists(second.cloned[0]?.worktreePath ?? ''), true);

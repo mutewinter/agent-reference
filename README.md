@@ -26,6 +26,7 @@ agent-reference status --group documentation # a named set
 agent-reference clone                        # materialize everything configured
 agent-reference validate                     # check agent-reference.json
 agent-reference schema                       # print the config JSON Schema
+agent-reference store                        # what the store holds, and how big
 ```
 
 `status` is the command an agent runs. It reports each reference with its absolute path,
@@ -132,10 +133,16 @@ others.
 Everything heavy lives in one machine-wide store, shared across projects and worktrees,
 like the pnpm store:
 
-- Store root: `$AGENT_REFERENCE_STORE_DIR`, `$XDG_CACHE_HOME/agent-reference`, or the OS cache directory.
-- Bare repositories at `<store>/repositories/<host>/<owner>/<repo>.git`.
-- Checkouts at `<store>/worktrees/<host>/<owner>/<repo>/<commit>`, keyed by commit, so two
+- Store root: `~/.agent-reference`, the same on every platform, or `$AGENT_REFERENCE_STORE_DIR`.
+- Mirrors at `<store>/git/<host>/<owner>/<repo>.git`.
+- Checkouts at `<store>/src/<host>/<owner>/<repo>/<commit>`, keyed by commit, so two
   projects on the same version share one.
+
+Paths are keyed by commit rather than version because a release tag can move or be deleted,
+while a commit cannot. The directory names are deliberately short: they show up in every
+path the tool prints, and terminal output that wraps is harder to read. When stdout is a
+terminal, printed paths are further shortened to `~/...`; piped and `--json` output always
+gives the literal absolute path, since an agent may hand it straight to a file API.
 
 Inside a project there are exactly two files, both committed: `agent-reference.json` and the
 generated `agent-reference.lock.json`, which records the resolved repository and commit for
@@ -143,6 +150,19 @@ each reference and contains no machine-specific paths. Local paths are derived f
 machine's store at read time.
 
 The store is a cache. Delete it any time and `agent-reference clone` rebuilds it.
+
+Because checkouts are keyed by commit, every version bump leaves the previous one behind.
+`agent-reference store` reports what has accumulated, and `--prune` trims it:
+
+```sh
+agent-reference store                    # per-repository sizes and a total
+agent-reference store --prune            # drop checkouts unused for 30 days,
+                                         # then any repository left with none
+agent-reference store --prune --days 0   # drop everything
+```
+
+Sizes are computed by walking the store, so `store` is the only command that does it, and
+only when you ask. `status` and `clone` never pay for it.
 
 ## Development
 

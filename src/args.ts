@@ -1,4 +1,4 @@
-export type CliCommand = 'status' | 'clone' | 'validate' | 'schema' | 'help' | 'version';
+export type CliCommand = 'status' | 'clone' | 'validate' | 'schema' | 'store' | 'help' | 'version';
 
 export interface CliOptions {
   command: CliCommand;
@@ -6,13 +6,15 @@ export interface CliOptions {
   positionals: string[];
   groups: string[];
   json: boolean;
+  prune: boolean;
+  days: number | null;
 }
 
-const COMMANDS = new Set<string>(['status', 'clone', 'validate', 'schema', 'help', 'version']);
-const VALID_OPTIONS = '--group <name>, --json';
+const COMMANDS = new Set<string>(['status', 'clone', 'validate', 'schema', 'store', 'help', 'version']);
+const VALID_OPTIONS = '--group <name>, --json, --prune, --days <n>';
 
 export function parseArgv(argv: string[]): CliOptions {
-  const options: CliOptions = { command: 'status', positionals: [], groups: [], json: false };
+  const options: CliOptions = { command: 'status', positionals: [], groups: [], json: false, prune: false, days: null };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -28,6 +30,13 @@ export function parseArgv(argv: string[]): CliOptions {
       options.command = 'version';
     } else if (flag === '--json') {
       options.json = true;
+    } else if (flag === '--prune') {
+      options.prune = true;
+    } else if (flag === '--days') {
+      const value = Number(inlineValue ?? readFlagValue(argv, index, flag));
+      if (!Number.isFinite(value) || value < 0) throw new Error('--days requires a non-negative number');
+      options.days = value;
+      if (inlineValue === null) index += 1;
     } else if (flag === '--group') {
       options.groups.push(inlineValue ?? readFlagValue(argv, index, flag));
       if (inlineValue === null) index += 1;
