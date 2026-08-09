@@ -63,14 +63,24 @@ export interface GitWorktreeOptions {
   force?: boolean;
 }
 
+/**
+ * How confident the resolver is that a checkout really is the requested package version.
+ * `verified` means the package.json at that commit reported the exact name and version.
+ */
+export type CheckoutConfidence = 'verified' | 'unverified' | 'fallback';
+
+export type PackageRefSource = 'gitHead' | 'tag' | 'tagSearch' | 'defaultBranch';
+
 export interface GitWorktreeResult {
   dependency: PackageReference;
   metadata: DependencyMetadata;
   bareRepositoryPath: string;
   worktreePath: string;
+  packagePath: string;
   checkoutRef: string;
   checkoutSha: string;
-  refSource: 'gitHead' | 'tag' | 'defaultBranch' | 'existing';
+  refSource: PackageRefSource;
+  confidence: CheckoutConfidence;
   reused: boolean;
 }
 
@@ -82,13 +92,21 @@ export interface GitReferenceWorktreeResult {
   worktreePath: string;
   checkoutRef: string;
   checkoutSha: string;
-  refSource: 'configured' | 'defaultBranch' | 'existing';
+  refSource: 'configured' | 'defaultBranch';
   reused: boolean;
 }
 
-export interface CloneReferencesOptions extends ScanProjectOptions, RegistryOptions {
+export interface ReferenceSelectionOptions {
   packages?: string[];
+  groups?: string[];
+  references?: string[];
   all?: boolean;
+}
+
+export interface CloneReferencesOptions
+  extends ScanProjectOptions,
+    RegistryOptions,
+    ReferenceSelectionOptions {
   storeDir?: string;
   worktreeRoot?: string;
   gitBin?: string;
@@ -105,6 +123,8 @@ export interface CloneReferencesResult {
     reason: string;
   }>;
   clonedGit: GitReferenceWorktreeResult[];
+  /** Names of selected folder references. They are already local, so nothing is cloned. */
+  folders: string[];
   manifestPath: string;
 }
 
@@ -120,7 +140,8 @@ export interface PackageManifestReference {
   gitHead: string | null;
   checkoutRef: string;
   checkoutSha: string;
-  refSource: GitWorktreeResult['refSource'];
+  refSource: PackageRefSource;
+  confidence: CheckoutConfidence;
 }
 
 export interface GitManifestReference {
@@ -136,7 +157,7 @@ export interface GitManifestReference {
 export type AgentReferenceManifestReference = PackageManifestReference | GitManifestReference;
 
 export interface AgentReferenceManifest {
-  schemaVersion: 3;
+  schemaVersion: 4;
   references: AgentReferenceManifestReference[];
 }
 
@@ -151,14 +172,25 @@ export type AgentReferenceStatusState =
 export interface AgentReferenceStatusEntry {
   kind: AgentReferenceKind;
   name: string;
+  description: string | null;
+  groups: string[];
   requested: string | null;
   packageManager: PackageManager | null;
   currentVersion: string | null;
   clonedVersion: string | null;
   path: string | null;
+  /** Repository checkout root. Differs from `path` for a package inside a monorepo. */
+  repositoryPath: string | null;
   checkoutSha: string | null;
+  confidence: CheckoutConfidence | null;
   status: AgentReferenceStatusState;
   action: string;
+}
+
+export interface AgentReferenceStatusGroup {
+  name: string;
+  description: string | null;
+  references: string[];
 }
 
 export interface AgentReferenceStatusReport {
@@ -167,14 +199,66 @@ export interface AgentReferenceStatusReport {
   configPath: string | null;
   localConfigPath: string | null;
   manifestPath: string | null;
+  groups: AgentReferenceStatusGroup[];
   references: AgentReferenceStatusEntry[];
   summary: Record<AgentReferenceStatusState, number>;
 }
 
+export interface ConfiguredPackageReference {
+  kind: 'package';
+  name: string;
+  /** `installed` to follow the lockfile, or an exact version, range, or dist-tag. */
+  version: string;
+  description: string | null;
+  groups: string[];
+}
+
+export interface ConfiguredFolderReference {
+  kind: 'folder';
+  name: string;
+  path: string;
+  description: string | null;
+  groups: string[];
+}
+
+export interface ConfiguredGitReference {
+  kind: 'git';
+  name: string;
+  repository: string;
+  ref: string | null;
+  /** Canonical `repository#ref` form. Recorded in the lockfile so drift is detectable. */
+  spec: string;
+  description: string | null;
+  groups: string[];
+}
+
+export type ConfiguredReference =
+  | ConfiguredPackageReference
+  | ConfiguredFolderReference
+  | ConfiguredGitReference;
+
+export interface ConfiguredGroup {
+  name: string;
+  description: string | null;
+  references: string[];
+}
+
+export interface ReferenceGroupMember {
+  kind: AgentReferenceKind;
+  name: string;
+}
+
+export interface ReferenceGroup {
+  name: string;
+  description: string | null;
+  members: ReferenceGroupMember[];
+}
+
 export interface AgentReferenceConfig {
-  packages?: Record<string, string>;
-  folders?: Record<string, string>;
-  git?: Record<string, string>;
+  packages: ConfiguredPackageReference[];
+  folders: ConfiguredFolderReference[];
+  git: ConfiguredGitReference[];
+  groups: ConfiguredGroup[];
   allPackages?: boolean;
   allImporters?: boolean;
   registry?: string;

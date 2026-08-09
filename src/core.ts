@@ -1,15 +1,17 @@
-import { writeAgentReferenceConfig } from './config.ts';
+import { emptyConfig, writeAgentReferenceConfig } from './config.ts';
 import { isInsideDirectory, resolveConfigPath } from './fs-utils.ts';
 import {
   bareRepositoryPathFor,
   defaultStoreDir,
   ensureDependencyWorktree,
+  ensureGitAvailable,
   ensureGitReferenceWorktree,
   manifestReferencePath,
   removeWorktree
 } from './git.ts';
+import { describeSelection, selectionFilter, splitSelectors } from './groups.ts';
 import { writeManifest } from './manifest.ts';
-import { dependencyKey } from './package-utils.ts';
+import { dependencyKey, mergeDependencyEntries } from './package-utils.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import { resolvePackageMetadata } from './registry.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
@@ -17,11 +19,12 @@ import type {
   AgentReferenceConfig,
   CloneReferencesOptions,
   CloneReferencesResult,
+  ConfiguredGitReference,
   PackageReference
 } from './types.ts';
 
 export function selectDependencies(dependencies: PackageReference[], selectors: string[]): PackageReference[] {
-  const requested = new Set(selectors.flatMap(splitPackageSelectors));
+  const requested = new Set(splitSelectors(selectors));
   if (requested.size === 0) return [];
 
   const selected = dependencies.filter(
@@ -48,16 +51,20 @@ export async function cloneReferences(
     options
   );
 
-  const selected = options.packages?.length
-    ? selectDependencies(packageUniverse, options.packages)
-    : options.all || config?.allPackages
-      ? packageUniverse
-      : configPackages.packages;
+  const { packages: selected, git: selectedGit, folders } = selectCloneTargets(
+    config,
+    configPackages.packages,
+    packageUniverse,
+    options
+  );
 
-  const configuredGit = Object.entries(config?.git ?? {});
-  if (selected.length === 0 && configuredGit.length === 0) {
-    throw new Error(`No references selected. Use --all, --package <name>, or ${loadedConfig?.path ?? 'agent-reference.json'}.`);
+  if (selected.length === 0 && selectedGit.length === 0 && folders.length === 0) {
+    throw new Error(
+      `No references selected. Use --all, --package <name>, --group <name>, or ${loadedConfig?.path ?? 'agent-reference.json'}.`
+    );
   }
+
+  await ensureGitAvailable(options.gitBin);
 
   const registryOptions = {
     registry: options.registry ?? config?.registry,
@@ -97,8 +104,8 @@ export async function cloneReferences(
   }
 
   const clonedGit: CloneReferencesResult['clonedGit'] = [];
-  for (const [name, spec] of configuredGit) {
-    clonedGit.push(await ensureGitReferenceWorktree(name, spec, worktreeOptions));
+  for (const reference of selectedGit) {
+    clonedGit.push(await ensureGitReferenceWorktree(reference.name, reference.spec, worktreeOptions));
   }
 
   const { manifestPath, superseded } = await writeManifest(projectRoot, cloned, clonedGit);
@@ -109,7 +116,42 @@ export async function cloneReferences(
     }
   }
 
-  return { selected, cloned, clonedGit, skipped, manifestPath };
+  return { selected, cloned, clonedGit, folders, skipped, manifestPath };
+}
+
+/** Folder references need no cloning, but a folder-only group must not read as "nothing matched". */
+function selectCloneTargets(
+  config: AgentReferenceConfig | undefined,
+  configPackages: PackageReference[],
+  packageUniverse: PackageReference[],
+  options: CloneReferencesOptions
+): { packages: PackageReference[]; git: ConfiguredGitReference[]; folders: string[] } {
+  const configuredGit = config?.git ?? [];
+  const configuredFolders = config?.folders ?? [];
+  const filter = selectionFilter(config, options);
+  const explicitPackages = options.packages?.length ? selectDependencies(packageUniverse, options.packages) : [];
+
+  if (filter) {
+    const packages = mergeDependencyEntries([
+      ...explicitPackages,
+      ...packageUniverse.filter((dependency) => filter('package', dependency.name))
+    ]);
+    const git = configuredGit.filter((reference) => filter('git', reference.name));
+    const folders = configuredFolders.filter((reference) => filter('folder', reference.name));
+
+    if (packages.length === 0 && git.length === 0 && folders.length === 0) {
+      throw new Error(`Nothing matched ${describeSelection(options)}.`);
+    }
+
+    return { packages, git, folders: folders.map((folder) => folder.name) };
+  }
+
+  if (explicitPackages.length > 0) {
+    return { packages: explicitPackages, git: [], folders: [] };
+  }
+
+  const packages = options.all || config?.allPackages ? packageUniverse : configPackages;
+  return { packages, git: configuredGit, folders: configuredFolders.map((folder) => folder.name) };
 }
 
 export async function initConfig(
@@ -125,7 +167,14 @@ export async function initConfig(
   }
 
   const config: AgentReferenceConfig = {
-    packages: Object.fromEntries(selected.map((dependency) => [dependency.name, 'installed']))
+    ...emptyConfig(),
+    packages: selected.map((dependency) => ({
+      kind: 'package' as const,
+      name: dependency.name,
+      version: 'installed',
+      description: null,
+      groups: []
+    }))
   };
 
   if (options.all) config.allPackages = true;
@@ -140,11 +189,3 @@ export async function initConfig(
 
   return { configPath, config, selected };
 }
-
-function splitPackageSelectors(selector: string): string[] {
-  return selector
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-

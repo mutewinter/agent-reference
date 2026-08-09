@@ -9,7 +9,7 @@ import type {
   GitWorktreeResult
 } from './types.ts';
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 export interface ManifestUpdateResult {
   manifestPath: string;
@@ -82,7 +82,8 @@ function packageResultToManifestReference(result: GitWorktreeResult): AgentRefer
     gitHead: result.metadata.gitHead,
     checkoutRef: result.checkoutRef,
     checkoutSha: result.checkoutSha,
-    refSource: result.refSource
+    refSource: result.refSource,
+    confidence: result.confidence
   };
 }
 

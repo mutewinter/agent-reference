@@ -1,4 +1,5 @@
 {
+  "$schema": "https://unpkg.com/agent-reference/schema/agent-reference.schema.json",
   "packages": {
     "typescript": "installed"
   }

@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unpkg.com/agent-reference/schema/agent-reference.schema.json",
+  "title": "agent-reference config",
+  "description": "Desired state for the local reference source an agent can read. Lives at agent-reference.json (committed) or agent-reference.local.json (machine-specific, gitignored).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL of this schema. Optional; ignored at runtime."
+    },
+    "packages": {
+      "type": "object",
+      "description": "npm ecosystem packages to materialize, keyed by package name.",
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/$defs/packageVersion" },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["version"],
+            "properties": {
+              "version": { "$ref": "#/$defs/packageVersion" },
+              "description": { "$ref": "#/$defs/description" },
+              "groups": { "$ref": "#/$defs/groupNames" }
+            }
+          }
+        ]
+      },
+      "examples": [
+        {
+          "react": "installed",
+          "zod": { "version": "3.25.0", "description": "Schema shapes we mirror in our own validators", "groups": ["validation"] }
+        }
+      ]
+    },
+    "folders": {
+      "type": "object",
+      "description": "Local folders that should show up as agent references, keyed by shorthand name.",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string", "minLength": 1, "description": "Path to the folder. Relative paths resolve from the project root; ~/ resolves from the home directory." },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "description": { "$ref": "#/$defs/description" },
+              "groups": { "$ref": "#/$defs/groupNames" }
+            }
+          }
+        ]
+      },
+      "examples": [
+        {
+          "design-notes": "./references/design-notes",
+          "api-docs": { "path": "../platform/docs", "description": "Source of truth for endpoint contracts", "groups": ["documentation"] }
+        }
+      ]
+    },
+    "git": {
+      "type": "object",
+      "description": "Arbitrary git repositories to materialize, keyed by shorthand name.",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string", "minLength": 1, "description": "github:owner/repo#ref, a git URL with an optional #ref, or file:../repo#ref." },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["repository"],
+            "properties": {
+              "repository": { "type": "string", "minLength": 1, "description": "github:owner/repo, a git URL, or file:../repo." },
+              "ref": { "type": "string", "description": "Branch, tag, or commit. Defaults to the repository default branch." },
+              "description": { "$ref": "#/$defs/description" },
+              "groups": { "$ref": "#/$defs/groupNames" }
+            }
+          }
+        ]
+      },
+      "examples": [
+        {
+          "typescript": "github:microsoft/TypeScript#main",
+          "design-system": { "repository": "github:acme/design-system", "ref": "v4", "groups": ["documentation"] }
+        }
+      ]
+    },
+    "groups": {
+      "type": "object",
+      "description": "Shorthand names for sets of references. Membership can be declared here or with `groups` on each reference; both are unioned.",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string", "description": "Description of the group." },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "description": { "$ref": "#/$defs/description" },
+              "references": {
+                "type": "array",
+                "description": "Reference names in this group. Use `kind:name` (package:react, folder:api-docs, git:typescript) to disambiguate a name used by more than one kind.",
+                "items": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        ]
+      },
+      "examples": [
+        { "documentation": { "description": "Everything to consult before writing docs", "references": ["api-docs", "design-notes", "git:design-system"] } }
+      ]
+    },
+    "allPackages": {
+      "type": "boolean",
+      "description": "Track every discovered direct dependency, not just the ones listed in `packages`."
+    },
+    "allImporters": {
+      "type": "boolean",
+      "description": "Scan every workspace importer in the lockfile instead of only the current package."
+    },
+    "registry": {
+      "type": "string",
+      "description": "npm registry base URL. Defaults to https://registry.npmjs.org."
+    },
+    "worktreeDir": {
+      "type": "string",
+      "description": "Keep checkouts in this project-local directory instead of the machine-wide store."
+    },
+    "cacheDir": {
+      "type": "string",
+      "description": "Override the machine-wide store location for bare repositories and shared worktrees."
+    }
+  },
+  "$defs": {
+    "packageVersion": {
+      "type": "string",
+      "minLength": 1,
+      "description": "\"installed\" to follow the active lockfile, or an exact version, semver range, or dist-tag resolved through the registry."
+    },
+    "description": {
+      "type": "string",
+      "description": "Free-form note explaining what this reference is for. Shown to agents in `agent-reference status`."
+    },
+    "groupNames": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "array", "items": { "type": "string", "minLength": 1 } }
+      ],
+      "description": "Group shorthand names this reference belongs to."
+    }
+  }
+}

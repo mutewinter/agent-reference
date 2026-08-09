@@ -13,21 +13,31 @@ import {
 import { repositoryCacheParts } from './repository.ts';
 import type {
   AgentReferenceManifestReference,
+  CheckoutConfidence,
   PackageReference,
   DependencyMetadata,
   GitReferenceWorktreeResult,
   GitWorktreeOptions,
-  GitWorktreeResult
+  GitWorktreeResult,
+  PackageRefSource
 } from './types.ts';
 
 const execFileAsync = promisify(execFile);
-type PackageCheckoutSource = Exclude<GitWorktreeResult['refSource'], 'existing'>;
-type GitReferenceCheckoutSource = Exclude<GitReferenceWorktreeResult['refSource'], 'existing'>;
+
+/** `--filter=blob:none` partial clones need git 2.19. */
+const MINIMUM_GIT_VERSION = [2, 19, 0] as const;
+/** Bound the tree walk used to locate a package inside an unfamiliar monorepo. */
+const MAX_DIRECTORY_PROBES = 12;
+const MAX_TAG_SEARCH_CANDIDATES = 10;
+
+type PackageCheckoutSource = PackageRefSource;
+type GitReferenceCheckoutSource = GitReferenceWorktreeResult['refSource'];
 
 interface CheckoutRef<RefSource extends string> {
   ref: string;
   sha: string;
   source: RefSource;
+  confidence: CheckoutConfidence;
 }
 
 interface MaterializedWorktree<RefSource extends string> {
@@ -35,7 +45,8 @@ interface MaterializedWorktree<RefSource extends string> {
   worktreePath: string;
   checkoutRef: string;
   checkoutSha: string;
-  refSource: RefSource | 'existing';
+  refSource: RefSource;
+  confidence: CheckoutConfidence;
   reused: boolean;
 }
 
@@ -51,6 +62,7 @@ export async function ensureDependencyWorktree(
   const repositoryUrl = metadata.repositoryUrl;
   const gitBin = options.gitBin ?? 'git';
   const storeDir = options.storeDir ?? defaultStoreDir();
+  const locator = createPackageLocator(dependency, metadata, gitBin);
   const materialized = await ensureWorktree<PackageCheckoutSource>({
     repositoryUrl,
     storeDir,
@@ -60,13 +72,16 @@ export async function ensureDependencyWorktree(
       options.worktreeRoot
         ? path.join(options.worktreeRoot, slugifyPackageName(dependency.name), slugifyVersion(dependency.version))
         : sharedWorktreePath(storeDir, repositoryUrl, checkout.sha),
-    resolveCheckout: (bareRepositoryPath) => resolveCheckoutRef(bareRepositoryPath, dependency, metadata, gitBin)
+    resolveCheckout: (bareRepositoryPath) =>
+      resolvePackageCheckout(bareRepositoryPath, dependency, metadata, locator, gitBin)
   });
 
+  const packageDirectory = locator.directory() ?? normalizeDirectory(metadata.repositoryDirectory);
   return {
     dependency,
-    metadata,
-    ...materialized
+    metadata: { ...metadata, repositoryDirectory: packageDirectory },
+    ...materialized,
+    packagePath: await resolvePackagePath(materialized.worktreePath, packageDirectory)
   };
 }
 
@@ -95,7 +110,12 @@ export async function ensureGitReferenceWorktree(
     name,
     requested: spec,
     repositoryUrl: parsed.repositoryUrl,
-    ...materialized
+    bareRepositoryPath: materialized.bareRepositoryPath,
+    worktreePath: materialized.worktreePath,
+    checkoutRef: materialized.checkoutRef,
+    checkoutSha: materialized.checkoutSha,
+    refSource: materialized.refSource,
+    reused: materialized.reused
   };
 }
 
@@ -123,6 +143,21 @@ export function manifestReferencePath(
   return sharedWorktreePath(storeDir, reference.repositoryUrl, reference.checkoutSha);
 }
 
+/**
+ * Packages published from a monorepo check out the whole repository, so the useful source
+ * path is the package subdirectory whenever it actually exists in the checkout.
+ */
+export async function resolvePackagePath(
+  worktreePath: string,
+  packageDirectory: string | null | undefined
+): Promise<string> {
+  const directory = normalizeDirectory(packageDirectory);
+  if (!directory || directory === '.') return worktreePath;
+
+  const candidate = path.join(worktreePath, directory);
+  return (await pathExists(candidate)) ? candidate : worktreePath;
+}
+
 function refNameFromSpec(spec: string): string {
   const hashIndex = spec.lastIndexOf('#');
   return hashIndex === -1 ? 'HEAD' : spec.slice(hashIndex + 1) || 'HEAD';
@@ -136,6 +171,8 @@ async function ensureWorktree<RefSource extends string>(options: {
   worktreePathFor: (checkout: CheckoutRef<RefSource>) => string;
   resolveCheckout: (bareRepositoryPath: string) => Promise<CheckoutRef<RefSource>>;
 }): Promise<MaterializedWorktree<RefSource>> {
+  await ensureGitAvailable(options.gitBin);
+
   const bareRepositoryPath = bareRepositoryPathFor(options.storeDir, options.repositoryUrl);
   await ensureBareRepository(options.repositoryUrl, bareRepositoryPath, options.gitBin);
   const checkout = await options.resolveCheckout(bareRepositoryPath);
@@ -149,18 +186,21 @@ async function ensureWorktree<RefSource extends string>(options: {
       );
     }
 
+    // Report how the ref was resolved this run, not that the checkout was reused, so a
+    // re-clone does not churn the committed lockfile. `reused` carries the reuse fact.
     return {
       bareRepositoryPath,
       worktreePath,
       checkoutRef: checkout.ref,
       checkoutSha: checkoutSha.stdout.trim(),
-      refSource: 'existing',
+      refSource: checkout.source,
+      confidence: checkout.confidence,
       reused: true
     };
   }
 
   await fs.mkdir(path.dirname(worktreePath), { recursive: true });
-  await runGit(['-C', bareRepositoryPath, 'worktree', 'add', '--detach', worktreePath, checkout.ref], {
+  await runGit(['-C', bareRepositoryPath, 'worktree', 'add', '--detach', worktreePath, checkout.sha], {
     gitBin: options.gitBin
   });
   const checkoutSha = await runGit(['-C', worktreePath, 'rev-parse', 'HEAD'], { gitBin: options.gitBin });
@@ -171,6 +211,7 @@ async function ensureWorktree<RefSource extends string>(options: {
     checkoutRef: checkout.ref,
     checkoutSha: checkoutSha.stdout.trim(),
     refSource: checkout.source,
+    confidence: checkout.confidence,
     reused: false
   };
 }
@@ -192,7 +233,7 @@ export async function runGit(
     const result = await execFileAsync(options.gitBin ?? 'git', args, {
       cwd: options.cwd,
       encoding: 'utf8',
-      maxBuffer: 1024 * 1024 * 20
+      maxBuffer: 1024 * 1024 * 64
     });
     return {
       stdout: result.stdout,
@@ -203,7 +244,7 @@ export async function runGit(
     const failed = error as {
       stdout?: string;
       stderr?: string;
-      code?: number;
+      code?: number | string;
       message?: string;
     };
     if (options.allowFailure) {
@@ -214,15 +255,80 @@ export async function runGit(
       };
     }
 
+    if (failed.code === 'ENOENT') {
+      throw new Error(gitMissingMessage(options.gitBin ?? 'git'));
+    }
+
     const command = `git ${args.join(' ')}`;
     const detail = failed.stderr || failed.stdout || failed.message || 'unknown git failure';
     throw new Error(`${command} failed: ${String(detail).trim()}`);
   }
 }
 
+const gitPreflightByBin = new Map<string, Promise<string>>();
+
+/** Fails with an actionable message instead of a raw spawn error when git is unusable. */
+export async function ensureGitAvailable(gitBin: string = 'git'): Promise<string> {
+  let preflight = gitPreflightByBin.get(gitBin);
+  if (!preflight) {
+    preflight = runGitPreflight(gitBin);
+    gitPreflightByBin.set(gitBin, preflight);
+  }
+
+  try {
+    return await preflight;
+  } catch (error) {
+    // A failed probe must not stick: the user may install git and retry in the same process.
+    gitPreflightByBin.delete(gitBin);
+    throw error;
+  }
+}
+
+async function runGitPreflight(gitBin: string): Promise<string> {
+  let output: string;
+  try {
+    const result = await execFileAsync(gitBin, ['--version'], { encoding: 'utf8' });
+    output = result.stdout;
+  } catch (error) {
+    const failed = error as { code?: number | string; message?: string; stderr?: string };
+    if (failed.code === 'ENOENT') {
+      throw new Error(gitMissingMessage(gitBin));
+    }
+    throw new Error(`Could not run "${gitBin} --version": ${failed.stderr || failed.message || 'unknown failure'}`);
+  }
+
+  const version = output.match(/(\d+)\.(\d+)(?:\.(\d+))?/);
+  if (!version) return output.trim();
+
+  const parsed = [Number(version[1]), Number(version[2]), Number(version[3] ?? 0)];
+  if (compareVersions(parsed, MINIMUM_GIT_VERSION) < 0) {
+    throw new Error(
+      `git ${parsed.join('.')} is too old. agent-reference needs git ${MINIMUM_GIT_VERSION.join('.')} or newer for partial clones and worktrees.`
+    );
+  }
+
+  return output.trim();
+}
+
+function gitMissingMessage(gitBin: string): string {
+  const hint = gitBin === 'git'
+    ? 'Install git (https://git-scm.com/downloads) and make sure it is on PATH.'
+    : 'Point --git-bin at a working git executable, or install git and make sure it is on PATH.';
+  return `git is required to materialize references, but "${gitBin}" could not be executed. ${hint}`;
+}
+
+function compareVersions(a: readonly number[], b: readonly number[]): number {
+  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+    const difference = (a[index] ?? 0) - (b[index] ?? 0);
+    if (difference !== 0) return difference;
+  }
+  return 0;
+}
+
 async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string, gitBin: string): Promise<void> {
   if (await pathExists(bareRepositoryPath)) {
-    await runGit(['-C', bareRepositoryPath, 'fetch', '--tags', '--filter=blob:none', 'origin'], {
+    await ensureFetchRefspec(bareRepositoryPath, gitBin);
+    await runGit(['-C', bareRepositoryPath, 'fetch', '--tags', '--prune', '--filter=blob:none', 'origin'], {
       gitBin,
       allowFailure: true
     });
@@ -231,34 +337,201 @@ async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string,
 
   await fs.mkdir(path.dirname(bareRepositoryPath), { recursive: true });
   await runGit(['clone', '--bare', '--filter=blob:none', repoUrl, bareRepositoryPath], { gitBin });
+  await ensureFetchRefspec(bareRepositoryPath, gitBin);
 }
 
-async function resolveCheckoutRef(
-  bareRepositoryPath: string,
+/**
+ * `git clone --bare` leaves remote.origin.fetch unset, so without this a later fetch only
+ * moves tags and FETCH_HEAD and the cached branch refs never advance.
+ */
+async function ensureFetchRefspec(bareRepositoryPath: string, gitBin: string): Promise<void> {
+  await runGit(['-C', bareRepositoryPath, 'config', 'remote.origin.fetch', '+refs/heads/*:refs/heads/*'], {
+    gitBin,
+    allowFailure: true
+  });
+}
+
+interface PackageLocator {
+  /** The target package's version at a commit, plus where in the tree it was found. */
+  inspect: (bareRepositoryPath: string, sha: string) => Promise<{ directory: string | null; version: string | null }>;
+  directory: () => string | null;
+}
+
+function createPackageLocator(
   dependency: PackageReference,
   metadata: DependencyMetadata,
   gitBin: string
-): Promise<CheckoutRef<PackageCheckoutSource>> {
-  if (metadata.gitHead) {
-    const fetched = await ensureCommitAvailable(bareRepositoryPath, metadata.gitHead, gitBin);
-    if (fetched) {
-      return { ref: metadata.gitHead, sha: metadata.gitHead, source: 'gitHead' };
+): PackageLocator {
+  let knownDirectory: string | null = null;
+  let searched = false;
+
+  const readManifest = async (
+    bareRepositoryPath: string,
+    sha: string,
+    directory: string
+  ): Promise<{ name?: string; version?: string } | null> => {
+    const file = directory === '.' ? 'package.json' : `${directory}/package.json`;
+    const result = await runGit(['-C', bareRepositoryPath, 'cat-file', 'blob', `${sha}:${file}`], {
+      gitBin,
+      allowFailure: true
+    });
+    if (result.exitCode !== 0) return null;
+
+    try {
+      return JSON.parse(result.stdout) as { name?: string; version?: string };
+    } catch {
+      return null;
     }
+  };
+
+  const search = async (
+    bareRepositoryPath: string,
+    sha: string
+  ): Promise<{ directory: string; version: string | null } | null> => {
+    const listing = await runGit(['-C', bareRepositoryPath, 'ls-tree', '-r', '--name-only', sha], {
+      gitBin,
+      allowFailure: true
+    });
+    if (listing.exitCode !== 0) return null;
+
+    for (const directory of rankCandidateDirectories(listing.stdout, dependency.name)) {
+      const manifest = await readManifest(bareRepositoryPath, sha, directory);
+      if (manifest?.name === dependency.name) {
+        return { directory, version: manifest.version ?? null };
+      }
+    }
+
+    return null;
+  };
+
+  return {
+    directory: () => knownDirectory,
+    async inspect(bareRepositoryPath, sha) {
+      const candidates = uniqueStrings([knownDirectory, normalizeDirectory(metadata.repositoryDirectory), '.']);
+      for (const directory of candidates) {
+        const manifest = await readManifest(bareRepositoryPath, sha, directory);
+        if (manifest?.name === dependency.name) {
+          knownDirectory = directory;
+          return { directory, version: manifest.version ?? null };
+        }
+      }
+
+      if (!searched) {
+        searched = true;
+        const found = await search(bareRepositoryPath, sha);
+        if (found) {
+          knownDirectory = found.directory;
+          return found;
+        }
+      }
+
+      return { directory: null, version: null };
+    }
+  };
+}
+
+function rankCandidateDirectories(listing: string, packageName: string): string[] {
+  const leaf = packageName.includes('/') ? (packageName.split('/').at(-1) ?? packageName) : packageName;
+  const directories = listing
+    .split('\n')
+    .filter((file) => file.endsWith('package.json'))
+    .filter((file) => !file.includes('node_modules/') && !/(^|\/)(fixtures|__fixtures__|test|tests|examples)\//.test(file))
+    .filter((file) => file.split('/').length <= 5)
+    .map((file) => path.posix.dirname(file))
+    .filter((directory) => directory !== '.');
+
+  const score = (directory: string): number => {
+    const base = path.posix.basename(directory);
+    if (base === leaf) return 0;
+    if (base === packageName.replace('/', '-')) return 1;
+    if (base.includes(leaf) || leaf.includes(base)) return 2;
+    return 3;
+  };
+
+  return [...new Set(directories)]
+    .sort((a, b) => score(a) - score(b) || a.length - b.length || a.localeCompare(b))
+    .slice(0, MAX_DIRECTORY_PROBES);
+}
+
+/**
+ * Picks the commit that actually contains the requested package version.
+ *
+ * Release tag naming is not standardized, and `v1.2.3` in a monorepo with independently
+ * versioned packages can be an unrelated release, so every candidate commit is checked
+ * against the package.json recorded there before it is trusted.
+ */
+async function resolvePackageCheckout(
+  bareRepositoryPath: string,
+  dependency: PackageReference,
+  metadata: DependencyMetadata,
+  locator: PackageLocator,
+  gitBin: string
+): Promise<CheckoutRef<PackageCheckoutSource>> {
+  const seenShas = new Set<string>();
+  const unverified: Array<CheckoutRef<PackageCheckoutSource>> = [];
+
+  const consider = async (
+    label: string,
+    revision: string,
+    source: PackageCheckoutSource
+  ): Promise<CheckoutRef<PackageCheckoutSource> | null> => {
+    const resolved = await resolveGitRevision(bareRepositoryPath, revision, gitBin);
+    if (!resolved || seenShas.has(resolved.sha)) return null;
+    seenShas.add(resolved.sha);
+
+    const found = await locator.inspect(bareRepositoryPath, resolved.sha);
+    if (found.version === dependency.version) {
+      return { ref: label, sha: resolved.sha, source, confidence: 'verified' };
+    }
+    if (found.version === null) {
+      unverified.push({ ref: label, sha: resolved.sha, source, confidence: 'unverified' });
+    }
+    return null;
+  };
+
+  if (metadata.gitHead && (await ensureCommitAvailable(bareRepositoryPath, metadata.gitHead, gitBin))) {
+    const hit = await consider(metadata.gitHead, `${metadata.gitHead}^{commit}`, 'gitHead');
+    if (hit) return hit;
   }
 
   for (const tag of tagCandidatesForDependency(dependency.name, dependency.version)) {
-    const resolved = await resolveGitRevision(bareRepositoryPath, `refs/tags/${tag}^{commit}`, gitBin);
-    if (resolved) {
-      return { ref: resolved.ref, sha: resolved.sha, source: 'tag' };
-    }
+    const hit = await consider(`refs/tags/${tag}`, `refs/tags/${tag}^{commit}`, 'tag');
+    if (hit) return hit;
   }
+
+  for (const tag of await searchTagsForVersion(bareRepositoryPath, dependency.version, gitBin)) {
+    const hit = await consider(`refs/tags/${tag}`, `refs/tags/${tag}^{commit}`, 'tagSearch');
+    if (hit) return hit;
+  }
+
+  const bestGuess = unverified[0];
+  if (bestGuess) return bestGuess;
 
   const head = await resolveGitRevision(bareRepositoryPath, 'HEAD', gitBin);
   if (!head) {
     throw new Error(`Unable to resolve a checkout ref for ${dependency.name}@${dependency.version}`);
   }
 
-  return { ref: head.ref, sha: head.sha, source: 'defaultBranch' };
+  return { ref: 'HEAD', sha: head.sha, source: 'defaultBranch', confidence: 'fallback' };
+}
+
+/** Catches release tags this tool does not know how to spell, such as `release-1.2.3`. */
+async function searchTagsForVersion(
+  bareRepositoryPath: string,
+  version: string,
+  gitBin: string
+): Promise<string[]> {
+  const result = await runGit(['-C', bareRepositoryPath, 'tag', '--list', `*${version}`, `*${version}*`], {
+    gitBin,
+    allowFailure: true
+  });
+  if (result.exitCode !== 0) return [];
+
+  const tags = result.stdout.split('\n').map((tag) => tag.trim()).filter(Boolean);
+  const suffixMatches = tags.filter((tag) => tag.endsWith(version));
+  const rest = tags.filter((tag) => !tag.endsWith(version));
+
+  return [...suffixMatches, ...rest].slice(0, MAX_TAG_SEARCH_CANDIDATES);
 }
 
 async function ensureCommitAvailable(
@@ -345,12 +618,23 @@ async function resolveConfiguredRef(
     const resolved = await resolveGitRevision(bareRepositoryPath, candidate, gitBin);
     if (resolved) {
       return {
-        ref: resolved.ref,
+        ref: refName,
         sha: resolved.sha,
-        source: refName === 'HEAD' ? 'defaultBranch' : 'configured'
+        source: refName === 'HEAD' ? 'defaultBranch' : 'configured',
+        confidence: 'verified'
       };
     }
   }
 
   throw new Error(`Unable to resolve git reference ${refName} in ${bareRepositoryPath}`);
+}
+
+function normalizeDirectory(directory: string | null | undefined): string | null {
+  if (!directory) return null;
+  const normalized = directory.replace(/^\.\//, '').replace(/^\/+/, '').replace(/\/+$/, '');
+  return normalized || null;
+}
+
+function uniqueStrings(values: Array<string | null>): string[] {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
 }

@@ -311,12 +311,22 @@ npx skills add mutewinter/agent-reference</code></pre>
     "typescript": "github:microsoft/TypeScript#v5.9.2"
   },
   "folders": {
-    "design-notes": "./references/design-notes"
+    "design-notes": "./references/design-notes",
+    "api-docs": {
+      "path": "../platform/docs",
+      "description": "Source of truth for endpoint contracts",
+      "groups": ["documentation"]
+    }
+  },
+  "groups": {
+    "documentation": "Read all of these before writing docs"
   }
 }</code></pre>
   <p style="margin-top:1.25rem">
     <code>"installed"</code> tracks whatever version is in your lockfile.
     Git references pin any repo at a tag, branch, or commit.
+    Any reference can take a <code>description</code> and belong to <code>groups</code>, so
+    "read the documentation references" becomes <code>--group documentation</code>.
     Use <code>agent-reference.local.json</code> for personal, uncommitted paths.
   </p>
 </section>
@@ -330,6 +340,8 @@ npx skills add mutewinter/agent-reference</code></pre>
       <tr><td><code>list</code></td><td>Show direct dependencies with exact lockfile versions.</td></tr>
       <tr><td><code>init</code></td><td>Write agent-reference.json for the selected packages.</td></tr>
       <tr><td><code>clone</code></td><td>Materialize configured references into the store; prunes superseded manifest entries.</td></tr>
+      <tr><td><code>validate</code></td><td>Check agent-reference.json for shape errors and unresolvable groups before anything else runs.</td></tr>
+      <tr><td><code>schema</code></td><td>Print the JSON Schema for the config file, so an agent can edit it directly.</td></tr>
     </tbody>
   </table>
 </section>

@@ -12,7 +12,7 @@ export async function resolveConfigPackageReferences(
   installedPackages: PackageReference[],
   options: RegistryOptions = {}
 ): Promise<ConfigPackageReferences> {
-  if (!config?.packages) {
+  if (!config || config.packages.length === 0) {
     return { packages: [], missingInstalled: [] };
   }
 
@@ -20,21 +20,21 @@ export async function resolveConfigPackageReferences(
   const missingInstalled: string[] = [];
   const installedByName = new Map(installedPackages.map((dependency) => [dependency.name, dependency]));
 
-  for (const [name, specifier] of Object.entries(config.packages)) {
-    if (specifier === 'installed') {
-      const installed = installedByName.get(name);
+  for (const entry of config.packages) {
+    if (entry.version === 'installed') {
+      const installed = installedByName.get(entry.name);
       if (installed) {
         packages.push(installed);
       } else {
-        missingInstalled.push(name);
+        missingInstalled.push(entry.name);
       }
       continue;
     }
 
     packages.push({
-      name,
-      version: await resolveRegistryVersion(name, specifier, options),
-      specifier,
+      name: entry.name,
+      version: await resolveRegistryVersion(entry.name, entry.version, options),
+      specifier: entry.version,
       packageManager: 'config',
       dependencyTypes: [],
       importers: ['agent-reference.json']

@@ -1,7 +1,9 @@
 export interface CliOptions {
-  command: 'list' | 'clone' | 'init' | 'status' | 'help' | 'version';
+  command: 'list' | 'clone' | 'init' | 'status' | 'validate' | 'schema' | 'help' | 'version';
   projectPath: string | null;
   packages: string[];
+  groups: string[];
+  references: string[];
   all: boolean;
   allImporters: boolean;
   json: boolean;
@@ -11,10 +13,11 @@ export interface CliOptions {
   storeDir: string | null;
   worktreeRoot: string | null;
   configFile: string | null;
+  gitBin: string | null;
   force: boolean;
 }
 
-const COMMANDS = new Set(['list', 'clone', 'init', 'status', 'help', 'version']);
+const COMMANDS = new Set(['list', 'clone', 'init', 'status', 'validate', 'schema', 'help', 'version']);
 
 const BOOLEAN_FLAGS: Record<string, 'all' | 'allImporters' | 'json' | 'nonInteractive' | 'force'> = {
   '--all': 'all',
@@ -24,13 +27,22 @@ const BOOLEAN_FLAGS: Record<string, 'all' | 'allImporters' | 'json' | 'nonIntera
   '--force': 'force'
 };
 
-const VALUE_FLAGS: Record<string, 'metadataFile' | 'registry' | 'storeDir' | 'worktreeRoot' | 'configFile'> = {
+const LIST_FLAGS: Record<string, 'packages' | 'groups' | 'references'> = {
+  '--package': 'packages',
+  '-p': 'packages',
+  '--group': 'groups',
+  '-g': 'groups',
+  '--reference': 'references'
+};
+
+const VALUE_FLAGS: Record<string, 'metadataFile' | 'registry' | 'storeDir' | 'worktreeRoot' | 'configFile' | 'gitBin'> = {
   '--metadata-file': 'metadataFile',
   '--registry': 'registry',
   '--cache-dir': 'storeDir',
   '--store-dir': 'storeDir',
   '--worktree-dir': 'worktreeRoot',
-  '--config': 'configFile'
+  '--config': 'configFile',
+  '--git-bin': 'gitBin'
 };
 
 export function parseArgv(argv: string[]): CliOptions {
@@ -38,6 +50,8 @@ export function parseArgv(argv: string[]): CliOptions {
     command: 'list',
     projectPath: null,
     packages: [],
+    groups: [],
+    references: [],
     all: false,
     allImporters: false,
     json: false,
@@ -47,6 +61,7 @@ export function parseArgv(argv: string[]): CliOptions {
     storeDir: null,
     worktreeRoot: null,
     configFile: null,
+    gitBin: null,
     force: false
   };
 
@@ -56,25 +71,28 @@ export function parseArgv(argv: string[]): CliOptions {
     const arg = argv[index];
     if (!arg) continue;
 
-    const booleanFlag = BOOLEAN_FLAGS[arg];
-    const valueFlag = VALUE_FLAGS[arg];
+    const equals = arg.startsWith('--') ? arg.indexOf('=') : -1;
+    const flag = equals === -1 ? arg : arg.slice(0, equals);
+    const inlineValue = equals === -1 ? null : arg.slice(equals + 1);
 
-    if (arg === '--help' || arg === '-h') {
+    const booleanFlag = BOOLEAN_FLAGS[flag];
+    const listFlag = LIST_FLAGS[flag];
+    const valueFlag = VALUE_FLAGS[flag];
+
+    if (flag === '--help' || flag === '-h') {
       options.command = 'help';
-    } else if (arg === '--version' || arg === '-v') {
+    } else if (flag === '--version' || flag === '-v') {
       options.command = 'version';
     } else if (booleanFlag) {
       options[booleanFlag] = true;
-    } else if (arg === '--package' || arg === '-p') {
-      options.packages.push(readFlagValue(argv, index, arg));
-      index += 1;
-    } else if (arg.startsWith('--package=')) {
-      options.packages.push(arg.slice('--package='.length));
+    } else if (listFlag) {
+      options[listFlag].push(inlineValue ?? readFlagValue(argv, index, flag));
+      if (inlineValue === null) index += 1;
     } else if (valueFlag) {
-      options[valueFlag] = readFlagValue(argv, index, arg);
-      index += 1;
+      options[valueFlag] = inlineValue ?? readFlagValue(argv, index, flag);
+      if (inlineValue === null) index += 1;
     } else if (arg.startsWith('-')) {
-      throw new Error(`Unknown option: ${arg}`);
+      throw new Error(`Unknown option: ${flag}`);
     } else {
       positional.push(arg);
     }

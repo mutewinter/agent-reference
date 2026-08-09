@@ -133,7 +133,7 @@ async function writeManifest(
   extraReferences: AgentReferenceManifest['references'] = []
 ): Promise<void> {
   const manifest: AgentReferenceManifest = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     references: [
       {
         kind: 'package',
@@ -145,7 +145,8 @@ async function writeManifest(
         gitHead: 'abc123',
         checkoutRef: 'abc123',
         checkoutSha: 'abc123',
-        refSource: 'gitHead'
+        refSource: 'gitHead',
+        confidence: 'verified'
       },
       ...extraReferences
     ]
