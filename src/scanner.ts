@@ -21,7 +21,12 @@ export async function resolveProjectInput(
   cwd: string = process.cwd()
 ): Promise<ProjectContext> {
   const input = path.resolve(cwd, projectPath ?? '.');
-  const inputStat = await fs.stat(input);
+  const inputStat = await fs.stat(input).catch(() => null);
+  if (!inputStat) {
+    throw new Error(
+      `No such project path: ${projectPath}. Pass a directory or package.json, or select a reference with --package/--group/--reference.`
+    );
+  }
   const packageJsonPath = inputStat.isDirectory() ? path.join(input, 'package.json') : input;
 
   if (path.basename(packageJsonPath) !== 'package.json') {

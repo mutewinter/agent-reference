@@ -1,11 +1,27 @@
 ---
 name: agent-reference
-description: Locate and use local package, git, and folder references materialized by the agent-reference CLI, and edit the agent-reference.json that declares them. Use when a repo has agent-reference.json, agent-reference.local.json, or an agent-reference.lock.json lockfile, when the user asks to inspect cloned dependency source or configured agent references, or when the user asks to add, describe, or group a reference.
+description: Read a dependency's real upstream source, tests, examples, git history, or CI config, and read local folder and git references declared for agents. Use whenever a task needs to look inside a library rather than just call it - "how does X actually implement this", "how do the maintainers test X", "why does X behave this way", "read the source of X" - and whenever a repo has agent-reference.json, agent-reference.local.json, or agent-reference.lock.json. Also use to add, pin, describe, or group a reference in agent-reference.json.
 ---
 
 # agent-reference
 
 Use this skill to inspect configured local reference source instead of guessing paths from config files or `node_modules`.
+
+## When to use this instead of node_modules
+
+`node_modules` holds only what a package chose to publish, which is usually build output.
+`agent-reference` checks out the package's **repository** at the exact published commit, so
+it is the only way to read:
+
+- tests, so you can see what maintainers actually guarantee
+- examples, benchmarks, CI workflows, and contributor docs
+- git history and blame, to answer "why is it written this way"
+- source for any package that ships only `dist/`
+- files stripped by `.npmignore` or a `files` allowlist
+
+Check `agent-reference status` first whenever a task calls for any of those. If a package
+happens to ship its full source and you only need the implementation, reading
+`node_modules` is fine. Folder and git references are never in `node_modules` at all.
 
 ## Reading references
 
@@ -18,7 +34,13 @@ agent-reference status
 Read the table before navigating the filesystem.
 
 **Read the `problems:` and `next steps:` sections before doing anything else.** They state
-what is wrong and exactly how to fix it. `next steps` is ordered; run it top to bottom.
+what is wrong and exactly how to fix it. `next steps` is ordered; run it top to bottom, and
+run those commands before concluding anything about a reference's state.
+
+**Never delete a reference from `agent-reference.json` to make `status` clean.** Every
+reference was declared deliberately, and removing one silently drops that source for the
+whole team. Fix the reference, or tell the user you could not and why. The only time a
+reference should be removed is when the user asks for it.
 
 Rules:
 

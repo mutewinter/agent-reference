@@ -25,6 +25,9 @@ is missing or too old. Use `--git-bin` to point at a specific git executable.
 ## Usage
 
 ```sh
+agent-reference status
+agent-reference status zod
+agent-reference clone zod
 agent-reference list ./package.json
 agent-reference status ./package.json
 agent-reference status ./package.json --group documentation
@@ -228,6 +231,9 @@ others from cloning.
 configured as `"installed"` that left the lockfile, and a missing or too-old git, each with
 its own fix. In `--json`, these are `problems[]` with `severity`, `summary`, `fix`, and a
 `configPatch` to merge, plus an ordered `nextSteps[]`.
+
+`clone` prints the same problems inline rather than telling the caller to go run `status`,
+because an agent acts on the output of the command it just ran.
 
 ### Monorepo packages
 

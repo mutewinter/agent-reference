@@ -53,16 +53,16 @@ export function normalizeGitRepositoryUrl(value: string | null | undefined): str
 
   try {
     const parsed = new URL(url);
-    if (parsed.protocol === 'git:') parsed.protocol = 'https:';
-    if (parsed.protocol === 'ssh:' && parsed.username === 'git') {
-      parsed.protocol = 'https:';
-      parsed.username = '';
-    }
+    const repoPath = ensureGitSuffix(parsed.pathname.replace(/^\/+/, ''));
+
     if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      parsed.pathname = `/${ensureGitSuffix(parsed.pathname.replace(/^\/+/, ''))}`;
-      parsed.search = '';
-      parsed.hash = '';
-      return parsed.toString();
+      return `${parsed.protocol}//${parsed.host}/${repoPath}`;
+    }
+    // Assigning `protocol` cannot convert these to https: the URL spec ignores a change
+    // between a non-special scheme and a special one, so rebuild the URL by hand. The SSH
+    // port, if any, is dropped because it does not carry over to https.
+    if (parsed.protocol === 'ssh:' || parsed.protocol === 'git:') {
+      return `https://${parsed.hostname}/${repoPath}`;
     }
   } catch {
     return null;

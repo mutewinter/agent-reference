@@ -3,14 +3,14 @@ import path from 'node:path';
 
 import { pathExists, resolveConfigPath } from './fs-utils.ts';
 import {
-  bareRepositoryPathFor,
   defaultStoreDir,
   ensureGitAvailable,
   manifestReferencePath,
   resolvePackagePath
 } from './git.ts';
-import { groupMemberKey, resolveReferenceGroups, selectionFilter } from './groups.ts';
+import { describeSelection, groupMemberKey, knownSelectorsMessage, resolveReferenceGroups, selectionFilter } from './groups.ts';
 import { readManifest } from './manifest.ts';
+import { CLONE_COMMAND, pinFix, unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import type {
   AgentReferenceConfig,
@@ -136,6 +136,12 @@ export async function getStatusReport(
 
   const filter = selectionFilter(config, options);
   const references = filter ? entries.filter((entry) => filter(entry.kind, entry.name)) : entries;
+  if (filter && references.length === 0) {
+    // Silently printing an empty table would read as "this reference has no problems".
+    throw new Error(
+      `Nothing matched ${describeSelection(options)}. ${knownSelectorsMessage(config, packageUniverse.map((dependency) => dependency.name))}`
+    );
+  }
   const problems = await collectProblems(references, unresolvedByName, storeDir, loadedConfig?.path ?? null, options);
 
   return {
@@ -156,8 +162,6 @@ export async function getStatusReport(
   };
 }
 
-const CLONE_COMMAND = 'agent-reference clone --non-interactive';
-
 /**
  * Turns every unusable reference into an instruction the calling agent can act on without
  * reading this source, including the exact JSON to add to the config.
@@ -177,13 +181,7 @@ async function collectProblems(
 
     if (entry.status === 'unresolvable') {
       const failure = unresolvedByName.get(entry.name);
-      problems.push({
-        reference,
-        severity: 'error',
-        summary: `${entry.name}@${entry.currentVersion} could not be materialized. ${failure?.detail ?? ''}`.trim(),
-        fix: unresolvableFix(entry, failure, storeDir, configFile),
-        configPatch: unresolvablePatch(entry, failure)
-      });
+      if (failure) problems.push(unresolvedProblem(failure, storeDir, configFile));
       continue;
     }
 
@@ -214,7 +212,7 @@ async function collectProblems(
         reference,
         severity: 'error',
         summary: `${entry.name}@${entry.currentVersion} has no matching release commit, so the default branch was checked out. The source at this path is NOT version ${entry.currentVersion}.`,
-        fix: pinFix(entry, storeDir, configFile),
+        fix: pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile),
         configPatch: pinPatch(entry)
       });
       continue;
@@ -225,7 +223,7 @@ async function collectProblems(
         reference,
         severity: 'warning',
         summary: `${entry.name}@${entry.currentVersion} was checked out from a plausible ref, but no package.json confirmed the version.`,
-        fix: `Spot-check ${entry.path}/package.json. If it is wrong, ${pinFix(entry, storeDir, configFile)}`,
+        fix: `Spot-check ${entry.path}/package.json. If it is wrong, ${pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile)}`,
         configPatch: pinPatch(entry)
       });
     }
@@ -254,63 +252,12 @@ function nextStepsFor(entries: AgentReferenceStatusEntry[], problems: AgentRefer
   return steps;
 }
 
-function unresolvableFix(
-  entry: AgentReferenceStatusEntry,
-  failure: UnresolvedManifestReference | undefined,
-  storeDir: string,
-  configFile: string
-): string {
-  if (failure?.reason === 'no-repository') {
-    return `The registry has no repository for this package. Find its source repository, then set packages.${entry.name}.repository in ${configFile} (github:owner/repo or a git URL). Add "ref" too if the tags are unusual. Then run ${CLONE_COMMAND}.`;
-  }
-  if (failure?.reason === 'unresolved-ref') {
-    return `The pinned packages.${entry.name}.ref does not exist in the repository. ${inspectHint(entry, failure, storeDir)} Then correct "ref" in ${configFile} and run ${CLONE_COMMAND}.`;
-  }
-  if (failure?.reason === 'registry-error') {
-    return `The registry lookup failed. If this package is private or unpublished, set both packages.${entry.name}.repository and packages.${entry.name}.ref in ${configFile} to skip the registry entirely. Otherwise check network access and run ${CLONE_COMMAND}.`;
-  }
-  return `${inspectHint(entry, failure, storeDir)} Then pin packages.${entry.name}.ref in ${configFile} and run ${CLONE_COMMAND}.`;
-}
-
-function pinFix(entry: AgentReferenceStatusEntry, storeDir: string, configFile: string): string {
-  const version = entry.currentVersion ?? '';
-  const searchPath = entry.repositoryUrl ? bareRepositoryPathFor(storeDir, entry.repositoryUrl) : null;
-  const search = searchPath
-    ? `List the candidate tags with: git -C ${searchPath} tag --list '*${version}*'. Inspect a candidate with: git -C ${searchPath} show <tag>:package.json.`
-    : 'Inspect the repository history to find the release commit.';
-
-  return `${search} Pick the commit or tag that really is ${entry.name}@${version}, set packages.${entry.name}.ref to it in ${configFile}, then run ${CLONE_COMMAND}. A pinned ref always wins over automatic resolution.`;
-}
-
-function inspectHint(
-  entry: AgentReferenceStatusEntry,
-  failure: UnresolvedManifestReference | undefined,
-  storeDir: string
-): string {
-  const repositoryUrl = entry.repositoryUrl ?? failure?.repositoryUrl ?? null;
-  if (!repositoryUrl) return 'Inspect the source repository to find the right commit.';
-  return `Find the right commit with: git -C ${bareRepositoryPathFor(storeDir, repositoryUrl)} tag --list '*${entry.currentVersion ?? ''}*'.`;
-}
-
 function pinPatch(entry: AgentReferenceStatusEntry): Record<string, unknown> {
   return {
     packages: {
       [entry.name]: { version: entry.requested ?? entry.currentVersion ?? 'installed', ref: '<commit-or-tag>' }
     }
   };
-}
-
-function unresolvablePatch(
-  entry: AgentReferenceStatusEntry,
-  failure: UnresolvedManifestReference | undefined
-): Record<string, unknown> {
-  const pinned: Record<string, unknown> = { version: entry.requested ?? entry.currentVersion ?? 'installed' };
-  if (failure?.reason === 'no-repository' || failure?.reason === 'registry-error') {
-    pinned.repository = '<github:owner/repo>';
-  }
-  pinned.ref = '<commit-or-tag>';
-
-  return { packages: { [entry.name]: pinned } };
 }
 
 async function gitUnavailableProblem(gitBin: string | undefined): Promise<AgentReferenceProblem | null> {

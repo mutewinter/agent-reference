@@ -1,4 +1,6 @@
-import { emptyConfig, writeAgentReferenceConfig } from './config.ts';
+import path from 'node:path';
+
+import { DEFAULT_CONFIG_FILE, emptyConfig, writeAgentReferenceConfig } from './config.ts';
 import { isInsideDirectory, resolveConfigPath } from './fs-utils.ts';
 import {
   bareRepositoryPathFor,
@@ -9,9 +11,10 @@ import {
   manifestReferencePath,
   removeWorktree
 } from './git.ts';
-import { describeSelection, selectionFilter, splitSelectors } from './groups.ts';
+import { describeSelection, knownSelectorsMessage, selectionFilter, splitSelectors } from './groups.ts';
 import { writeManifest } from './manifest.ts';
 import { dependencyKey, mergeDependencyEntries } from './package-utils.ts';
+import { unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import { resolvePackageMetadata } from './registry.ts';
 import { normalizeConfiguredRepository } from './repository.ts';
@@ -125,7 +128,19 @@ export async function cloneReferences(
     }
   }
 
-  return { selected, cloned, clonedGit, folders, skipped, unresolved, manifestPath };
+  return {
+    selected,
+    cloned,
+    clonedGit,
+    folders,
+    skipped,
+    unresolved,
+    // Reported here as well as in `status`: an agent acts on the output it just got back.
+    problems: unresolved.map((failure) =>
+      unresolvedProblem(failure, storeDir, path.basename(loadedConfig?.path ?? DEFAULT_CONFIG_FILE))
+    ),
+    manifestPath
+  };
 }
 
 /**
@@ -213,7 +228,9 @@ function selectCloneTargets(
     const folders = configuredFolders.filter((reference) => filter('folder', reference.name));
 
     if (packages.length === 0 && git.length === 0 && folders.length === 0) {
-      throw new Error(`Nothing matched ${describeSelection(options)}.`);
+      throw new Error(
+        `Nothing matched ${describeSelection(options)}. ${knownSelectorsMessage(config, packageUniverse.map((dependency) => dependency.name))}`
+      );
     }
 
     return { packages, git, folders: folders.map((folder) => folder.name) };

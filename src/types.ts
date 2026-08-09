@@ -130,6 +130,8 @@ export interface CloneReferencesResult {
   /** Names of selected folder references. They are already local, so nothing is cloned. */
   folders: string[];
   unresolved: UnresolvedManifestReference[];
+  /** Same shape `status` reports, so a failure is explained where it happened. */
+  problems: AgentReferenceProblem[];
   manifestPath: string;
 }
 

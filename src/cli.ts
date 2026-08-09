@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
+import path from 'node:path';
 import process from 'node:process';
 import readline from 'node:readline/promises';
 
@@ -7,6 +8,7 @@ import { parseArgv, type CliOptions } from './args.ts';
 import { loadAgentReferenceConfig } from './config.ts';
 import { cloneReferences, initConfig } from './core.ts';
 import { dependencyKey } from './package-utils.ts';
+import { KEEP_REFERENCE_NOTE } from './problems.ts';
 import { loadMetadataFile } from './registry.ts';
 import { resolveProjectInput, scanProject } from './scanner.ts';
 import { getStatusReport } from './status.ts';
@@ -19,7 +21,7 @@ import type {
 } from './types.ts';
 
 async function main(argv: string[]): Promise<void> {
-  const options = parseArgv(argv);
+  const options = await normalizeSelectors(parseArgv(argv));
 
   switch (options.command) {
     case 'help':
@@ -59,6 +61,32 @@ async function main(argv: string[]): Promise<void> {
       return runInit(options);
     case 'clone':
       return runClone(options);
+  }
+}
+
+/**
+ * `agent-reference clone zod` is what an agent writes first, even though the positional
+ * slot is the project path. A bare name that is not a path on disk is treated as a
+ * reference selector rather than failing with a filesystem error.
+ */
+async function normalizeSelectors(options: CliOptions): Promise<CliOptions> {
+  const candidate = options.projectPath;
+  if (!candidate || candidate.startsWith('.') || candidate.startsWith('~') || path.isAbsolute(candidate)) {
+    return options;
+  }
+  // A scoped package name contains a slash; any other slash means a real path was meant.
+  if (candidate.includes('/') && !candidate.startsWith('@')) return options;
+  if (await pathExists(candidate)) return options;
+
+  return { ...options, projectPath: null, references: [...options.references, candidate] };
+}
+
+async function pathExists(candidate: string): Promise<boolean> {
+  try {
+    await fs.stat(candidate);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -114,8 +142,8 @@ async function runClone(options: CliOptions): Promise<void> {
       ...result.clonedGit.map((clone) => `git:${clone.name} -> ${clone.worktreePath}`),
       ...result.folders.map((name) => `folder:${name} is already local, nothing to clone`),
       `manifest -> ${result.manifestPath}`,
-      ...(result.unresolved.length > 0
-        ? ['', 'Run agent-reference status for the fix for each unresolved reference.']
+      ...(result.problems.length > 0
+        ? ['', `problems:\n${result.problems.map(formatProblem).join('\n')}`, `  ${KEEP_REFERENCE_NOTE}`]
         : [])
     ];
     return `${lines.join('\n')}\n`;
@@ -142,7 +170,20 @@ function printResult<T>(options: CliOptions, result: T, format: (result: T) => s
 }
 
 function formatStatusReport(report: AgentReferenceStatusReport): string {
-  const sections = [formatStatusTable(report.references)];
+  const sections: string[] = [];
+
+  // Anything actionable goes first: a reader that stops early must still see the work.
+  if (report.nextSteps.length > 0) {
+    sections.push(`next steps:\n${report.nextSteps.map((step) => `  ${step}`).join('\n')}\n`);
+  }
+
+  if (report.problems.length > 0) {
+    sections.push(
+      `problems:\n${report.problems.map(formatProblem).join('\n')}\n\n  ${KEEP_REFERENCE_NOTE}\n`
+    );
+  }
+
+  sections.push(formatStatusTable(report.references));
 
   const described = report.references.filter((entry) => entry.description);
   if (described.length > 0) {
@@ -155,14 +196,6 @@ function formatStatusReport(report: AgentReferenceStatusReport): string {
       return `${heading}\n    ${group.references.join(', ') || '(no members)'}`;
     });
     sections.push(`groups:\n${lines.join('\n')}\n`);
-  }
-
-  if (report.problems.length > 0) {
-    sections.push(`problems:\n${report.problems.map(formatProblem).join('\n')}\n`);
-  }
-
-  if (report.nextSteps.length > 0) {
-    sections.push(`next steps:\n${report.nextSteps.map((step) => `  ${step}`).join('\n')}\n`);
   }
 
   return sections.join('\n');
@@ -274,13 +307,17 @@ function helpText(): string {
   return `agent-reference
 
 Usage:
-  agent-reference status [project-or-package.json] [--group <name>] [--json]
+  agent-reference status [reference-or-path] [--group <name>] [--json]
   agent-reference list [project-or-package.json] [--json] [--all-importers]
-  agent-reference clone [project-or-package.json] [--package react] [--group docs] [--non-interactive]
+  agent-reference clone [reference-or-path] [--package react] [--group docs] [--non-interactive]
   agent-reference clone [project-or-package.json] --all --non-interactive
   agent-reference init [project-or-package.json] --package react [--package zod]
   agent-reference validate [project-or-package.json] [--json]
   agent-reference schema
+
+The first positional is a project directory or package.json. A bare name that is
+not a path is treated as a reference selector, so \`agent-reference status zod\`
+and \`agent-reference clone zod\` work.
 
 Options:
   --all                 Clone every discovered direct dependency.

@@ -100,6 +100,23 @@ export function describeSelection(options: ReferenceSelectionOptions): string {
   return parts.join(', ');
 }
 
+/** Names an agent can actually pass, so a miss is one step from a hit. */
+export function knownSelectorsMessage(
+  config: AgentReferenceConfig | undefined,
+  installedNames: string[] = []
+): string {
+  const references = referenceLabels(configuredReferences(config));
+  const groups = resolveReferenceGroups(config).map((group) => group.name);
+  const extraPackages = installedNames.filter((name) => !references.includes(`package:${name}`));
+
+  const parts = [
+    `Known references: ${[...references, ...extraPackages.map((name) => `package:${name}`)].join(', ') || 'none'}.`
+  ];
+  if (groups.length > 0) parts.push(`Known groups: ${groups.join(', ')}.`);
+
+  return parts.join(' ');
+}
+
 export function splitSelectors(values: string[] | undefined): string[] {
   return (values ?? []).flatMap((value) =>
     value
