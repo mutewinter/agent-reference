@@ -20,7 +20,7 @@ import type {
 
 const execFileAsync = promisify(execFile);
 
-export const STORE_DIR_NAME = '.agent-reference';
+const STORE_DIR_NAME = '.agent-reference';
 /** Short on purpose: these two segments appear in every path the tool prints. */
 export const BARE_DIR = 'git';
 export const CHECKOUT_DIR = 'src';
