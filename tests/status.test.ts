@@ -118,6 +118,43 @@ test('reports stale git references when configured spec changes', async () => {
   assert.equal(report.references[0]?.path, manifestReferencePath(STORE_DIR, gitReference));
 });
 
+test('works in a directory with no package.json or lockfile at all', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-no-node-test-'));
+  const folderPath = path.join(projectRoot, 'notes');
+  await fs.mkdir(folderPath, { recursive: true });
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
+    folders: { notes: './notes' },
+    git: { tooling: 'github:example/tooling' }
+  }, null, 2));
+
+  const report = await getStatusReport(projectRoot, { storeDir: STORE_DIR });
+
+  assert.deepEqual(report.references.map((entry) => [entry.name, entry.status]), [
+    ['notes', 'ready'],
+    ['tooling', 'declared']
+  ]);
+  assert.equal(report.problems.length, 0);
+});
+
+test('an empty directory reports no references instead of erroring', async () => {
+  const emptyDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-empty-test-'));
+  const report = await getStatusReport(emptyDir, { storeDir: STORE_DIR });
+  assert.deepEqual(report.references, []);
+});
+
+test('finds the nearest config walking up from a subdirectory', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-walk-up-test-'));
+  await fs.mkdir(path.join(projectRoot, 'deep', 'inside'), { recursive: true });
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
+    git: { tooling: 'github:example/tooling' }
+  }, null, 2));
+
+  const report = await getStatusReport(path.join(projectRoot, 'deep', 'inside'), { storeDir: STORE_DIR });
+
+  assert.equal(report.projectRoot, projectRoot);
+  assert.equal(report.references[0]?.name, 'tooling');
+});
+
 async function copyFixtureProject(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-status-test-'));
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), tempDir, { recursive: true });

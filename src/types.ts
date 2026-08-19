@@ -2,13 +2,21 @@ export type DependencyType = 'dependencies' | 'devDependencies' | 'optionalDepen
 
 export type PackageManager = 'pnpm' | 'npm' | 'bun' | 'yarn' | 'config' | 'unknown';
 
+/**
+ * A project is any directory: the nearest agent-reference config anchors it, and a Node
+ * lockfile is optional context. Without one there are simply no package references.
+ */
 export interface ProjectContext {
   projectRoot: string;
-  packageJsonPath: string;
-  lockfilePath: string;
+  packageJsonPath: string | null;
+  lockfilePath: string | null;
   packageManager: PackageManager;
+  /** Workspace importer path relative to the lockfile's directory. */
   importer: string;
 }
+
+/** A project context whose lockfile is known to exist, as the scanners require. */
+export type LockfileProjectContext = ProjectContext & { lockfilePath: string };
 
 export interface ScanProjectOptions {
   allImporters?: boolean;

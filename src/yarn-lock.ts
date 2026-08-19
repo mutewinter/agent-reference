@@ -3,14 +3,14 @@ import fs from 'node:fs/promises';
 import { dependenciesFromPackageJsonDirectives } from './package-json.ts';
 import { isExactRegistryVersion } from './package-utils.ts';
 import { splitOutsideQuotes, stripQuotes } from './text-utils.ts';
-import type { PackageReference, ProjectContext } from './types.ts';
+import type { PackageReference, LockfileProjectContext } from './types.ts';
 
 interface YarnLockEntry {
   descriptors: string[];
   version: string | null;
 }
 
-export async function scanYarnDependencies(context: ProjectContext): Promise<PackageReference[]> {
+export async function scanYarnDependencies(context: LockfileProjectContext): Promise<PackageReference[]> {
   const lockEntries = parseYarnLock(await fs.readFile(context.lockfilePath, 'utf8'));
 
   return dependenciesFromPackageJsonDirectives(context, ({ name, specifier }) => {

@@ -3,7 +3,7 @@ import path from 'node:path';
 import { readJsonFile } from './fs-utils.ts';
 import { dependenciesFromPackageJsonDirectives } from './package-json.ts';
 import { isExactRegistryVersion } from './package-utils.ts';
-import type { PackageReference, ProjectContext } from './types.ts';
+import type { PackageReference, LockfileProjectContext } from './types.ts';
 
 interface NpmPackageLock {
   lockfileVersion?: number;
@@ -11,7 +11,7 @@ interface NpmPackageLock {
   dependencies?: Record<string, { version?: string }>;
 }
 
-export async function scanNpmDependencies(context: ProjectContext): Promise<PackageReference[]> {
+export async function scanNpmDependencies(context: LockfileProjectContext): Promise<PackageReference[]> {
   const lockfile = await readJsonFile<NpmPackageLock>(context.lockfilePath);
 
   return dependenciesFromPackageJsonDirectives(context, ({ name }) => {

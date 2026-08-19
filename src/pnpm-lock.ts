@@ -8,7 +8,7 @@ import {
 } from './package-utils.ts';
 import { DEPENDENCY_SECTIONS } from './package-json.ts';
 import { splitOutsideQuotes, stripQuotes } from './text-utils.ts';
-import type { PackageReference, DependencyType, ProjectContext, ScanProjectOptions } from './types.ts';
+import type { PackageReference, DependencyType, LockfileProjectContext, ScanProjectOptions } from './types.ts';
 
 type PnpmScalar = string | boolean | null;
 interface PnpmObject {
@@ -18,7 +18,7 @@ type PnpmImporterSnapshot = Partial<Record<DependencyType, Record<string, PnpmDe
 type PnpmDependencyValue = string | { version?: string; specifier?: string };
 
 export async function scanPnpmDependencies(
-  context: ProjectContext,
+  context: LockfileProjectContext,
   options: ScanProjectOptions = {}
 ): Promise<PackageReference[]> {
   const text = await fs.readFile(context.lockfilePath, 'utf8');

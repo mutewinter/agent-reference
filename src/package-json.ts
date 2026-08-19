@@ -39,6 +39,9 @@ export async function dependenciesFromPackageJsonDirectives(
   context: ProjectContext,
   resolveVersion: (dependency: PackageJsonDependency) => string | null
 ): Promise<PackageReference[]> {
+  // These scanners read the lockfile through package.json's direct dependencies, so a
+  // lockfile with no package.json next to it yields nothing rather than an error.
+  if (!context.packageJsonPath) return [];
   const packageJson = await readJsonFile<PackageJson>(context.packageJsonPath);
   const entries: PackageReference[] = [];
 

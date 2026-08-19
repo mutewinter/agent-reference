@@ -2,11 +2,18 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { scanBunDependencies } from './bun-lock.ts';
+import { DEFAULT_CONFIG_FILE, DEFAULT_LOCAL_CONFIG_FILE } from './config.ts';
 import { pathExists } from './fs-utils.ts';
 import { scanNpmDependencies } from './npm-lock.ts';
 import { scanPnpmDependencies } from './pnpm-lock.ts';
 import { scanYarnDependencies } from './yarn-lock.ts';
-import type { PackageReference, PackageManager, ProjectContext, ScanProjectOptions } from './types.ts';
+import type {
+  LockfileProjectContext,
+  PackageManager,
+  PackageReference,
+  ProjectContext,
+  ScanProjectOptions
+} from './types.ts';
 
 const LOCKFILE_CANDIDATES: Array<{ file: string; packageManager: PackageManager }> = [
   { file: 'pnpm-lock.yaml', packageManager: 'pnpm' },
@@ -27,28 +34,33 @@ export async function resolveProjectInput(
       `No such project path: ${projectPath}. Pass a directory or package.json, or name a reference.`
     );
   }
-  const packageJsonPath = inputStat.isDirectory() ? path.join(input, 'package.json') : input;
 
-  if (path.basename(packageJsonPath) !== 'package.json') {
-    throw new Error(`Expected a project directory or package.json path, got ${projectPath ?? '.'}`);
+  let packageDir: string;
+  let packageJsonPath: string | null;
+  if (inputStat.isDirectory()) {
+    packageDir = input;
+    const candidate = path.join(input, 'package.json');
+    packageJsonPath = (await pathExists(candidate)) ? candidate : null;
+  } else {
+    if (path.basename(input) !== 'package.json') {
+      throw new Error(`Expected a project directory or package.json path, got ${projectPath ?? '.'}`);
+    }
+    packageJsonPath = input;
+    packageDir = path.dirname(input);
   }
 
-  await fs.access(packageJsonPath);
-  const packageDir = path.dirname(packageJsonPath);
   const lockfile = await findNearestLockfile(packageDir);
-
-  if (!lockfile) {
-    throw new Error(`No supported lockfile found from ${packageDir} upward. PNPM is supported first.`);
-  }
-
-  const projectRoot = path.dirname(lockfile.path);
+  const configDir = await findNearestConfigDir(packageDir);
+  // Any directory is a project. The nearest config anchors it; failing that, the lockfile
+  // root; failing that, the directory itself. A missing lockfile just means no packages.
+  const projectRoot = configDir ?? (lockfile ? path.dirname(lockfile.path) : packageDir);
 
   return {
     projectRoot,
     packageJsonPath,
-    lockfilePath: lockfile.path,
-    packageManager: lockfile.packageManager,
-    importer: path.relative(projectRoot, packageDir) || '.'
+    lockfilePath: lockfile?.path ?? null,
+    packageManager: lockfile?.packageManager ?? 'unknown',
+    importer: lockfile ? path.relative(path.dirname(lockfile.path), packageDir) || '.' : '.'
   };
 }
 
@@ -64,17 +76,34 @@ export async function scanResolvedProject(
   context: ProjectContext,
   options: ScanProjectOptions = {}
 ): Promise<PackageReference[]> {
-  switch (context.packageManager) {
+  if (context.lockfilePath === null) return [];
+  const lockfileContext: LockfileProjectContext = { ...context, lockfilePath: context.lockfilePath };
+
+  switch (lockfileContext.packageManager) {
     case 'pnpm':
-      return scanPnpmDependencies(context, options);
+      return scanPnpmDependencies(lockfileContext, options);
     case 'npm':
-      return scanNpmDependencies(context);
+      return scanNpmDependencies(lockfileContext);
     case 'bun':
-      return scanBunDependencies(context);
+      return scanBunDependencies(lockfileContext);
     case 'yarn':
-      return scanYarnDependencies(context);
+      return scanYarnDependencies(lockfileContext);
     default:
-      throw new Error(`${context.packageManager} lockfiles are not supported yet.`);
+      throw new Error(`${lockfileContext.packageManager} lockfiles are not supported yet.`);
+  }
+}
+
+async function findNearestConfigDir(startDir: string): Promise<string | null> {
+  let current = startDir;
+
+  while (true) {
+    for (const file of [DEFAULT_CONFIG_FILE, DEFAULT_LOCAL_CONFIG_FILE]) {
+      if (await pathExists(path.join(current, file))) return current;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
   }
 }
 
