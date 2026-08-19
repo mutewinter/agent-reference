@@ -266,6 +266,8 @@ export interface AgentReferenceStatusReport {
   configPath: string | null;
   localConfigPath: string | null;
   manifestPath: string | null;
+  /** Lockfile dependencies available to `get` whether or not they are configured. */
+  installedPackageCount: number;
   groups: AgentReferenceStatusGroup[];
   references: AgentReferenceStatusEntry[];
   problems: AgentReferenceProblem[];

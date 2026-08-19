@@ -39,7 +39,10 @@ export async function getStatusReport(
   projectPath: string | null | undefined,
   options: StatusReportOptions = {}
 ): Promise<AgentReferenceStatusReport> {
-  const { config, configPackages, cwd, loadedConfig, project } = await loadReferenceContext(projectPath, options);
+  const { config, configPackages, cwd, installedPackages, loadedConfig, project } = await loadReferenceContext(
+    projectPath,
+    options
+  );
   const configuredStore = options.storeDir ?? config?.cacheDir;
   const storeDir = configuredStore
     ? resolveConfigPath(project.projectRoot, cwd, configuredStore)
@@ -132,6 +135,7 @@ export async function getStatusReport(
     configPath: loadedConfig?.path ?? null,
     localConfigPath: loadedConfig?.localPath ?? null,
     manifestPath: loadedManifest?.path ?? null,
+    installedPackageCount: installedPackages.length,
     groups: resolveReferenceGroups(config).map((group) => ({
       name: group.name,
       description: group.description,

@@ -9,16 +9,11 @@ import { cloneReferences } from './core.ts';
 import { getReferences } from './get.ts';
 import { dependencyKey } from './package-utils.ts';
 import { KEEP_REFERENCE_NOTE } from './problems.ts';
+import { formatProblem, formatStatusReport } from './status-format.ts';
 import { getStatusReport } from './status.ts';
 import { formatBytes, inspectStore, type StoreReport } from './store.ts';
 import { validateConfig, type ValidationReport } from './validate.ts';
-import type {
-  AgentReferenceProblem,
-  AgentReferenceStatusEntry,
-  AgentReferenceStatusReport,
-  CloneReferencesResult,
-  GetReferenceResult
-} from './types.ts';
+import type { CloneReferencesResult, GetReferenceResult } from './types.ts';
 
 async function main(argv: string[]): Promise<void> {
   const options = parseArgv(argv);
@@ -40,7 +35,10 @@ async function main(argv: string[]): Promise<void> {
     case 'status': {
       const { projectPath, references } = await splitPositionals(options);
       const report = await getStatusReport(projectPath, { references, groups: options.groups });
-      write(options, report, formatStatusReport);
+      const humanOutput = Boolean(process.stdout.isTTY);
+      write(options, report, (result) =>
+        formatStatusReport(result, { color: humanOutput && !process.env.NO_COLOR, tilde: humanOutput })
+      );
       return;
     }
     case 'get': {
@@ -105,42 +103,6 @@ function displayPath(value: string | null): string {
   return shortenPath(value, { tilde: Boolean(process.stdout.isTTY) });
 }
 
-function formatStatusReport(report: AgentReferenceStatusReport): string {
-  const sections: string[] = [];
-
-  // Anything actionable goes first: a reader that stops early must still see the work.
-  if (report.nextSteps.length > 0) {
-    sections.push(`next steps:\n${report.nextSteps.map((step) => `  ${step}`).join('\n')}\n`);
-  }
-  if (report.problems.length > 0) {
-    sections.push(`problems:\n${report.problems.map(formatProblem).join('\n')}\n\n  ${KEEP_REFERENCE_NOTE}\n`);
-  }
-
-  sections.push(formatStatusTable(report.references));
-
-  if (report.summary.declared > 0) {
-    const count = report.summary.declared;
-    sections.push(
-      `${count} declared reference${count === 1 ? ' is' : 's are'} not materialized yet, which is normal: nothing is fetched until it is needed. agent-reference get <name> fetches one.\n`
-    );
-  }
-
-  const described = report.references.filter((entry) => entry.description);
-  if (described.length > 0) {
-    sections.push(`notes:\n${described.map((entry) => `  ${entry.name}: ${entry.description}`).join('\n')}\n`);
-  }
-
-  if (report.groups.length > 0) {
-    const lines = report.groups.map(
-      (group) =>
-        `  ${group.name}${group.description ? `: ${group.description}` : ''}\n    ${group.references.join(', ') || '(no members)'}`
-    );
-    sections.push(`groups:\n${lines.join('\n')}\n`);
-  }
-
-  return sections.join('\n');
-}
-
 function formatGetResults(results: GetReferenceResult[]): string {
   const lines = results.map((result) => {
     if (result.kind === 'package') {
@@ -171,55 +133,6 @@ function formatCloneResult(result: CloneReferencesResult): string {
       : [])
   ];
   return `${lines.join('\n')}\n`;
-}
-
-function formatProblem(problem: AgentReferenceProblem): string {
-  const lines = [
-    `  [${problem.severity}] ${problem.reference ? `${problem.reference}: ` : ''}${problem.summary}`,
-    `    fix: ${problem.fix}`
-  ];
-
-  if (problem.configPatch) {
-    const patch = JSON.stringify(problem.configPatch, null, 2)
-      .split('\n')
-      .map((line) => `    ${line}`)
-      .join('\n');
-    lines.push(`    add to agent-reference.json:\n${patch}`);
-  }
-
-  return lines.join('\n');
-}
-
-function formatStatusTable(entries: AgentReferenceStatusEntry[]): string {
-  const showGroups = entries.some((entry) => entry.groups.length > 0);
-  const showScope = entries.some((entry) => entry.scope === 'local');
-  const headers = [
-    'kind',
-    'name',
-    ...(showScope ? ['scope'] : []),
-    'current',
-    'cloned',
-    'status',
-    ...(showGroups ? ['groups'] : []),
-    'path'
-  ];
-  const rows = entries.map((entry) => [
-    entry.kind,
-    entry.name,
-    ...(showScope ? [entry.scope ?? '-'] : []),
-    entry.currentVersion ?? '-',
-    entry.clonedVersion ?? '-',
-    entry.status,
-    ...(showGroups ? [entry.groups.join(',') || '-'] : []),
-    displayPath(entry.path)
-  ]);
-
-  if (rows.length === 0) return 'No references configured. See agent-reference schema for the config format.\n';
-
-  const widths = headers.map((header, index) => Math.max(header.length, ...rows.map((row) => row[index]?.length ?? 0)));
-  const formatRow = (row: string[]): string => row.map((value, index) => value.padEnd(widths[index] ?? 0)).join('  ');
-
-  return `${formatRow(headers)}\n${formatRow(widths.map((width) => '-'.repeat(width)))}\n${rows.map(formatRow).join('\n')}\n`;
 }
 
 function formatStoreReport(report: StoreReport): string {
