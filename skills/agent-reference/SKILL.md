@@ -30,6 +30,10 @@ questions with plain git: `log`, `blame`, `show <tag>:<file>`, diffs between rel
 
 ## Safety rules
 
+- **References are an index, not a reading list.** Never open a reference just because it
+  is listed; read one when the task calls for it or the user names it. Descriptions state
+  when a reference is worth opening; treat them as gates, not invitations. Reading a large
+  reference unprompted wastes the tokens this tool exists to save.
 - **Never delete a reference from the config to make `status` clean.** Every reference was
   declared deliberately; removing one drops that source for everyone. Fix it, or tell the
   user you could not and why.
