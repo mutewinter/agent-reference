@@ -119,7 +119,27 @@ export interface CloneReferencesResult {
   unresolved: UnresolvedManifestReference[];
   /** Same shape `status` reports, so a failure is explained where it happened. */
   problems: AgentReferenceProblem[];
+  /** Machine-local materialization state, kept in the store rather than the project. */
   manifestPath: string;
+}
+
+/** One materialized (or located, for folders) reference returned by `get`. */
+export interface GetReferenceResult {
+  kind: AgentReferenceKind;
+  name: string;
+  /** The spec as the caller wrote it. */
+  requested: string;
+  version: string | null;
+  path: string;
+  repositoryPath: string | null;
+  repositoryUrl: string | null;
+  checkoutRef: string | null;
+  checkoutSha: string | null;
+  refSource: string | null;
+  confidence: CheckoutConfidence | null;
+  description: string | null;
+  /** True when the result was written to this project's materialization state. */
+  recorded: boolean;
 }
 
 export type AgentReferenceKind = 'package' | 'folder' | 'git';
@@ -171,16 +191,23 @@ export interface GitManifestReference {
 export type AgentReferenceManifestReference = PackageManifestReference | GitManifestReference;
 
 export interface AgentReferenceManifest {
-  schemaVersion: 5;
+  schemaVersion: 6;
+  /** The project this state belongs to. The file lives in the store, keyed by this path. */
+  projectRoot: string;
   references: AgentReferenceManifestReference[];
   unresolved?: UnresolvedManifestReference[];
 }
 
+/**
+ * `declared` is the normal resting state of a healthy config: the reference is named but
+ * nothing has been fetched, because nothing needed it yet. Only folders can be `missing`,
+ * since a folder cannot be materialized on demand.
+ */
 export type AgentReferenceStatusState =
   | 'ready'
-  | 'missing'
-  | 'missing-worktree'
+  | 'declared'
   | 'stale'
+  | 'missing'
   | 'not-installed'
   | 'unresolvable';
 
@@ -188,6 +215,8 @@ export interface AgentReferenceStatusEntry {
   kind: AgentReferenceKind;
   name: string;
   description: string | null;
+  /** Which config file declared this reference: committed (`shared`) or gitignored (`local`). */
+  scope: ConfigScope | null;
   groups: string[];
   requested: string | null;
   packageManager: PackageManager | null;
@@ -237,9 +266,13 @@ export interface AgentReferenceStatusReport {
   summary: Record<AgentReferenceStatusState, number>;
 }
 
+/** Which config file a reference was declared in. Local entries never belong in a commit. */
+export type ConfigScope = 'shared' | 'local';
+
 export interface ConfiguredPackageReference {
   kind: 'package';
   name: string;
+  scope: ConfigScope;
   /** `installed` to follow the lockfile, or an exact version, range, or dist-tag. */
   version: string;
   /** Commit, tag, or branch to check out, overriding automatic version resolution. */
@@ -255,6 +288,7 @@ export interface ConfiguredPackageReference {
 export interface ConfiguredFolderReference {
   kind: 'folder';
   name: string;
+  scope: ConfigScope;
   path: string;
   description: string | null;
   groups: string[];
@@ -263,6 +297,7 @@ export interface ConfiguredFolderReference {
 export interface ConfiguredGitReference {
   kind: 'git';
   name: string;
+  scope: ConfigScope;
   repository: string;
   ref: string | null;
   /** Canonical `repository#ref` form. Recorded in the lockfile so drift is detectable. */

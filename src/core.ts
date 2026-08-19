@@ -15,6 +15,7 @@ import type {
   ConfiguredPackageReference,
   DependencyMetadata,
   GitWorktreeOptions,
+  GitWorktreeResult,
   PackageReference,
   RegistryOptions,
   UnresolvedManifestReference,
@@ -66,16 +67,12 @@ export async function cloneReferences(
 
   for (const dependency of packages) {
     // One unresolvable package must not abort the references that would have worked.
-    const failure = await cloneOnePackage(
-      dependency,
-      overrides.get(dependency.name),
-      registryOptions,
-      worktreeOptions,
-      cloned
-    );
-    if (failure) {
-      unresolved.push(failure);
-      skipped.push({ name: dependency.name, version: dependency.version, reason: failure.detail });
+    const outcome = await materializePackage(dependency, overrides.get(dependency.name), registryOptions, worktreeOptions);
+    if ('failure' in outcome) {
+      unresolved.push(outcome.failure);
+      skipped.push({ name: dependency.name, version: dependency.version, reason: outcome.failure.detail });
+    } else {
+      cloned.push(outcome.result);
     }
   }
 
@@ -84,7 +81,7 @@ export async function cloneReferences(
     clonedGit.push(await ensureGitReferenceWorktree(reference.name, reference.spec, worktreeOptions));
   }
 
-  const manifestPath = await writeManifest(project.projectRoot, cloned, clonedGit, unresolved);
+  const manifestPath = await writeManifest(project.projectRoot, worktreeOptions.storeDir, cloned, clonedGit, unresolved);
   const configFile = path.basename(loadedConfig?.path ?? DEFAULT_CONFIG_FILE);
 
   return {
@@ -103,22 +100,23 @@ export async function cloneReferences(
  * Materializes one package, returning a recordable failure instead of throwing so a single
  * bad reference cannot take down the whole run, and so `status` can explain it later.
  */
-async function cloneOnePackage(
+export async function materializePackage(
   dependency: PackageReference,
   override: ConfiguredPackageReference | undefined,
   registryOptions: RegistryOptions,
-  worktreeOptions: GitWorktreeOptions,
-  cloned: CloneReferencesResult['cloned']
-): Promise<UnresolvedManifestReference | null> {
+  worktreeOptions: GitWorktreeOptions
+): Promise<{ result: GitWorktreeResult } | { failure: UnresolvedManifestReference }> {
   const unresolvable = (reason: UnresolvedReason, detail: string, repositoryUrl: string | null = null) => ({
-    kind: 'package' as const,
-    name: dependency.name,
-    version: dependency.version,
-    reason,
-    detail,
-    repositoryUrl,
-    pinnedRef: override?.ref ?? null,
-    repository: override?.repository ?? null
+    failure: {
+      kind: 'package' as const,
+      name: dependency.name,
+      version: dependency.version,
+      reason,
+      detail,
+      repositoryUrl,
+      pinnedRef: override?.ref ?? null,
+      repository: override?.repository ?? null
+    }
   });
 
   let metadata: DependencyMetadata;
@@ -144,18 +142,16 @@ async function cloneOnePackage(
   }
 
   try {
-    cloned.push(
-      await ensureDependencyWorktree(
-        dependency,
-        {
-          ...metadata,
-          repositoryUrl,
-          repositoryDirectory: override?.directory ?? metadata.repositoryDirectory
-        },
-        { ...worktreeOptions, pinnedRef: override?.ref ?? null }
-      )
+    const result = await ensureDependencyWorktree(
+      dependency,
+      {
+        ...metadata,
+        repositoryUrl,
+        repositoryDirectory: override?.directory ?? metadata.repositoryDirectory
+      },
+      { ...worktreeOptions, pinnedRef: override?.ref ?? null }
     );
-    return null;
+    return { result };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     return unresolvable(override?.ref ? 'unresolved-ref' : 'clone-failed', detail, repositoryUrl);

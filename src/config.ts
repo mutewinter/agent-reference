@@ -40,6 +40,9 @@ export async function loadAgentReferenceConfig(projectRoot: string): Promise<Loa
 
   const baseConfig = configPath ? parseConfig(await readConfigJson(configPath), configPath) : emptyConfig();
   const localConfig = localPath ? parseConfig(await readConfigJson(localPath), localPath) : emptyConfig();
+  for (const reference of [...localConfig.packages, ...localConfig.folders, ...localConfig.git]) {
+    reference.scope = 'local';
+  }
 
   return {
     path: configPath,
@@ -89,6 +92,7 @@ function parsePackageEntry(name: string, entry: unknown, configPath: string): Co
     return {
       kind: 'package',
       name,
+      scope: 'shared',
       version: requireNonEmpty(entry, configPath, field),
       ref: null,
       repository: null,
@@ -107,6 +111,7 @@ function parsePackageEntry(name: string, entry: unknown, configPath: string): Co
   return {
     kind: 'package',
     name,
+    scope: 'shared',
     version: requireNonEmpty(expectString(object.version, configPath, `${field}.version`), configPath, `${field}.version`),
     ref: optionalString(object.ref, configPath, `${field}.ref`),
     repository: optionalString(object.repository, configPath, `${field}.repository`),
@@ -119,7 +124,7 @@ function parsePackageEntry(name: string, entry: unknown, configPath: string): Co
 function parseFolderEntry(name: string, entry: unknown, configPath: string): ConfiguredFolderReference {
   const field = `folders.${name}`;
   if (typeof entry === 'string') {
-    return { kind: 'folder', name, path: requireNonEmpty(entry, configPath, field), description: null, groups: [] };
+    return { kind: 'folder', name, scope: 'shared', path: requireNonEmpty(entry, configPath, field), description: null, groups: [] };
   }
 
   const object = expectObject(entry, configPath, field, 'a path string or an object');
@@ -131,6 +136,7 @@ function parseFolderEntry(name: string, entry: unknown, configPath: string): Con
   return {
     kind: 'folder',
     name,
+    scope: 'shared',
     path: requireNonEmpty(expectString(object.path, configPath, `${field}.path`), configPath, `${field}.path`),
     description: parseDescription(object.description, configPath, field),
     groups: parseNameList(object.groups, configPath, field, 'groups')
@@ -181,7 +187,7 @@ function gitReference(
   }
 
   const ref = explicitRef ?? inlineRef;
-  return { kind: 'git', name, repository, ref, spec: gitSpec(repository, ref), description, groups };
+  return { kind: 'git', name, scope: 'shared', repository, ref, spec: gitSpec(repository, ref), description, groups };
 }
 
 function gitSpec(repository: string, ref: string | null): string {

@@ -7,6 +7,7 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { cloneReferences } from '../src/core.ts';
+import { stateFilePath } from '../src/manifest.ts';
 import type { AgentReferenceManifest } from '../src/types.ts';
 
 const execFileAsync = promisify(execFile);
@@ -150,7 +151,7 @@ test('preserves existing manifest references after a partial clone', async () =>
   });
 
   const manifest = JSON.parse(
-    await fs.readFile(path.join(projectRoot, 'agent-reference.lock.json'), 'utf8')
+    await fs.readFile(stateFilePath(path.join(tempDir, 'store'), projectRoot), 'utf8')
   ) as AgentReferenceManifest;
 
   assert.equal(manifest.references.some((reference) => reference.kind === 'package' && reference.name === 'tiny-invariant'), true);
@@ -172,7 +173,7 @@ test('replaces the manifest entry on upgrade and leaves shared worktrees in plac
     storeDir: path.join(tempDir, 'store')
   });
 
-  assert.deepEqual(await manifestVersions(projectRoot), ['1.0.4']);
+  assert.deepEqual(await manifestVersions(path.join(tempDir, 'store'), projectRoot), ['1.0.4']);
   assert.match(second.cloned[0]?.worktreePath ?? '', /[\\/]store[\\/]src[\\/]/);
   // Store worktrees are shared across projects, so the old version stays on disk.
   assert.equal(await pathExists(first.cloned[0]?.worktreePath ?? ''), true);
@@ -215,9 +216,9 @@ async function createUpgradeScenario(label: string): Promise<{
   };
 }
 
-async function manifestVersions(projectRoot: string): Promise<string[]> {
+async function manifestVersions(storeDir: string, projectRoot: string): Promise<string[]> {
   const manifest = JSON.parse(
-    await fs.readFile(path.join(projectRoot, 'agent-reference.lock.json'), 'utf8')
+    await fs.readFile(stateFilePath(storeDir, projectRoot), 'utf8')
   ) as AgentReferenceManifest;
   return manifest.references.flatMap((reference) =>
     reference.kind === 'package' && reference.name === 'tiny-warning' ? [reference.version] : []
@@ -236,7 +237,6 @@ async function pathExists(filePath: string): Promise<boolean> {
 async function copyFixtureProject(tempDir: string): Promise<string> {
   const projectRoot = path.join(tempDir, 'project');
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), projectRoot, { recursive: true });
-  await fs.rm(path.join(projectRoot, 'agent-reference.lock.json'), { force: true });
   return projectRoot;
 }
 

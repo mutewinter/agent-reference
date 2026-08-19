@@ -1,7 +1,8 @@
 export { DEFAULT_CONFIG_FILE, DEFAULT_LOCAL_CONFIG_FILE, loadAgentReferenceConfig } from './config.ts';
 export { cloneReferences } from './core.ts';
+export { getReferences, type GetReferencesOptions } from './get.ts';
 export { resolveReferenceGroups } from './groups.ts';
-export { MANIFEST_FILE, readManifest } from './manifest.ts';
+export { readManifest, stateFilePath } from './manifest.ts';
 export { getStatusReport, type StatusReportOptions } from './status.ts';
 export { validateConfig, type ValidationReport } from './validate.ts';
 export type {
@@ -16,10 +17,12 @@ export type {
   CheckoutConfidence,
   CloneReferencesOptions,
   CloneReferencesResult,
+  ConfigScope,
   ConfiguredFolderReference,
   ConfiguredGitReference,
   ConfiguredPackageReference,
   ConfiguredReference,
+  GetReferenceResult,
   PackageManifestReference,
   ReferenceGroup,
   ReferenceSelectionOptions,

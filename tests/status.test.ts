@@ -5,13 +5,14 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { manifestReferencePath } from '../src/git.ts';
+import { stateFilePath } from '../src/manifest.ts';
 import { getStatusReport } from '../src/status.ts';
 import type { AgentReferenceManifest, AgentReferenceManifestReference } from '../src/types.ts';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
 const STORE_DIR = '/tmp/agent-reference-status-test-store';
 
-test('reports configured dependencies missing from local worktrees', async () => {
+test('reports never-materialized dependencies as declared, not as a problem', async () => {
   const projectRoot = await copyFixtureProject();
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
 
@@ -19,7 +20,10 @@ test('reports configured dependencies missing from local worktrees', async () =>
   assert.equal(report.references[0]?.kind, 'package');
   assert.equal(report.references[0]?.name, 'tiny-invariant');
   assert.equal(report.references[0]?.currentVersion, '1.3.3');
-  assert.equal(report.references[0]?.status, 'missing');
+  assert.equal(report.references[0]?.status, 'declared');
+  assert.match(report.references[0]?.action ?? '', /agent-reference get tiny-invariant/);
+  assert.equal(report.problems.length, 0);
+  assert.deepEqual(report.nextSteps, []);
 });
 
 test('reports ready dependencies with store worktree paths', async () => {
@@ -63,7 +67,7 @@ test('reports config-only packages as configured references', async () => {
   assert.equal(report.references[0]?.name, 'tiny-warning');
   assert.equal(report.references[0]?.packageManager, 'config');
   assert.equal(report.references[0]?.currentVersion, '1.0.3');
-  assert.equal(report.references[0]?.status, 'missing');
+  assert.equal(report.references[0]?.status, 'declared');
 });
 
 test('reports local folder references with absolute paths', async () => {
@@ -83,6 +87,7 @@ test('reports local folder references with absolute paths', async () => {
   assert.equal(report.references[0]?.kind, 'folder');
   assert.equal(report.references[0]?.name, 'design-notes');
   assert.equal(report.references[0]?.status, 'ready');
+  assert.equal(report.references[0]?.scope, 'local');
   assert.equal(report.references[0]?.path, folderPath);
 });
 
@@ -116,7 +121,6 @@ test('reports stale git references when configured spec changes', async () => {
 async function copyFixtureProject(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-status-test-'));
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), tempDir, { recursive: true });
-  await fs.rm(path.join(tempDir, 'agent-reference.lock.json'), { force: true });
   return tempDir;
 }
 
@@ -132,7 +136,8 @@ async function writeManifest(
   extraReferences: AgentReferenceManifest['references'] = []
 ): Promise<AgentReferenceManifest['references']> {
   const manifest: AgentReferenceManifest = {
-    schemaVersion: 5,
+    schemaVersion: 6,
+    projectRoot,
     references: [
       {
         kind: 'package',
@@ -152,6 +157,8 @@ async function writeManifest(
     ]
   };
 
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.lock.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  const statePath = stateFilePath(STORE_DIR, projectRoot);
+  await fs.mkdir(path.dirname(statePath), { recursive: true });
+  await fs.writeFile(statePath, `${JSON.stringify(manifest, null, 2)}\n`);
   return manifest.references;
 }

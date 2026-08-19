@@ -105,6 +105,19 @@ export async function validateConfig(
     if (!(await pathExists(resolved))) {
       report.warnings.push(`folders.${folder.name} points at ${resolved}, which does not exist.`);
     }
+
+    // The committed file is read on every teammate's machine: a personal path there is a
+    // leak, not a preference, so it is an error rather than a warning.
+    if (folder.scope !== 'shared') continue;
+    if (path.isAbsolute(folder.path) || folder.path.startsWith('~')) {
+      report.errors.push(
+        `folders.${folder.name} puts the machine path ${folder.path} in the committed config. Move this entry to agent-reference.local.json (gitignored) so personal paths never reach a commit.`
+      );
+    } else if (folder.path.startsWith('..')) {
+      report.warnings.push(
+        `folders.${folder.name} escapes the repo (${folder.path}). Fine when the whole team shares that checkout layout; otherwise move it to agent-reference.local.json.`
+      );
+    }
   }
 
   if (references.length === 0) {

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -10,9 +11,25 @@ import type {
   UnresolvedManifestReference
 } from './types.ts';
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
-export const MANIFEST_FILE = 'agent-reference.lock.json';
+const STATE_DIR = 'state';
+
+/**
+ * Materialization state lives in the store, not the project: it is a machine-local cache of
+ * what has been resolved and checked out, so the config is the only file a project commits.
+ * Keyed by project root so every project on this machine gets its own file.
+ */
+export function stateFilePath(storeDir: string, projectRoot: string): string {
+  const hash = crypto.createHash('sha256').update(projectRoot).digest('hex').slice(0, 10);
+  const slug =
+    path
+      .basename(projectRoot)
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'project';
+  return path.join(storeDir, STATE_DIR, `${slug}-${hash}.json`);
+}
 
 /**
  * One entry per reference name, so upgrading a package replaces its entry rather than
@@ -21,11 +38,12 @@ export const MANIFEST_FILE = 'agent-reference.lock.json';
  */
 export async function writeManifest(
   projectRoot: string,
+  storeDir: string,
   packageResults: GitWorktreeResult[],
   gitResults: GitReferenceWorktreeResult[] = [],
   unresolved: UnresolvedManifestReference[] = []
 ): Promise<string> {
-  const existing = (await readManifest(projectRoot))?.manifest;
+  const existing = (await readManifest(projectRoot, storeDir))?.manifest;
   const updates = [
     ...packageResults.map(packageResultToManifestReference),
     ...gitResults.map(gitResultToManifestReference)
@@ -38,22 +56,24 @@ export async function writeManifest(
 
   const manifest: AgentReferenceManifest = {
     schemaVersion: SCHEMA_VERSION,
-    // The lockfile is committed: keep ordering deterministic so diffs stay minimal.
+    projectRoot,
     references: [...byKey.values()].sort((a, b) => referenceKey(a).localeCompare(referenceKey(b)))
   };
 
   const mergedUnresolved = mergeUnresolved(existing?.unresolved ?? [], unresolved, manifest.references);
   if (mergedUnresolved.length > 0) manifest.unresolved = mergedUnresolved;
 
-  const manifestPath = path.join(projectRoot, MANIFEST_FILE);
+  const manifestPath = stateFilePath(storeDir, projectRoot);
+  await fs.mkdir(path.dirname(manifestPath), { recursive: true });
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   return manifestPath;
 }
 
 export async function readManifest(
-  projectRoot: string
+  projectRoot: string,
+  storeDir: string
 ): Promise<{ path: string; manifest: AgentReferenceManifest } | null> {
-  const manifestPath = path.join(projectRoot, MANIFEST_FILE);
+  const manifestPath = stateFilePath(storeDir, projectRoot);
   try {
     const manifest = await readJsonFile<AgentReferenceManifest>(manifestPath);
     if (manifest.schemaVersion !== SCHEMA_VERSION) return null;

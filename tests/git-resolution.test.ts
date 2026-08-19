@@ -148,7 +148,6 @@ async function createMonorepoScenario(
 async function copyFixtureProject(tempDir: string): Promise<string> {
   const projectRoot = path.join(tempDir, 'project');
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), projectRoot, { recursive: true });
-  await fs.rm(path.join(projectRoot, 'agent-reference.lock.json'), { force: true });
   return projectRoot;
 }
 

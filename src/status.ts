@@ -1,13 +1,7 @@
-import os from 'node:os';
 import path from 'node:path';
 
-import { pathExists, resolveConfigPath } from './fs-utils.ts';
-import {
-  defaultStoreDir,
-  ensureGitAvailable,
-  manifestReferencePath,
-  resolvePackagePath
-} from './git.ts';
+import { pathExists, resolveConfigPath, resolveReferencePath } from './fs-utils.ts';
+import { defaultStoreDir, manifestReferencePath, resolvePackagePath } from './git.ts';
 import {
   configuredReferences,
   describeSelection,
@@ -17,7 +11,7 @@ import {
   selectionFilter
 } from './groups.ts';
 import { readManifest } from './manifest.ts';
-import { CLONE_COMMAND, pinFix, unresolvedProblem } from './problems.ts';
+import { getCommand, pinFix, unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import type {
   AgentReferenceConfig,
@@ -25,6 +19,7 @@ import type {
   AgentReferenceStatusEntry,
   AgentReferenceStatusReport,
   AgentReferenceStatusState,
+  ConfigScope,
   ConfiguredFolderReference,
   ConfiguredGitReference,
   ConfiguredPackageReference,
@@ -37,7 +32,6 @@ import type {
 } from './types.ts';
 
 const READY_ACTION = 'Use path for source inspection.';
-const CLONE_ACTION = `Run ${CLONE_COMMAND} to refresh local references.`;
 
 export type StatusReportOptions = ScanProjectOptions & ReferenceSelectionOptions & { storeDir?: string };
 
@@ -46,11 +40,11 @@ export async function getStatusReport(
   options: StatusReportOptions = {}
 ): Promise<AgentReferenceStatusReport> {
   const { config, configPackages, cwd, loadedConfig, project } = await loadReferenceContext(projectPath, options);
-  const loadedManifest = await readManifest(project.projectRoot);
   const configuredStore = options.storeDir ?? config?.cacheDir;
   const storeDir = configuredStore
     ? resolveConfigPath(project.projectRoot, cwd, configuredStore)
     : defaultStoreDir();
+  const loadedManifest = await readManifest(project.projectRoot, storeDir);
   const referencePathFor = (reference: PackageManifestReference | GitManifestReference): string =>
     manifestReferencePath(storeDir, reference);
 
@@ -145,7 +139,7 @@ export async function getStatusReport(
     })),
     references,
     problems,
-    nextSteps: nextStepsFor(references, problems),
+    nextSteps: nextStepsFor(problems),
     summary: summarizeStatus(references)
   };
 }
@@ -216,22 +210,12 @@ async function collectProblems(
     }
   }
 
-  if (entries.some((entry) => NEEDS_CLONE.has(entry.status))) {
-    const gitProblem = await gitUnavailableProblem();
-    if (gitProblem) problems.push(gitProblem);
-  }
-
   return problems;
 }
 
-const NEEDS_CLONE = new Set<AgentReferenceStatusState>(['missing', 'missing-worktree', 'stale']);
-
-function nextStepsFor(entries: AgentReferenceStatusEntry[], problems: AgentReferenceProblem[]): string[] {
+function nextStepsFor(problems: AgentReferenceProblem[]): string[] {
   const steps: string[] = [];
 
-  if (entries.some((entry) => NEEDS_CLONE.has(entry.status))) {
-    steps.push(CLONE_COMMAND);
-  }
   if (problems.some((problem) => problem.severity === 'error')) {
     steps.push('Resolve the errors under problems, then run agent-reference status again.');
   }
@@ -247,23 +231,9 @@ function pinPatch(entry: AgentReferenceStatusEntry): Record<string, unknown> {
   };
 }
 
-async function gitUnavailableProblem(): Promise<AgentReferenceProblem | null> {
-  try {
-    await ensureGitAvailable();
-    return null;
-  } catch (error) {
-    return {
-      reference: null,
-      severity: 'error',
-      summary: error instanceof Error ? error.message : String(error),
-      fix: `References cannot be materialized until git works. Install or repair git, then run ${CLONE_COMMAND}.`,
-      configPatch: null
-    };
-  }
-}
-
 interface ReferenceAnnotation {
   description: string | null;
+  scope: ConfigScope;
   groups: string[];
 }
 
@@ -272,7 +242,7 @@ function referenceAnnotations(config: AgentReferenceConfig | undefined): Map<str
   const annotations = new Map<string, ReferenceAnnotation>(
     configuredReferences(config).map((reference) => [
       `${reference.kind}:${reference.name}`,
-      { description: reference.description, groups: [] }
+      { description: reference.description, scope: reference.scope, groups: [] }
     ])
   );
 
@@ -292,6 +262,7 @@ type StatusEntryInput = Partial<AgentReferenceStatusEntry> &
 function statusEntry(input: StatusEntryInput): AgentReferenceStatusEntry {
   return {
     description: null,
+    scope: null,
     groups: [],
     requested: null,
     packageManager: null,
@@ -327,6 +298,7 @@ async function buildPackageStatus(
     kind: 'package',
     name: dependency.name,
     description: annotation?.description ?? null,
+    scope: annotation?.scope ?? null,
     groups: annotation?.groups ?? [],
     requested: dependency.specifier,
     packageManager: dependency.packageManager,
@@ -340,7 +312,7 @@ async function buildPackageStatus(
     checkoutSha: manifestEntry?.checkoutSha ?? null,
     confidence: manifestEntry?.confidence ?? null,
     status,
-    action: actionForPackageStatus(status, dependency.name)
+    action: actionForPackageStatus(status, dependency, manifestEntry?.version ?? null)
   });
 }
 
@@ -356,6 +328,7 @@ async function buildFolderStatus(
     kind: 'folder',
     name: folder.name,
     description: folder.description,
+    scope: folder.scope,
     groups: annotation?.groups ?? [],
     requested: folder.path,
     path: resolvedPath,
@@ -378,6 +351,7 @@ async function buildGitStatus(
     kind: 'git',
     name: reference.name,
     description: reference.description,
+    scope: reference.scope,
     groups: annotation?.groups ?? [],
     requested: reference.spec,
     path: referencePath,
@@ -385,7 +359,10 @@ async function buildGitStatus(
     repositoryUrl: manifestEntry?.repositoryUrl ?? null,
     checkoutSha: manifestEntry?.checkoutSha ?? null,
     status,
-    action: status === 'ready' ? READY_ACTION : `Run ${CLONE_COMMAND} to materialize this git reference.`
+    action:
+      status === 'ready'
+        ? READY_ACTION
+        : `Run ${getCommand(reference.name)} when this source is needed.`
   });
 }
 
@@ -399,19 +376,20 @@ function getPackageStatusState(
   const pinnedRef = configEntry?.ref ?? null;
   const current = manifestEntry?.version === dependency.version;
 
-  // A recorded failure outranks "missing", because re-running clone unchanged would fail
-  // the same way. Editing the overrides it failed on makes it worth retrying again.
+  // A recorded failure outranks "declared", because materializing again unchanged would
+  // fail the same way. Editing the overrides it failed on makes it worth retrying.
   if (!current && unresolved && unresolved.version === dependency.version) {
     const retryWorthwhile =
       unresolved.pinnedRef !== pinnedRef || unresolved.repository !== (configEntry?.repository ?? null);
     if (!retryWorthwhile) return 'unresolvable';
   }
 
-  if (!manifestEntry) return 'missing';
+  if (!manifestEntry) return 'declared';
   if (!current) return 'stale';
   // Re-pinning in the config must invalidate a checkout made under the old pin.
   if ((manifestEntry.pinnedRef ?? null) !== pinnedRef) return 'stale';
-  if (!pathExistsNow) return 'missing-worktree';
+  // A pruned worktree is just an unmaterialized reference again.
+  if (!pathExistsNow) return 'declared';
   return 'ready';
 }
 
@@ -420,26 +398,33 @@ function getGitStatusState(
   manifestEntry: GitManifestReference | null,
   pathExistsNow: boolean
 ): AgentReferenceStatusState {
-  if (!manifestEntry) return 'missing';
+  if (!manifestEntry) return 'declared';
   if (manifestEntry.requested !== requested) return 'stale';
-  if (!pathExistsNow) return 'missing-worktree';
+  if (!pathExistsNow) return 'declared';
   return 'ready';
 }
 
-function actionForPackageStatus(status: AgentReferenceStatusState, name: string): string {
+function actionForPackageStatus(
+  status: AgentReferenceStatusState,
+  dependency: PackageReference,
+  clonedVersion: string | null
+): string {
   if (status === 'ready') return READY_ACTION;
   if (status === 'unresolvable') {
-    return `Cloning already failed for this reference; running clone again will not help. See problems for the fix, which usually means setting packages.${name}.ref or .repository.`;
+    return `Materializing already failed for this reference; trying again unchanged will fail the same way. See problems for the fix, which usually means setting packages.${dependency.name}.ref or .repository.`;
   }
-  return CLONE_ACTION;
+  if (status === 'stale') {
+    return `The lockfile now has ${dependency.version}; run ${getCommand(dependency.name)} for it. The existing checkout is still valid for ${clonedVersion ?? 'the old version'}.`;
+  }
+  return `Nothing fetched yet. Run ${getCommand(dependency.name)} when this source is needed.`;
 }
 
 function summarizeStatus(entries: AgentReferenceStatusEntry[]): Record<AgentReferenceStatusState, number> {
   const summary: Record<AgentReferenceStatusState, number> = {
     ready: 0,
-    missing: 0,
-    'missing-worktree': 0,
+    declared: 0,
     stale: 0,
+    missing: 0,
     'not-installed': 0,
     unresolvable: 0
   };
@@ -449,12 +434,4 @@ function summarizeStatus(entries: AgentReferenceStatusEntry[]): Record<AgentRefe
   }
 
   return summary;
-}
-
-function resolveReferencePath(projectRoot: string, requested: string): string {
-  if (requested.startsWith('~/')) {
-    return path.join(os.homedir(), requested.slice(2));
-  }
-  if (path.isAbsolute(requested)) return requested;
-  return path.resolve(projectRoot, requested);
 }

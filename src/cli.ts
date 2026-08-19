@@ -6,6 +6,7 @@ import process from 'node:process';
 import { parseArgv, type CliOptions } from './args.ts';
 import { displayPath as shortenPath } from './fs-utils.ts';
 import { cloneReferences } from './core.ts';
+import { getReferences } from './get.ts';
 import { dependencyKey } from './package-utils.ts';
 import { KEEP_REFERENCE_NOTE } from './problems.ts';
 import { getStatusReport } from './status.ts';
@@ -15,7 +16,8 @@ import type {
   AgentReferenceProblem,
   AgentReferenceStatusEntry,
   AgentReferenceStatusReport,
-  CloneReferencesResult
+  CloneReferencesResult,
+  GetReferenceResult
 } from './types.ts';
 
 async function main(argv: string[]): Promise<void> {
@@ -39,6 +41,13 @@ async function main(argv: string[]): Promise<void> {
       const { projectPath, references } = await splitPositionals(options);
       const report = await getStatusReport(projectPath, { references, groups: options.groups });
       write(options, report, formatStatusReport);
+      return;
+    }
+    case 'get': {
+      // Every positional is a spec: get runs against the current directory's project, and
+      // specs like github:owner/repo would be misread as paths by splitPositionals.
+      const results = await getReferences(null, options.positionals);
+      write(options, results, formatGetResults);
       return;
     }
     case 'clone': {
@@ -109,6 +118,13 @@ function formatStatusReport(report: AgentReferenceStatusReport): string {
 
   sections.push(formatStatusTable(report.references));
 
+  if (report.summary.declared > 0) {
+    const count = report.summary.declared;
+    sections.push(
+      `${count} declared reference${count === 1 ? ' is' : 's are'} not materialized yet, which is normal: nothing is fetched until it is needed. agent-reference get <name> fetches one.\n`
+    );
+  }
+
   const described = report.references.filter((entry) => entry.description);
   if (described.length > 0) {
     sections.push(`notes:\n${described.map((entry) => `  ${entry.name}: ${entry.description}`).join('\n')}\n`);
@@ -125,6 +141,19 @@ function formatStatusReport(report: AgentReferenceStatusReport): string {
   return sections.join('\n');
 }
 
+function formatGetResults(results: GetReferenceResult[]): string {
+  const lines = results.map((result) => {
+    if (result.kind === 'package') {
+      return `${dependencyKey(result.name, result.version ?? '')} -> ${displayPath(result.path)} (${result.confidence}, ${result.refSource} ${result.checkoutRef})`;
+    }
+    if (result.kind === 'git') {
+      return `${result.requested} -> ${displayPath(result.path)} (${result.checkoutRef} @ ${result.checkoutSha?.slice(0, 12)})`;
+    }
+    return `${result.name} -> ${displayPath(result.path)}`;
+  });
+  return `${lines.join('\n')}\n`;
+}
+
 function formatCloneResult(result: CloneReferencesResult): string {
   const lines = [
     ...result.cloned.map(
@@ -136,7 +165,7 @@ function formatCloneResult(result: CloneReferencesResult): string {
     ),
     ...result.clonedGit.map((clone) => `git:${clone.name} -> ${displayPath(clone.worktreePath)}`),
     ...result.folders.map((name) => `folder:${name} is already local, nothing to clone`),
-    `manifest -> ${displayPath(result.manifestPath)}`,
+    `state -> ${displayPath(result.manifestPath)}`,
     ...(result.problems.length > 0
       ? ['', `problems:\n${result.problems.map(formatProblem).join('\n')}`, `  ${KEEP_REFERENCE_NOTE}`]
       : [])
@@ -163,10 +192,21 @@ function formatProblem(problem: AgentReferenceProblem): string {
 
 function formatStatusTable(entries: AgentReferenceStatusEntry[]): string {
   const showGroups = entries.some((entry) => entry.groups.length > 0);
-  const headers = ['kind', 'name', 'current', 'cloned', 'status', ...(showGroups ? ['groups'] : []), 'path'];
+  const showScope = entries.some((entry) => entry.scope === 'local');
+  const headers = [
+    'kind',
+    'name',
+    ...(showScope ? ['scope'] : []),
+    'current',
+    'cloned',
+    'status',
+    ...(showGroups ? ['groups'] : []),
+    'path'
+  ];
   const rows = entries.map((entry) => [
     entry.kind,
     entry.name,
+    ...(showScope ? [entry.scope ?? '-'] : []),
     entry.currentVersion ?? '-',
     entry.clonedVersion ?? '-',
     entry.status,
@@ -229,10 +269,12 @@ function formatValidationReport(report: ValidationReport): string {
 function helpText(): string {
   return `agent-reference
 
-Keeps upstream source for a project's references checked out locally, so an agent
-can read the real thing instead of guessing.
+Gives an agent readable upstream source on demand: dependencies at their exact
+installed version, git repositories, and local folders, all by name. Nothing is
+fetched until asked for.
 
 Usage:
+  agent-reference get <spec>... [--json]
   agent-reference status [reference...] [--group <name>] [--json]
   agent-reference clone  [reference...] [--group <name>] [--json]
   agent-reference validate
@@ -240,16 +282,19 @@ Usage:
   agent-reference store [--prune] [--days <n>]
 
 Commands:
-  status    Report every reference with its absolute path, plus problems and next steps.
-  clone     Materialize configured references into the machine-wide store.
-  validate  Check agent-reference.json and report located errors.
+  get       Materialize one reference and print its path. A spec is a configured
+            reference name, a dependency name (version from the lockfile), a
+            name@version, github:owner/repo, owner/repo, a git URL, or file:../repo.
+            Works with no config and no project at all.
+  status    Report every configured reference: scope, state, and absolute path.
+            Declared-but-not-fetched is the normal state, not a problem.
+  clone     Bulk prefetch every configured reference, for CI or a long flight.
+  validate  Check agent-reference.json and agent-reference.local.json; flags
+            machine paths that do not belong in the committed file.
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
             checkouts unused for --days (default 30) and any repository left
-            with none; clone rebuilds anything it removes.
-
-A positional is a reference name, or a project directory / package.json path.
-With none, every configured reference is used.
+            with none; everything pruned is refetched on the next get.
 
 Options:
   --group <name>  Select every reference in a configured group. Repeatable.
@@ -257,9 +302,10 @@ Options:
   --prune         For store: delete stale checkouts.
   --days <n>      For store --prune: age threshold in days. Default 30.
 
-References are declared in agent-reference.json, which you edit directly. Run
-\`agent-reference schema\` for the format and \`agent-reference validate\` to check it.
-The store lives in ~/.agent-reference. Set AGENT_REFERENCE_STORE_DIR to move it.
+References are declared in agent-reference.json (committed, shareable) and
+agent-reference.local.json (gitignored, machine paths and private references).
+Edit the JSON directly; run \`agent-reference validate\` after. The store lives
+in ~/.agent-reference. Set AGENT_REFERENCE_STORE_DIR to move it.
 `;
 }
 

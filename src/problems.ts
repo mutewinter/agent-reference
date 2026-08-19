@@ -1,7 +1,9 @@
 import { bareRepositoryPathFor } from './git.ts';
 import type { AgentReferenceProblem, UnresolvedManifestReference } from './types.ts';
 
-export const CLONE_COMMAND: string = 'agent-reference clone';
+export function getCommand(name: string): string {
+  return `agent-reference get ${name}`;
+}
 
 /**
  * Whoever reports a failure has to report its fix too. An agent acts on the output of the
@@ -37,18 +39,18 @@ export function pinFix(
     ? `List the candidate tags with: git -C ${bareRepositoryPathFor(storeDir, repositoryUrl)} tag --list '*${version ?? ''}*'. Inspect a candidate with: git -C ${bareRepositoryPathFor(storeDir, repositoryUrl)} show <tag>:package.json.`
     : 'Inspect the source repository to find the release commit.';
 
-  return `${search} Pick the commit or tag that really is ${name}@${version ?? ''}, set packages.${name}.ref to it in ${configFile}, then run ${CLONE_COMMAND}. A pinned ref always wins over automatic resolution.`;
+  return `${search} Pick the commit or tag that really is ${name}@${version ?? ''}, set packages.${name}.ref to it in ${configFile}, then run ${getCommand(name)}. A pinned ref always wins over automatic resolution.`;
 }
 
 function unresolvedFix(failure: UnresolvedManifestReference, storeDir: string, configFile: string): string {
   if (failure.reason === 'no-repository') {
-    return `The registry has no repository for this package. Find its source repository, then set packages.${failure.name}.repository in ${configFile} (github:owner/repo or a git URL). Add "ref" too if the tags are unusual. Then run ${CLONE_COMMAND}.`;
+    return `The registry has no repository for this package. Find its source repository, then set packages.${failure.name}.repository in ${configFile} (github:owner/repo or a git URL). Add "ref" too if the tags are unusual. Then run ${getCommand(failure.name)}.`;
   }
   if (failure.reason === 'unresolved-ref') {
     return `The pinned packages.${failure.name}.ref does not exist in the repository. ${pinFix(failure.name, failure.version, failure.repositoryUrl, storeDir, configFile)}`;
   }
   if (failure.reason === 'registry-error') {
-    return `The registry lookup failed. If this package is private or unpublished, set both packages.${failure.name}.repository and packages.${failure.name}.ref in ${configFile} to skip the registry entirely. Otherwise check network access and run ${CLONE_COMMAND}.`;
+    return `The registry lookup failed. If this package is private or unpublished, set both packages.${failure.name}.repository and packages.${failure.name}.ref in ${configFile} to skip the registry entirely. Otherwise check network access and run ${getCommand(failure.name)}.`;
   }
   return pinFix(failure.name, failure.version, failure.repositoryUrl, storeDir, configFile);
 }

@@ -7,6 +7,7 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { cloneReferences } from '../src/core.ts';
+import { stateFilePath } from '../src/manifest.ts';
 import { getStatusReport } from '../src/status.ts';
 import type { AgentReferenceManifest } from '../src/types.ts';
 
@@ -53,8 +54,8 @@ test('editing the failed overrides makes the reference worth cloning again', asy
   });
 
   const retryReport = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir });
-  assert.equal(retryReport.references[0]?.status, 'missing');
-  assert.deepEqual(retryReport.nextSteps, ['agent-reference clone']);
+  assert.equal(retryReport.references[0]?.status, 'declared');
+  assert.match(retryReport.references[0]?.action ?? '', /agent-reference get orphan/);
 
   const clone = await cloneReferences(path.join(projectRoot, 'package.json'), { storeDir });
   assert.equal(clone.cloned[0]?.confidence, 'pinned');
@@ -64,7 +65,7 @@ test('editing the failed overrides makes the reference worth cloning again', asy
   assert.equal(readyReport.references[0]?.status, 'ready');
   assert.equal(readyReport.problems.length, 0);
 
-  const manifest = await readManifest(projectRoot);
+  const manifest = await readManifest(storeDir, projectRoot);
   assert.equal(manifest.unresolved, undefined);
 });
 
@@ -162,7 +163,6 @@ async function scenario(
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `agent-reference-${label}-test-`));
   const projectRoot = path.join(tempDir, 'project');
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), projectRoot, { recursive: true });
-  await fs.rm(path.join(projectRoot, 'agent-reference.lock.json'), { force: true });
   await writeConfig(projectRoot, config);
   return { projectRoot, storeDir: path.join(tempDir, 'store'), tempDir };
 }
@@ -171,10 +171,8 @@ async function writeConfig(projectRoot: string, config: Record<string, unknown>)
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify(config, null, 2));
 }
 
-async function readManifest(projectRoot: string): Promise<AgentReferenceManifest> {
-  return JSON.parse(
-    await fs.readFile(path.join(projectRoot, 'agent-reference.lock.json'), 'utf8')
-  ) as AgentReferenceManifest;
+async function readManifest(storeDir: string, projectRoot: string): Promise<AgentReferenceManifest> {
+  return JSON.parse(await fs.readFile(stateFilePath(storeDir, projectRoot), 'utf8')) as AgentReferenceManifest;
 }
 
 async function createPackageRepo(

@@ -30,6 +30,7 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
   assert.deepEqual(config.packages[0], {
     kind: 'package',
     name: 'react',
+    scope: 'shared',
     version: 'installed',
     ref: null,
     repository: null,

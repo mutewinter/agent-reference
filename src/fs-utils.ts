@@ -8,6 +8,15 @@ export function resolveConfigPath(projectRoot: string, cwd: string, configuredPa
   return path.resolve(cwd, configuredPath);
 }
 
+/** Folder reference paths accept `~/`, absolute, and project-relative forms. */
+export function resolveReferencePath(projectRoot: string, requested: string): string {
+  if (requested.startsWith('~/')) {
+    return path.join(os.homedir(), requested.slice(2));
+  }
+  if (path.isAbsolute(requested)) return requested;
+  return path.resolve(projectRoot, requested);
+}
+
 export async function pathExists(filePath: string): Promise<boolean> {
   try {
     await fs.access(filePath);

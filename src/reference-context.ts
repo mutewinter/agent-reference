@@ -4,6 +4,7 @@ import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
 import type {
   AgentReferenceConfig,
   LoadedAgentReferenceConfig,
+  PackageReference,
   ProjectContext,
   ScanProjectOptions
 } from './types.ts';
@@ -18,6 +19,8 @@ export interface LoadedReferenceContext {
   loadedConfig: LoadedAgentReferenceConfig | null;
   config: AgentReferenceConfig | undefined;
   configPackages: ConfigPackageReferences;
+  /** Every dependency the lockfile resolves, whether or not it is configured. */
+  installedPackages: PackageReference[];
 }
 
 export async function loadReferenceContext(
@@ -36,5 +39,5 @@ export async function loadReferenceContext(
     registry: options.registry ?? config?.registry
   });
 
-  return { cwd, project, loadedConfig, config, configPackages };
+  return { cwd, project, loadedConfig, config, configPackages, installedPackages };
 }
