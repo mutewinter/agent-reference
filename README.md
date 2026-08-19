@@ -45,7 +45,7 @@ Configuration is optional and holds what is worth remembering, not an inventory.
 same format:
 
 - `agent-reference.json`, committed. Anything fetchable and shareable: git repositories,
-  package pins, groups, descriptions.
+  package pins, sets, descriptions.
 - `agent-reference.local.json`, gitignored. Machine paths and private references.
   `validate` errors if an absolute or `~/` path appears in the committed file, so personal
   paths cannot reach a commit. Entries here override same-named committed entries.
@@ -61,27 +61,32 @@ same format:
   "git": {
     "typescript": "github:microsoft/TypeScript#main"
   },
-  "groups": {
-    "documentation": {
-      "description": "Read all of these before writing docs",
-      "references": ["design-notes", "typescript"]
+  "sets": [
+    {
+      "description": "Documentation sources to read before writing docs",
+      "folders": ["./references/style-guide"],
+      "git": ["github:acme/design-system#v4"]
     }
-  }
+  ]
 }
 ```
 
-Every reference is a shorthand string or an object adding `description` and `groups`.
-There are no commands for editing config; agents and humans write the JSON directly, and
-`validate` checks it (unknown keys are rejected with a suggestion).
+Every reference is a shorthand string or an object adding `description`. There are no
+commands for editing config; agents and humans write the JSON directly, and `validate`
+checks it (unknown keys are rejected with a suggestion).
 
 Dependencies need no entry at all: `get <name>` reads the lockfile at call time. A
 `packages` entry exists only when there is something to remember about one, a pin the
-resolver could not find, a description, or a group. `"installed"` follows the lockfile;
-an exact version, range, or dist-tag asks for that instead.
+resolver could not find, a description, or a place in a set. `"installed"` follows the
+lockfile; an exact version, range, or dist-tag asks for that instead.
 
-Groups give a set of references one name, so "read the documentation references" means
-something. Membership can be declared on the reference (`"groups": [...]`) or on the group
-(`"references": [...]`); both are unioned, and any kind can join a group.
+A set is a labeled list: a description saying what the collection is for, with members
+declared inline the way a human would paste them. Member names derive from the path or
+repository basename (override with `"name"` when two collide), the same reference may
+appear in several sets, and a set can mix folders, git repositories, and packages.
+`status` renders each set as its own section under its description, and `--set` selects
+one by its short `name` or any unambiguous piece of its description, so "the
+documentation sources" works in chat and on the command line alike.
 
 Other keys: `allImporters` to scan every workspace importer, `registry` for a private npm
 registry, `cacheDir` to move the store (an `agent-reference.local.json` with `cacheDir`

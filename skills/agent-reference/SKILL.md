@@ -15,8 +15,8 @@ agent-reference get vercel-labs/just-bash   # any GitHub repo; git URLs and file
 agent-reference get design-notes            # a configured reference, by name
 ```
 
-`agent-reference status` lists everything declared for this project with descriptions,
-groups, and paths. `declared` means not fetched yet, which is normal; nothing needs doing
+`agent-reference status` lists everything declared for this project, with each set
+rendered as a labeled list under its description. `declared` means not fetched yet, which is normal; nothing needs doing
 until the source is needed. Read `problems:` and `next steps:` first when they appear;
 they state the fix exactly, including JSON to add.
 
@@ -51,16 +51,18 @@ every edit. Route by what was pasted:
 
 | the user pastes | kind | file |
 | --- | --- | --- |
-| a dependency name | usually nothing: `get` already works; add a `packages` entry only for a pin, description, or group | `agent-reference.json` |
+| a dependency name | usually nothing: `get` already works; add a `packages` entry only for a pin, a description, or a place in a set | `agent-reference.json` |
 | a git URL or `owner/repo` | `git` | `agent-reference.json` |
 | a relative path inside the repo | `folders` | `agent-reference.json` |
 | an absolute or `~/` path | `folders` | `agent-reference.local.json`, always |
 
 `agent-reference.local.json` is gitignored and overrides same-named entries; machine paths
 and private references live there and never reach a commit (`validate` enforces this).
-Record the user's intent as a `description` on the reference or its group; descriptions
-are how instructions like "never mention this folder in committed code" travel to future
-agents. Groups name a set ("read the documentation references"); any kind can join one.
+Collections are sets: a labeled list with a `description` heading and members declared
+inline, mirroring how users paste these lists. When the user says "add this to the
+documentation sources", find the set whose description matches and append the member.
+Record intent as a `description` on the set or the reference; descriptions are how
+instructions like "never mention this folder in committed code" travel to future agents.
 
 A useful pattern for links, issues, and gathered research: create a folder, save the
 fetched material into it, and declare it as a folder reference with a description. The

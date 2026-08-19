@@ -4,17 +4,17 @@ export interface CliOptions {
   command: CliCommand;
   /** Reference names, or one project directory / package.json path. */
   positionals: string[];
-  groups: string[];
+  sets: string[];
   json: boolean;
   prune: boolean;
   days: number | null;
 }
 
 const COMMANDS = new Set<string>(['status', 'get', 'clone', 'validate', 'schema', 'store', 'help', 'version']);
-const VALID_OPTIONS = '--group <name>, --json, --prune, --days <n>';
+const VALID_OPTIONS = '--set <name-or-description>, --json, --prune, --days <n>';
 
 export function parseArgv(argv: string[]): CliOptions {
-  const options: CliOptions = { command: 'status', positionals: [], groups: [], json: false, prune: false, days: null };
+  const options: CliOptions = { command: 'status', positionals: [], sets: [], json: false, prune: false, days: null };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -37,8 +37,8 @@ export function parseArgv(argv: string[]): CliOptions {
       if (!Number.isFinite(value) || value < 0) throw new Error('--days requires a non-negative number');
       options.days = value;
       if (inlineValue === null) index += 1;
-    } else if (flag === '--group') {
-      options.groups.push(inlineValue ?? readFlagValue(argv, index, flag));
+    } else if (flag === '--set') {
+      options.sets.push(inlineValue ?? readFlagValue(argv, index, flag));
       if (inlineValue === null) index += 1;
     } else if (flag === '--non-interactive') {
       // Always true now. Accepted because agents type it by convention, and erroring on a

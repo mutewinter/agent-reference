@@ -3,7 +3,7 @@ import path from 'node:path';
 import { DEFAULT_CONFIG_FILE } from './config.ts';
 import { resolveConfigPath } from './fs-utils.ts';
 import { defaultStoreDir, ensureDependencyWorktree, ensureGitAvailable, ensureGitReferenceWorktree } from './git.ts';
-import { describeSelection, knownSelectorsMessage, selectionFilter } from './groups.ts';
+import { describeSelection, knownSelectorsMessage, selectionFilter } from './sets.ts';
 import { writeManifest } from './manifest.ts';
 import { unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';

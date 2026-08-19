@@ -15,13 +15,19 @@
       "description": "npm ecosystem packages to materialize, keyed by package name.",
       "additionalProperties": {
         "oneOf": [
-          { "$ref": "#/$defs/packageVersion" },
+          {
+            "$ref": "#/$defs/packageVersion"
+          },
           {
             "type": "object",
             "additionalProperties": false,
-            "required": ["version"],
+            "required": [
+              "version"
+            ],
             "properties": {
-              "version": { "$ref": "#/$defs/packageVersion" },
+              "version": {
+                "$ref": "#/$defs/packageVersion"
+              },
               "ref": {
                 "type": "string",
                 "description": "Commit, tag, or branch to check out, overriding automatic version resolution. Use this when a repository's tagging scheme cannot be guessed; a pinned ref always wins."
@@ -34,8 +40,9 @@
                 "type": "string",
                 "description": "Package subdirectory within the repository, for monorepos where it cannot be detected."
               },
-              "description": { "$ref": "#/$defs/description" },
-              "groups": { "$ref": "#/$defs/groupNames" }
+              "description": {
+                "$ref": "#/$defs/description"
+              }
             }
           }
         ]
@@ -43,8 +50,15 @@
       "examples": [
         {
           "react": "installed",
-          "zod": { "version": "3.25.0", "description": "Schema shapes we mirror in our own validators", "groups": ["validation"] },
-          "odd-tags": { "version": "2.1.0", "ref": "release-2.1.0", "description": "Pinned by hand: tags do not follow any known pattern" }
+          "zod": {
+            "version": "3.25.0",
+            "description": "Schema shapes we mirror in our own validators"
+          },
+          "odd-tags": {
+            "version": "2.1.0",
+            "ref": "release-2.1.0",
+            "description": "Pinned by hand: tags do not follow any known pattern"
+          }
         }
       ]
     },
@@ -53,15 +67,25 @@
       "description": "Local folders that should show up as agent references, keyed by shorthand name.",
       "additionalProperties": {
         "oneOf": [
-          { "type": "string", "minLength": 1, "description": "Path to the folder. Relative paths resolve from the project root; ~/ resolves from the home directory." },
+          {
+            "type": "string",
+            "minLength": 1,
+            "description": "Path to the folder. Relative paths resolve from the project root; ~/ resolves from the home directory."
+          },
           {
             "type": "object",
             "additionalProperties": false,
-            "required": ["path"],
+            "required": [
+              "path"
+            ],
             "properties": {
-              "path": { "type": "string", "minLength": 1 },
-              "description": { "$ref": "#/$defs/description" },
-              "groups": { "$ref": "#/$defs/groupNames" }
+              "path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": {
+                "$ref": "#/$defs/description"
+              }
             }
           }
         ]
@@ -69,7 +93,10 @@
       "examples": [
         {
           "design-notes": "./references/design-notes",
-          "api-docs": { "path": "../platform/docs", "description": "Source of truth for endpoint contracts", "groups": ["documentation"] }
+          "api-docs": {
+            "path": "../platform/docs",
+            "description": "Source of truth for endpoint contracts"
+          }
         }
       ]
     },
@@ -78,16 +105,30 @@
       "description": "Arbitrary git repositories to materialize, keyed by shorthand name.",
       "additionalProperties": {
         "oneOf": [
-          { "type": "string", "minLength": 1, "description": "github:owner/repo#ref, a git URL with an optional #ref, or file:../repo#ref." },
+          {
+            "type": "string",
+            "minLength": 1,
+            "description": "github:owner/repo#ref, a git URL with an optional #ref, or file:../repo#ref."
+          },
           {
             "type": "object",
             "additionalProperties": false,
-            "required": ["repository"],
+            "required": [
+              "repository"
+            ],
             "properties": {
-              "repository": { "type": "string", "minLength": 1, "description": "github:owner/repo, a git URL, or file:../repo." },
-              "ref": { "type": "string", "description": "Branch, tag, or commit. Defaults to the repository default branch." },
-              "description": { "$ref": "#/$defs/description" },
-              "groups": { "$ref": "#/$defs/groupNames" }
+              "repository": {
+                "type": "string",
+                "minLength": 1,
+                "description": "github:owner/repo, a git URL, or file:../repo."
+              },
+              "ref": {
+                "type": "string",
+                "description": "Branch, tag, or commit. Defaults to the repository default branch."
+              },
+              "description": {
+                "$ref": "#/$defs/description"
+              }
             }
           }
         ]
@@ -95,32 +136,11 @@
       "examples": [
         {
           "typescript": "github:microsoft/TypeScript#main",
-          "design-system": { "repository": "github:acme/design-system", "ref": "v4", "groups": ["documentation"] }
-        }
-      ]
-    },
-    "groups": {
-      "type": "object",
-      "description": "Shorthand names for sets of references. Membership can be declared here or with `groups` on each reference; both are unioned.",
-      "additionalProperties": {
-        "oneOf": [
-          { "type": "string", "description": "Description of the group." },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "description": { "$ref": "#/$defs/description" },
-              "references": {
-                "type": "array",
-                "description": "Reference names in this group. Use `kind:name` (package:react, folder:api-docs, git:typescript) to disambiguate a name used by more than one kind.",
-                "items": { "type": "string", "minLength": 1 }
-              }
-            }
+          "design-system": {
+            "repository": "github:acme/design-system",
+            "ref": "v4"
           }
-        ]
-      },
-      "examples": [
-        { "documentation": { "description": "Everything to consult before writing docs", "references": ["api-docs", "design-notes", "git:design-system"] } }
+        }
       ]
     },
     "allPackages": {
@@ -142,6 +162,156 @@
     "cacheDir": {
       "type": "string",
       "description": "Override the machine-wide store location for bare repositories and shared worktrees."
+    },
+    "sets": {
+      "type": "array",
+      "description": "Labeled lists of references: a description saying what the collection is for, with members declared inline. Member names derive from the path or repository basename. The same reference may appear in several sets.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "description"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Optional short handle for CLI selection (--set <name>). The description is the display heading either way."
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "description": "What this collection is for; doubles as the heading in status output."
+          },
+          "folders": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Path to the folder."
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "path"
+                  ],
+                  "properties": {
+                    "path": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Explicit reference name, overriding the one derived from the path or repository basename."
+                    },
+                    "description": {
+                      "$ref": "#/$defs/description"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "git": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "github:owner/repo#ref, a git URL with an optional #ref, or file:../repo#ref."
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "repository"
+                  ],
+                  "properties": {
+                    "repository": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "ref": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Explicit reference name, overriding the one derived from the path or repository basename."
+                    },
+                    "description": {
+                      "$ref": "#/$defs/description"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "packages": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Package name; the version follows the lockfile."
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "name"
+                  ],
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "version": {
+                      "$ref": "#/$defs/packageVersion"
+                    },
+                    "ref": {
+                      "type": "string"
+                    },
+                    "repository": {
+                      "type": "string"
+                    },
+                    "directory": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "$ref": "#/$defs/description"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "examples": [
+        [
+          {
+            "description": "Documentation sources to read before writing docs",
+            "folders": [
+              "./references/design-notes",
+              {
+                "path": "../platform/docs",
+                "name": "api-docs",
+                "description": "Source of truth for endpoint contracts"
+              }
+            ],
+            "git": [
+              "github:acme/design-system#v4"
+            ]
+          }
+        ]
+      ]
     }
   },
   "$defs": {
@@ -153,13 +323,6 @@
     "description": {
       "type": "string",
       "description": "Free-form note explaining what this reference is for. Shown to agents in `agent-reference status`."
-    },
-    "groupNames": {
-      "oneOf": [
-        { "type": "string" },
-        { "type": "array", "items": { "type": "string", "minLength": 1 } }
-      ],
-      "description": "Group shorthand names this reference belongs to."
     }
   }
 }

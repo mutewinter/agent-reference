@@ -104,7 +104,8 @@ export interface GitReferenceWorktreeResult {
 /** Empty selects every configured reference. */
 export interface ReferenceSelectionOptions {
   references?: string[];
-  groups?: string[];
+  /** Set labels: a set's name, its exact description, or an unambiguous substring of it. */
+  sets?: string[];
 }
 
 export interface CloneReferencesOptions
@@ -225,7 +226,8 @@ export interface AgentReferenceStatusEntry {
   description: string | null;
   /** Which config file declared this reference: committed (`shared`) or gitignored (`local`). */
   scope: ConfigScope | null;
-  groups: string[];
+  /** Labels of the sets this reference belongs to. */
+  sets: string[];
   requested: string | null;
   packageManager: PackageManager | null;
   currentVersion: string | null;
@@ -254,9 +256,9 @@ export interface AgentReferenceProblem {
   configPatch: Record<string, unknown> | null;
 }
 
-export interface AgentReferenceStatusGroup {
-  name: string;
-  description: string | null;
+export interface AgentReferenceStatusSet {
+  name: string | null;
+  description: string;
   references: string[];
 }
 
@@ -268,7 +270,7 @@ export interface AgentReferenceStatusReport {
   manifestPath: string | null;
   /** Lockfile dependencies available to `get` whether or not they are configured. */
   installedPackageCount: number;
-  groups: AgentReferenceStatusGroup[];
+  sets: AgentReferenceStatusSet[];
   references: AgentReferenceStatusEntry[];
   problems: AgentReferenceProblem[];
   /** Commands to run now, in order. Empty when every reference is usable. */
@@ -292,7 +294,8 @@ export interface ConfiguredPackageReference {
   /** Package subdirectory within the repository, for monorepos the resolver misreads. */
   directory: string | null;
   description: string | null;
-  groups: string[];
+  /** Labels of the sets this reference was declared inside. */
+  sets: string[];
 }
 
 export interface ConfiguredFolderReference {
@@ -301,7 +304,7 @@ export interface ConfiguredFolderReference {
   scope: ConfigScope;
   path: string;
   description: string | null;
-  groups: string[];
+  sets: string[];
 }
 
 export interface ConfiguredGitReference {
@@ -310,10 +313,10 @@ export interface ConfiguredGitReference {
   scope: ConfigScope;
   repository: string;
   ref: string | null;
-  /** Canonical `repository#ref` form. Recorded in the lockfile so drift is detectable. */
+  /** Canonical `repository#ref` form. Recorded in the state file so drift is detectable. */
   spec: string;
   description: string | null;
-  groups: string[];
+  sets: string[];
 }
 
 export type ConfiguredReference =
@@ -321,28 +324,32 @@ export type ConfiguredReference =
   | ConfiguredFolderReference
   | ConfiguredGitReference;
 
-export interface ConfiguredGroup {
-  name: string;
-  description: string | null;
-  references: string[];
+/**
+ * A set is a labeled list: a description saying what the collection is for, holding
+ * references declared inline. The description doubles as the display heading; `name` is an
+ * optional short handle for CLI selection.
+ */
+export interface ConfiguredSet {
+  name: string | null;
+  description: string;
 }
 
-export interface ReferenceGroupMember {
+export interface ReferenceSetMember {
   kind: AgentReferenceKind;
   name: string;
 }
 
-export interface ReferenceGroup {
-  name: string;
-  description: string | null;
-  members: ReferenceGroupMember[];
+export interface ReferenceSet {
+  name: string | null;
+  description: string;
+  members: ReferenceSetMember[];
 }
 
 export interface AgentReferenceConfig {
   packages: ConfiguredPackageReference[];
   folders: ConfiguredFolderReference[];
   git: ConfiguredGitReference[];
-  groups: ConfiguredGroup[];
+  sets: ConfiguredSet[];
   allImporters?: boolean;
   registry?: string;
   cacheDir?: string;

@@ -106,6 +106,13 @@ export function repositoryCacheParts(repoUrl: string): string[] {
   return [safePathPart(parsed.hostname), ...parts, `${repo}.git`];
 }
 
+/** Short display name for a repository spec: the basename, minus any #ref and .git. */
+export function repositoryNameFromSpec(spec: string): string {
+  const withoutRef = stripHash(spec).replace(/\\/g, '/').replace(/\/+$/, '');
+  const base = withoutRef.slice(withoutRef.lastIndexOf('/') + 1);
+  return base.replace(/\.git$/, '') || withoutRef;
+}
+
 function stripHash(url: string): string {
   const hashIndex = url.indexOf('#');
   return hashIndex === -1 ? url : url.slice(0, hashIndex);

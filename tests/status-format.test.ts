@@ -6,23 +6,26 @@ import type { AgentReferenceStatusEntry, AgentReferenceStatusReport } from '../s
 
 const PLAIN = { color: false, tilde: false } as const;
 
-test('groups references under the config file that declared them, no placeholder cells', () => {
+test('renders scope sections with sets as labeled-list subsections', () => {
   const output = formatStatusReport(
-    report([
-      entry({ kind: 'git', name: 'chess-engine', scope: 'shared', status: 'declared', requested: 'github:acme/chess-engine', groups: ['engines'] }),
-      entry({
-        kind: 'folder',
-        name: 'design-notes',
-        scope: 'local',
-        status: 'ready',
-        path: '/refs/design-notes',
-        description: 'Sketches and early notes'
-      })
-    ]),
+    report(
+      [
+        entry({ kind: 'git', name: 'chess-engine', scope: 'shared', status: 'declared', requested: 'github:acme/chess-engine', sets: ['engines'] }),
+        entry({
+          kind: 'folder',
+          name: 'design-notes',
+          scope: 'local',
+          status: 'ready',
+          path: '/refs/design-notes',
+          description: 'Sketches and early notes'
+        })
+      ],
+      { sets: [{ name: 'engines', description: 'Engines we study upstream', references: ['git:chess-engine'] }] }
+    ),
     PLAIN
   );
 
-  assert.match(output, /agent-reference\.json \(shared\)\n  chess-engine {2,}git · declared · github:acme\/chess-engine · engines/);
+  assert.match(output, /agent-reference\.json \(shared\)\n  Engines we study upstream\n    chess-engine {2,}git · declared · github:acme\/chess-engine/);
   assert.match(output, /agent-reference\.local\.json \(this machine\)\n  design-notes {2,}folder · ready · \/refs\/design-notes/);
   assert.match(output, /"Sketches and early notes"/);
   assert.doesNotMatch(output, / - /);
@@ -89,7 +92,7 @@ function report(
     localConfigPath: '/project/agent-reference.local.json',
     manifestPath: null,
     installedPackageCount: 0,
-    groups: [],
+    sets: [],
     references,
     problems: [],
     nextSteps: [],
@@ -102,7 +105,7 @@ function entry(input: Partial<AgentReferenceStatusEntry> & Pick<AgentReferenceSt
   return {
     description: null,
     scope: null,
-    groups: [],
+    sets: [],
     requested: null,
     packageManager: null,
     currentVersion: null,

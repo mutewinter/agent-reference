@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { loadAgentReferenceConfig } from './config.ts';
 import { pathExists } from './fs-utils.ts';
-import { configuredReferences, resolveReferenceGroups } from './groups.ts';
+import { configuredReferences, resolveSets, setMemberKey } from './sets.ts';
 import { resolveProjectInput } from './scanner.ts';
 import type { AgentReferenceKind } from './types.ts';
 
@@ -19,9 +19,9 @@ export interface ValidationReport {
     kind: AgentReferenceKind;
     name: string;
     description: string | null;
-    groups: string[];
+    sets: string[];
   }>;
-  groups: Array<{ name: string; description: string | null; references: string[] }>;
+  sets: Array<{ name: string | null; description: string; references: string[] }>;
 }
 
 /**
@@ -42,7 +42,7 @@ export async function validateConfig(
     errors: [],
     warnings: [],
     references: [],
-    groups: []
+    sets: []
   };
 
   let loaded;
@@ -68,23 +68,18 @@ export async function validateConfig(
     kind: reference.kind,
     name: reference.name,
     description: reference.description,
-    groups: reference.groups
+    sets: reference.sets
   }));
 
-  try {
-    report.groups = resolveReferenceGroups(loaded.config).map((group) => ({
-      name: group.name,
-      description: group.description,
-      references: group.members.map((member) => `${member.kind}:${member.name}`)
-    }));
-  } catch (error) {
-    report.errors.push(error instanceof Error ? error.message : String(error));
-    return report;
-  }
+  report.sets = resolveSets(loaded.config).map((set) => ({
+    name: set.name,
+    description: set.description,
+    references: set.members.map(setMemberKey)
+  }));
 
-  for (const group of report.groups) {
-    if (group.references.length === 0) {
-      report.warnings.push(`Group "${group.name}" has no members. Add "groups": ["${group.name}"] to a reference.`);
+  for (const set of report.sets) {
+    if (set.references.length === 0) {
+      report.warnings.push(`Set "${set.description}" has no members. Add folders, git, or packages entries inside it.`);
     }
   }
 
@@ -95,7 +90,7 @@ export async function validateConfig(
   for (const [name, kinds] of namesByKind) {
     if (kinds.length > 1) {
       report.warnings.push(
-        `"${name}" is used by ${kinds.join(' and ')} references. Qualify it as ${kinds[0]}:${name} in group membership.`
+        `"${name}" is used by ${kinds.join(' and ')} references. Qualify it as ${kinds[0]}:${name} when selecting it.`
       );
     }
   }

@@ -51,20 +51,19 @@ export function formatStatusReport(report: AgentReferenceStatusReport, options: 
   const shared = report.references.filter((entry) => entry.scope !== 'local');
   const local = report.references.filter((entry) => entry.scope === 'local');
   if (shared.length > 0) {
-    sections.push(scopeSection(fileLabel(report.configPath, 'agent-reference.json', 'shared'), shared, options));
+    sections.push(
+      scopeSection(fileLabel(report.configPath, 'agent-reference.json', 'shared'), shared, report.sets, options)
+    );
   }
   if (local.length > 0) {
     sections.push(
-      scopeSection(fileLabel(report.localConfigPath, 'agent-reference.local.json', 'this machine'), local, options)
+      scopeSection(
+        fileLabel(report.localConfigPath, 'agent-reference.local.json', 'this machine'),
+        local,
+        report.sets,
+        options
+      )
     );
-  }
-
-  if (report.groups.length > 0) {
-    const width = Math.max(...report.groups.map((group) => group.name.length)) + 2;
-    const lines = report.groups.map(
-      (group) => `  ${group.name.padEnd(width)}${group.description ?? `(${group.references.length} references)`}`
-    );
-    sections.push(`${paint('groups', 'dim', options.color)}\n${lines.join('\n')}\n`);
   }
 
   const footer = footerLine(report, options);
@@ -90,20 +89,49 @@ export function formatProblem(problem: AgentReferenceProblem): string {
   return lines.join('\n');
 }
 
-function scopeSection(header: string, entries: AgentReferenceStatusEntry[], options: StatusFormatOptions): string {
-  const width = Math.max(...entries.map((entry) => entry.name.length)) + 2;
+/**
+ * Sets render as their own subsections, headed by the set's description, so the output
+ * reads the way the collections were written: a labeled list. An entry belonging to two
+ * sets appears under both, which is repetition, not state.
+ */
+function scopeSection(
+  header: string,
+  entries: AgentReferenceStatusEntry[],
+  sets: AgentReferenceStatusReport['sets'],
+  options: StatusFormatOptions
+): string {
   const lines = [paint(header, 'dim', options.color)];
 
-  for (const entry of entries) {
-    const fragments = [entry.kind, paintStatus(entry, options.color), ...primaryFragments(entry, options)];
-    if (entry.groups.length > 0) fragments.push(entry.groups.join(','));
-    lines.push(`  ${entry.name.padEnd(width)}${fragments.join(' · ')}`);
-    if (entry.description) {
-      lines.push(`  ${' '.repeat(width)}${paint(`"${entry.description}"`, 'dim', options.color)}`);
-    }
+  const unset = entries.filter((entry) => entry.sets.length === 0);
+  lines.push(...entryLines(unset, 2, options));
+
+  for (const set of sets) {
+    const label = set.name ?? set.description;
+    const members = entries.filter((entry) => entry.sets.includes(label));
+    if (members.length === 0) continue;
+    if (lines.length > 1) lines.push('');
+    lines.push(`  ${set.description}`);
+    lines.push(...entryLines(members, 4, options));
   }
 
   return `${lines.join('\n')}\n`;
+}
+
+function entryLines(entries: AgentReferenceStatusEntry[], indent: number, options: StatusFormatOptions): string[] {
+  if (entries.length === 0) return [];
+  const width = Math.max(...entries.map((entry) => entry.name.length)) + 2;
+  const pad = ' '.repeat(indent);
+  const lines: string[] = [];
+
+  for (const entry of entries) {
+    const fragments = [entry.kind, paintStatus(entry, options.color), ...primaryFragments(entry, options)];
+    lines.push(`${pad}${entry.name.padEnd(width)}${fragments.join(' · ')}`);
+    if (entry.description) {
+      lines.push(`${pad}${' '.repeat(width)}${paint(`"${entry.description}"`, 'dim', options.color)}`);
+    }
+  }
+
+  return lines;
 }
 
 /** The datum that matters for this entry right now; never a `-` placeholder. */

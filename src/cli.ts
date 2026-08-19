@@ -34,7 +34,7 @@ async function main(argv: string[]): Promise<void> {
       return;
     case 'status': {
       const { projectPath, references } = await splitPositionals(options);
-      const report = await getStatusReport(projectPath, { references, groups: options.groups });
+      const report = await getStatusReport(projectPath, { references, sets: options.sets });
       const humanOutput = Boolean(process.stdout.isTTY);
       write(options, report, (result) =>
         formatStatusReport(result, { color: humanOutput && !process.env.NO_COLOR, tilde: humanOutput })
@@ -50,7 +50,7 @@ async function main(argv: string[]): Promise<void> {
     }
     case 'clone': {
       const { projectPath, references } = await splitPositionals(options);
-      const result = await cloneReferences(projectPath, { references, groups: options.groups });
+      const result = await cloneReferences(projectPath, { references, sets: options.sets });
       write(options, result, formatCloneResult);
       return;
     }
@@ -172,8 +172,8 @@ function formatValidationReport(report: ValidationReport): string {
 
   if (report.valid) {
     const references = report.references.length === 1 ? '1 reference' : `${report.references.length} references`;
-    const groups = report.groups.length === 1 ? '1 group' : `${report.groups.length} groups`;
-    lines.push(`ok: ${displayPath(report.configPath ?? report.localConfigPath)} defines ${references} in ${groups}.`);
+    const sets = report.sets.length === 1 ? '1 set' : `${report.sets.length} sets`;
+    lines.push(`ok: ${displayPath(report.configPath ?? report.localConfigPath)} defines ${references} in ${sets}.`);
   }
 
   return `${lines.join('\n')}\n`;
@@ -188,8 +188,8 @@ fetched until asked for.
 
 Usage:
   agent-reference get <spec>... [--json]
-  agent-reference status [reference...] [--group <name>] [--json]
-  agent-reference clone  [reference...] [--group <name>] [--json]
+  agent-reference status [reference...] [--set <name>] [--json]
+  agent-reference clone  [reference...] [--set <name>] [--json]
   agent-reference validate
   agent-reference schema
   agent-reference store [--prune] [--days <n>]
@@ -210,7 +210,8 @@ Commands:
             with none; everything pruned is refetched on the next get.
 
 Options:
-  --group <name>  Select every reference in a configured group. Repeatable.
+  --set <name>    Select every reference in a set, by the set's name or an
+                  unambiguous piece of its description. Repeatable.
   --json          Print machine-readable JSON.
   --prune         For store: delete stale checkouts.
   --days <n>      For store --prune: age threshold in days. Default 30.

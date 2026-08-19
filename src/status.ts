@@ -5,11 +5,11 @@ import { defaultStoreDir, manifestReferencePath, resolvePackagePath } from './gi
 import {
   configuredReferences,
   describeSelection,
-  groupMemberKey,
   knownSelectorsMessage,
-  resolveReferenceGroups,
-  selectionFilter
-} from './groups.ts';
+  resolveSets,
+  selectionFilter,
+  setMemberKey
+} from './sets.ts';
 import { readManifest } from './manifest.ts';
 import { getCommand, pinFix, unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';
@@ -136,10 +136,10 @@ export async function getStatusReport(
     localConfigPath: loadedConfig?.localPath ?? null,
     manifestPath: loadedManifest?.path ?? null,
     installedPackageCount: installedPackages.length,
-    groups: resolveReferenceGroups(config).map((group) => ({
-      name: group.name,
-      description: group.description,
-      references: group.members.map(groupMemberKey)
+    sets: resolveSets(config).map((set) => ({
+      name: set.name,
+      description: set.description,
+      references: set.members.map(setMemberKey)
     })),
     references,
     problems,
@@ -238,25 +238,17 @@ function pinPatch(entry: AgentReferenceStatusEntry): Record<string, unknown> {
 interface ReferenceAnnotation {
   description: string | null;
   scope: ConfigScope;
-  groups: string[];
+  sets: string[];
 }
 
-/** Group members are always configured references, so the config is the whole key set. */
+/** Set membership rides on each parsed reference, so the config is the whole key set. */
 function referenceAnnotations(config: AgentReferenceConfig | undefined): Map<string, ReferenceAnnotation> {
-  const annotations = new Map<string, ReferenceAnnotation>(
+  return new Map<string, ReferenceAnnotation>(
     configuredReferences(config).map((reference) => [
       `${reference.kind}:${reference.name}`,
-      { description: reference.description, scope: reference.scope, groups: [] }
+      { description: reference.description, scope: reference.scope, sets: reference.sets }
     ])
   );
-
-  for (const group of resolveReferenceGroups(config)) {
-    for (const member of group.members) {
-      annotations.get(groupMemberKey(member))?.groups.push(group.name);
-    }
-  }
-
-  return annotations;
 }
 
 type StatusEntryInput = Partial<AgentReferenceStatusEntry> &
@@ -267,7 +259,7 @@ function statusEntry(input: StatusEntryInput): AgentReferenceStatusEntry {
   return {
     description: null,
     scope: null,
-    groups: [],
+    sets: [],
     requested: null,
     packageManager: null,
     currentVersion: null,
@@ -303,7 +295,7 @@ async function buildPackageStatus(
     name: dependency.name,
     description: annotation?.description ?? null,
     scope: annotation?.scope ?? null,
-    groups: annotation?.groups ?? [],
+    sets: annotation?.sets ?? [],
     requested: dependency.specifier,
     packageManager: dependency.packageManager,
     currentVersion: dependency.version,
@@ -333,7 +325,7 @@ async function buildFolderStatus(
     name: folder.name,
     description: folder.description,
     scope: folder.scope,
-    groups: annotation?.groups ?? [],
+    sets: annotation?.sets ?? [],
     requested: folder.path,
     path: resolvedPath,
     status: ready ? 'ready' : 'missing',
@@ -356,7 +348,7 @@ async function buildGitStatus(
     name: reference.name,
     description: reference.description,
     scope: reference.scope,
-    groups: annotation?.groups ?? [],
+    sets: annotation?.sets ?? [],
     requested: reference.spec,
     path: referencePath,
     repositoryPath: referencePath,
