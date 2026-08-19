@@ -87,6 +87,10 @@ Other keys: `allImporters` to scan every workspace importer, `registry` for a pr
 registry, `cacheDir` to move the store (an `agent-reference.local.json` with `cacheDir`
 inside the project keeps every checkout under a sandboxed agent's readable root).
 
+Any directory is a project: the nearest config (walking up) anchors it, and a Node
+lockfile is optional. In a Python repo, a Rust repo, or a plain folder, `folders` and
+`git` references work exactly the same; only package references need a lockfile.
+
 ## How versions resolve
 
 Package versions come from the lockfile (PNPM, npm, Bun text lockfiles, and Yarn), read at
