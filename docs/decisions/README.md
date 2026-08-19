@@ -12,3 +12,4 @@ never rewritten; strike a superseded row here and link its replacement.
 | 2026-08-19 | [Two config scopes with a leak guardrail; no links kind](2026-08-19-scopes-and-no-links-kind.md) |
 | 2026-08-19 | [Any directory is a project](2026-08-19-any-directory-is-a-project.md) |
 | 2026-08-19 | [Sets replace groups](2026-08-19-sets-replace-groups.md) |
+| 2026-08-19 | [Locating a reference is its own verb](2026-08-19-locating-is-a-verb.md) |

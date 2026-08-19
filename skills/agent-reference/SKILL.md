@@ -1,6 +1,6 @@
 ---
 name: agent-reference
-description: Get readable upstream source on demand - any dependency at its exact installed version, any git repository, any declared local folder - by name, via the agent-reference CLI. Use whenever a task needs to look inside a library rather than just call it ("how does X actually implement this", "how do the maintainers test X", "why does X behave this way", "look at this library I might adopt"), whenever the user asks to add something as a reference, and whenever a repo contains agent-reference.json or agent-reference.local.json.
+description: Get readable upstream source on demand - any dependency at its exact installed version, any git repository, any declared local folder - by name, via the agent-reference CLI. Use whenever a task needs to look inside a library rather than just call it ("how does X actually implement this", "how do the maintainers test X", "why does X behave this way", "look at this library I might adopt"), whenever the user asks to add something as a reference, whenever the user names a repository, app, or folder that is not in this repo and gives no path for it, and whenever a repo contains agent-reference.json or agent-reference.local.json.
 ---
 
 # agent-reference
@@ -19,6 +19,14 @@ agent-reference get design-notes            # a configured reference, by name
 rendered as a labeled list under its description. `declared` means not fetched yet, which is normal; nothing needs doing
 until the source is needed. Read `problems:` and `next steps:` first when they appear;
 they state the fix exactly, including JSON to add.
+
+## Finding where something is
+
+When the user names a repository, app, or folder and you have no path for it, read
+`agent-reference.json` and `agent-reference.local.json` directly. They are the index:
+names, paths, and descriptions, resolved without fetching anything or running a command.
+A name that is not there is not declared, so say so and ask for the path rather than
+searching the filesystem for it. `get` is for when you need the source itself.
 
 ## When to use this instead of node_modules
 
