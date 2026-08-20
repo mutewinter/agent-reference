@@ -24,7 +24,12 @@ export async function scanNpmDependencies(context: LockfileProjectContext): Prom
   });
 }
 
+/**
+ * package-lock.json keys are always slash-separated, on every platform. path.join emits
+ * backslashes on Windows, so every lookup missed there and every npm dependency read as
+ * not installed.
+ */
 function nodeModulesPackagePath(importer: string, name: string): string {
   const parts = importer === '.' ? [] : [importer];
-  return path.join(...parts, 'node_modules', ...name.split('/'));
+  return path.posix.join(...parts, 'node_modules', ...name.split('/'));
 }

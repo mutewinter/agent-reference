@@ -44,9 +44,50 @@ async function readBunLock(lockfilePath: string): Promise<BunLock> {
   return JSON.parse(stripJsonCommentsAndTrailingCommas(raw)) as BunLock;
 }
 
+/**
+ * bun.lock is JSONC. Stripping comments with regular expressions cannot tell a comment from
+ * the same characters inside a string, and a dependency descriptor holding `//` or `,}` is
+ * ordinary: any URL does. This walks the text instead, so only characters outside a string
+ * are ever considered, and every byte of a string value survives verbatim.
+ */
 function stripJsonCommentsAndTrailingCommas(raw: string): string {
-  return raw
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/(^|[^:])\/\/.*$/gm, '$1')
-    .replace(/,\s*([}\]])/g, '$1');
+  let out = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < raw.length; index += 1) {
+    const char = raw[index] as string;
+
+    if (inString) {
+      out += char;
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      out += char;
+      continue;
+    }
+
+    const next = raw[index + 1];
+    if (char === '/' && next === '/') {
+      while (index < raw.length && raw[index] !== '\n') index += 1;
+      out += '\n';
+      continue;
+    }
+    if (char === '/' && next === '*') {
+      index += 2;
+      while (index < raw.length && !(raw[index] === '*' && raw[index + 1] === '/')) index += 1;
+      index += 1;
+      continue;
+    }
+
+    out += char;
+  }
+
+  // Safe now that strings are known: only structural commas are left to consider.
+  return out.replace(/,(\s*[}\]])/g, '$1');
 }

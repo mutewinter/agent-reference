@@ -60,7 +60,11 @@ export async function resolveProjectInput(
     packageJsonPath,
     lockfilePath: lockfile?.path ?? null,
     packageManager: lockfile?.packageManager ?? 'unknown',
-    importer: lockfile ? path.relative(path.dirname(lockfile.path), packageDir) || '.' : '.'
+    // Lockfile importer keys are slash-separated whatever the platform, so the relative path
+    // has to be rejoined rather than used as the OS wrote it.
+    importer: lockfile
+      ? path.relative(path.dirname(lockfile.path), packageDir).split(path.sep).join('/') || '.'
+      : '.'
   };
 }
 
