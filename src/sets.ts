@@ -1,3 +1,4 @@
+import { CLI_COMMANDS } from './args.ts';
 import { setLabel } from './config.ts';
 import type {
   AgentReferenceConfig,
@@ -104,6 +105,19 @@ export function knownSelectorsMessage(
   if (sets.length > 0) parts.push(knownSetsMessage(sets));
 
   return parts.join(' ');
+}
+
+/**
+ * The shape a newer instruction takes when it reaches an older CLI: a command this build
+ * does not have is not rejected, it falls through to the default command and is read as a
+ * reference name, so the failure blames the config. Nothing local can prove that is what
+ * happened, so this offers the other reading rather than asserting it.
+ */
+export function unknownCommandHint(selectors: string[]): string | null {
+  const words = selectors.filter((value) => /^[a-z][a-z-]*$/.test(value) && !CLI_COMMANDS.includes(value));
+  if (words.length === 0) return null;
+
+  return `If ${words.map((word) => `"${word}"`).join(' or ')} was meant as a command, this build does not have it; it has ${CLI_COMMANDS.join(', ')}. Instructions naming a command this CLI lacks are newer than the CLI.`;
 }
 
 function knownSetsMessage(sets: ReferenceSet[]): string {

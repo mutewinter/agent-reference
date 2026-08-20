@@ -9,7 +9,13 @@ import {
   ensureGitReferenceWorktree,
   UnsafeGitValueError
 } from './git.ts';
-import { describeSelection, knownSelectorsMessage, selectionFilter } from './sets.ts';
+import {
+  describeSelection,
+  knownSelectorsMessage,
+  selectionFilter,
+  splitSelectors,
+  unknownCommandHint
+} from './sets.ts';
 import { writeManifest } from './manifest.ts';
 import { unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';
@@ -45,7 +51,13 @@ export async function cloneReferences(
   if (packages.length === 0 && gitReferences.length === 0 && folders.length === 0) {
     throw new Error(
       filter
-        ? `Nothing matched ${describeSelection(options)}. ${knownSelectorsMessage(config)}`
+        ? [
+            `Nothing matched ${describeSelection(options)}.`,
+            knownSelectorsMessage(config),
+            unknownCommandHint(splitSelectors(options.references))
+          ]
+            .filter(Boolean)
+            .join(' ')
         : `No references configured. Add packages, folders, or git entries to ${loadedConfig?.path ?? DEFAULT_CONFIG_FILE}.`
     );
   }

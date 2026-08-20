@@ -21,10 +21,11 @@ export interface CliOptions {
   days: number | null;
 }
 
-const COMMANDS = new Set<string>([
-  'status',
+/** Every verb this build answers to. Ordered as the help lists them. */
+export const CLI_COMMANDS: readonly string[] = [
   'get',
   'versions',
+  'status',
   'clone',
   'init',
   'validate',
@@ -33,7 +34,9 @@ const COMMANDS = new Set<string>([
   'store',
   'help',
   'version'
-]);
+];
+
+const COMMANDS = new Set<string>(CLI_COMMANDS);
 const VALID_OPTIONS = '--set <name-or-description>, --json, --prune, --days <n>';
 
 export function parseArgv(argv: string[]): CliOptions {

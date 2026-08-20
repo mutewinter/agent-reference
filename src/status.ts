@@ -8,7 +8,9 @@ import {
   knownSelectorsMessage,
   resolveSets,
   selectionFilter,
-  setMemberKey
+  setMemberKey,
+  splitSelectors,
+  unknownCommandHint
 } from './sets.ts';
 import { readManifest } from './manifest.ts';
 import { getCommand, pinFix, unresolvedProblem } from './problems.ts';
@@ -102,7 +104,13 @@ export async function getStatusReport(
   if (filter && references.length === 0) {
     // Silently printing an empty table would read as "this reference has no problems".
     throw new Error(
-      `Nothing matched ${describeSelection(options)}. ${knownSelectorsMessage(config)}`
+      [
+        `Nothing matched ${describeSelection(options)}.`,
+        knownSelectorsMessage(config),
+        unknownCommandHint(splitSelectors(options.references))
+      ]
+        .filter(Boolean)
+        .join(' ')
     );
   }
   const problems = await collectProblems(

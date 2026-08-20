@@ -155,6 +155,33 @@ test('finds the nearest config walking up from a subdirectory', async () => {
   assert.equal(report.references[0]?.name, 'tooling');
 });
 
+test('a selector that is nobody\'s reference offers the reading that it was a command', async () => {
+  const projectRoot = await copyFixtureProject();
+  await useConfig(projectRoot);
+
+  // Standing in for whatever the next release adds. A command a newer instruction names is
+  // not rejected by an older build: it falls through to the default command and is read as
+  // a reference name, so without this the failure blames the config.
+  await assert.rejects(getStatusReport(projectRoot, { references: ['explain'], storeDir: STORE_DIR }), (error: Error) => {
+    assert.match(error.message, /Nothing matched reference "explain"/);
+    assert.match(error.message, /it has get, versions, status/);
+    assert.match(error.message, /newer than the CLI/);
+    return true;
+  });
+});
+
+test('a miss on a name this build does have as a command reads as an ordinary miss', async () => {
+  const projectRoot = await copyFixtureProject();
+  await useConfig(projectRoot);
+
+  // `guide` exists here, so nothing about this build is out of date and the hint would be
+  // a false lead. It fires on the absence of the command, not on the shape of the word.
+  await assert.rejects(getStatusReport(projectRoot, { references: ['guide'], storeDir: STORE_DIR }), (error: Error) => {
+    assert.doesNotMatch(error.message, /newer than the CLI/);
+    return true;
+  });
+});
+
 async function copyFixtureProject(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-status-test-'));
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), tempDir, { recursive: true });
