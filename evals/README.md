@@ -13,6 +13,9 @@ reading the text would have produced.
 Runs are not tests. They cost money, they need network and a logged-in Claude Code, and they
 are not deterministic. `npm test` never invokes them.
 
+Two suites so far. `init` asks whether a printed brief gets carried out. `resolve` asks
+something narrower: when `get` cannot win on its own, is what it prints enough to iterate on?
+
 ## init
 
 ```sh
@@ -71,3 +74,44 @@ Three caveats worth holding onto when reading a result:
   directory, but nothing enforces that.
 - The agent's own transcript lands in the operator's real transcript store, under the run
   directory's escaped path. `run.json` records where.
+
+## resolve
+
+```sh
+npm run build
+node evals/resolve/run.mjs                 # default: sonnet, one turn, no hints
+node evals/resolve/grade.mjs               # grade the newest run
+```
+
+### The world
+
+A pnpm workspace where every dependency in `apps/studio` fails resolution a different way,
+each drawn from something seen in the wild:
+
+| package | what goes wrong | the way out |
+| --- | --- | --- |
+| `plainpkg` | nothing | works from the repository root, which it did not before |
+| `splitpkg` | installed at two versions in two workspace packages | an explicit coordinate |
+| `shellpkg` | root manifest has another name, and a bundled app claims this one | the repository root, said out loud |
+| `oddpkg` | releases tagged by date, so no tag mentions the version | `ref`, found by listing tags in the mirror |
+| `movedpkg` | registry metadata names a repository that does not exist | `repository` |
+| `@acme/internal` | a workspace package | nothing: it is already on disk |
+
+The agent is told none of that. The prompt asks for every dependency checked out and
+readable, and says some will not resolve on the first try. Its only guidance is the tool's
+own output, which is the thing under test.
+
+### Offline by construction
+
+Upstream is local git repositories, and the registry is a stub on loopback wired in through
+the project's own `registry` config key. `cacheDir` puts the store inside the run directory,
+so a run never touches the operator's real checkouts. Nothing here reaches npm or GitHub, so
+a result is the same next month.
+
+### What is graded
+
+The store on disk, not the final message: a claim that something was checked out is not a
+checkout. Alongside that, whether the loop was used as intended (`versions` for the ambiguous
+name, a `ref` for the untaggable one, a `repository` for the moved one) and whether the agent
+had to read the tool's own source to make progress, which is the failure that motivated the
+suite in the first place.
