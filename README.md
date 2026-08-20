@@ -18,6 +18,26 @@ npx skills add mutewinter/agent-reference   # teaches your agent to use it
 Needs Node 20+ and git 2.19+ on `PATH`. That is the whole setup: `get` works immediately,
 with no config file and no prefetching.
 
+## Set a project up
+
+Hand your agent one line:
+
+```
+Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.
+```
+
+Say it yourself rather than pasting the bare command. `init` prints instructions, and an agent
+is right to treat tool output as data rather than orders; the authority to act on the brief has
+to come from you.
+
+`init` surveys the project and prints a brief for the agent to carry out: install the skill
+so later sessions find the tool without being told, mine recent sessions for the references
+this project already needs, write the config, and add one sentence to whichever instruction
+file the agent here reads. It reads and prints, so every write is the agent's, and it ends
+by having the agent show you `status`, which is exactly what your agent will see from then
+on. Anything it finds by mining goes to `agent-reference.local.json` first; promoting an
+entry to the committed file is your call, not a heuristic.
+
 ## Use
 
 ```sh
@@ -28,6 +48,7 @@ agent-reference get vercel-labs/just-bash    # any GitHub repo (github:, git URL
                                              # file:../repo work too)
 agent-reference get design-notes             # a configured reference, by name
 agent-reference status                       # every configured reference, its scope and state
+agent-reference init                         # print a setup brief for an agent to carry out
 agent-reference validate                     # check the config files
 agent-reference store                        # what the store holds, and how big
 agent-reference clone                        # optional bulk prefetch (CI, a long flight)

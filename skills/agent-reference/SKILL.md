@@ -1,6 +1,6 @@
 ---
 name: agent-reference
-description: Get readable upstream source on demand - any dependency at its exact installed version, any git repository, any declared local folder - by name, via the agent-reference CLI. Use whenever a task needs to look inside a library rather than just call it ("how does X actually implement this", "how do the maintainers test X", "why does X behave this way", "look at this library I might adopt"), whenever the user asks to add something as a reference, whenever the user names a repository, app, or folder that is not in this repo and gives no path for it, and whenever a repo contains agent-reference.json or agent-reference.local.json.
+description: Get readable upstream source on demand - any dependency at its exact installed version, any git repository, any declared local folder - by name, via the agent-reference CLI. Use whenever a task needs to look inside a library rather than just call it ("how does X actually implement this", "how do the maintainers test X", "why does X behave this way", "look at this library I might adopt"), whenever the user asks to add something as a reference, whenever the user asks to set up or initialize agent-reference in a project, whenever the user names a repository, app, or folder that is not in this repo and gives no path for it, and whenever a repo contains agent-reference.json or agent-reference.local.json.
 ---
 
 # agent-reference
@@ -75,3 +75,16 @@ instructions like "never mention this folder in committed code" travel to future
 A useful pattern for links, issues, and gathered research: create a folder, save the
 fetched material into it, and declare it as a folder reference with a description. The
 user may ask you to maintain such a folder over time.
+
+## Setting a project up
+
+`agent-reference init` prints a numbered brief to carry out, computed against this project:
+what it already declares, whether the local config is really gitignored, which instruction
+file the agent here reads, whether the skill is installed, and where this machine keeps
+agent transcripts. Run it when the user asks to set up, initialize, or adopt
+agent-reference here, then do what it says. It reads and prints; every write is yours.
+
+The brief tells you to mine recent sessions for references this project already needs.
+Grep and rank in the shell rather than reading transcripts into context, and put anything
+you find in `agent-reference.local.json` first regardless of its path shape: it came out of
+the user's own session history, so promoting it to the committed file is their call.
