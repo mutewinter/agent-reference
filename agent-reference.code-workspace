@@ -1,0 +1,41 @@
+{
+  "folders": [{ "path": "." }],
+  "settings": {
+    // Personal editor preference, committed to sync across machines. Opening the
+    // folder never applies these; only opening this .code-workspace does.
+    "files.autoSave": "onFocusChange",
+    "files.associations": {
+      "**/.vscode/*.json": "jsonc",
+      "**/tsconfig*.json": "jsonc",
+    },
+    "js/ts.experimental.useTsgo": true,
+    // Validate this repo's own dogfood config against the schema in this checkout
+    // rather than the published one, so schema changes are caught while editing.
+    "json.schemas": [
+      {
+        "fileMatch": ["agent-reference.json", "agent-reference.local.json"],
+        "url": "./schema/agent-reference.schema.json",
+      },
+    ],
+    "peacock.color": "#884416",
+    "workbench.colorCustomizations": {
+      "activityBar.activeBackground": "#b4591d",
+      "activityBar.background": "#b4591d",
+      "activityBar.foreground": "#e7e7e7",
+      "activityBar.inactiveForeground": "#e7e7e799",
+      "activityBarBadge.background": "#1a4c66",
+      "activityBarBadge.foreground": "#e7e7e7",
+      "commandCenter.border": "#e7e7e799",
+      "sash.hoverBorder": "#b4591d",
+      "statusBar.background": "#884416",
+      "statusBar.foreground": "#e7e7e7",
+      "statusBarItem.hoverBackground": "#b4591d",
+      "statusBarItem.remoteBackground": "#884416",
+      "statusBarItem.remoteForeground": "#e7e7e7",
+      "titleBar.activeBackground": "#884416",
+      "titleBar.activeForeground": "#e7e7e7",
+      "titleBar.inactiveBackground": "#88441699",
+      "titleBar.inactiveForeground": "#e7e7e799",
+    },
+  },
+}

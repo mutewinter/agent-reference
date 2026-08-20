@@ -1,27 +1,32 @@
-# Working in this repository
+# agent-reference
 
-## System-agnostic content only
+A CLI that materializes readable upstream source for coding agents: dependencies at their
+exact installed version, git repositories, and local folders, all by name.
 
-Everything committed here must make sense on any machine. Never commit machine-local
-paths (`/Users/...`, `~/...`, `C:\...`), the names of local checkouts or sibling
-repositories, or anything else tied to one system: it is not reproducible or useful
-anywhere else. This applies to code, tests, fixtures, docs, commit messages, and PR text.
-Test fixtures use invented names (`acme/chess-engine`, `~/code/company-ui`). The tool's
-own `validate` command enforces the same rule for its users' committed config; this repo
-holds itself to it everywhere.
+`docs/README.md` maps the knowledge base. `docs/decisions/` records why the design is what
+it is; read the relevant one before treating a design as a bug, particularly before adding
+CLI commands that edit config (deliberately absent) or making anything eager (nothing is
+fetched until asked for).
 
-## Knowledge base
+## Never commit machine-specific content
 
-Versioned docs are the system of record; prefer them over chat history. `docs/README.md`
-is the map: `docs/architecture/` for how the system works today (corrected in place),
-`docs/decisions/` for why it is this way (one dated file per decision, superseded rather
-than edited), `docs/plans/` for work not yet landed (`Status:` line first, moved to
-`completed/` when it lands). `docs/visual-explanations/` is gitignored scratch for a
-human reading now, not history.
+No machine paths (`/Users/...`, `~/...`, `C:\...`), no names of local checkouts or sibling
+repositories, in code, tests, fixtures, docs, commit messages, or PR text. It is not
+reproducible anywhere else, and this repo ships publicly. Fixtures use invented names
+(`acme/chess-engine`, `~/code/company-ui`). The tool's `validate` enforces this rule for
+its users; the repo holds itself to it everywhere.
+
+## Gotchas
+
+- Source imports carry `.ts` extensions and run under `--experimental-strip-types`, so
+  tests need no build step. Do not "fix" them to `.js`.
+- Tests stay offline and out of the real store: fixture lockfiles, git repositories
+  created in a temp dir, and an explicit `storeDir`. A test that reaches npm or GitHub, or
+  writes to the default `~/.agent-reference`, is a bug.
+- Output is read by agents as much as humans. `--json` is the machine contract; the human
+  formatter lives in `src/status-format.ts` and colors only on a TTY.
 
 ## Conventions
 
 - `npm test` and `npm run build` before handing work back.
-- Direct JSON editing plus `agent-reference validate` is the config interface; there are
-  deliberately no add/remove commands.
 - Commit subjects: `scope: description`, lowercase, imperative.
