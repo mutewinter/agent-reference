@@ -7,14 +7,15 @@ on:
 
 jobs:
   test:
-    # The suite runs TypeScript sources directly, which needs type stripping. The published
-    # package ships compiled JavaScript, so this floor is the test suite's, not the tool's.
+    # The suite runs TypeScript sources directly, so it needs type stripping, and pnpm needs
+    # Node 22.13 or newer to run at all. The higher of the two floors is the one that binds.
+    # Neither is the tool's floor: the published package ships compiled JavaScript.
     name: test on node ${{ matrix.node }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        node: ['22.6', '24']
+        node: ['22', '24']
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
@@ -39,15 +40,21 @@ jobs:
         node: ['20', '24']
     steps:
       - uses: actions/checkout@v7
+      # Two runtimes, deliberately. pnpm and the compiler need a recent Node; the whole
+      # point of this job is the old one. So the tarball is built up here and the matrix
+      # version is switched in underneath it, which is also how a user meets this package:
+      # they never build it, they install what someone else built.
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '24'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Packed and installed with npm, because that is the route a user takes. pnpm only
-      # puts the dependencies in place.
+      # Packed with npm, because that is the route a user takes.
       - run: npm pack
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
       - run: npm install -g ./agent-reference-*.tgz
       - name: the commands that read shipped files
         run: |
