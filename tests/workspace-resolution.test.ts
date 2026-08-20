@@ -294,3 +294,67 @@ async function git(args: string[], cwd: string): Promise<string> {
   const result = await execFileAsync('git', args, { cwd, encoding: 'utf8' });
   return result.stdout.trim();
 }
+
+test('a value git would read as an option never reaches git', async () => {
+  const { projectRoot, storeDir, tempDir } = await workspace('argv-injection');
+  const source = await sourceRepo(tempDir, 'victimpkg', '1.0.0');
+  const marker = path.join(tempDir, 'EXECUTED');
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({
+      packages: {
+        victimpkg: {
+          version: '1.0.0',
+          repository: `file:${source.path}`,
+          // git parses options positioned after `origin`, so this is code execution rather
+          // than a ref, and a shared config file is how it would travel.
+          ref: `--upload-pack=touch ${marker};true`
+        }
+      }
+    })
+  );
+
+  await assert.rejects(getReferences(projectRoot, ['victimpkg'], { storeDir }), (error: Error) => {
+    assert.match(error.message, /may not begin with "-"/);
+    // The fix has to name the real problem, not send the agent looking for a missing tag.
+    assert.match(error.message, /refused this value/);
+    return true;
+  });
+  assert.equal(await fs.stat(marker).then(() => true).catch(() => false), false);
+});
+
+test('a transport git should not be asked to speak is refused', async () => {
+  const { projectRoot, storeDir } = await workspace('ext-transport');
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({
+      packages: { victimpkg: { version: '1.0.0', repository: 'ext::sh -c whoami', ref: 'main' } }
+    })
+  );
+
+  await assert.rejects(getReferences(projectRoot, ['victimpkg'], { storeDir }), (error: Error) => {
+    assert.match(error.message, /ext: transport/);
+    return true;
+  });
+});
+
+test('a package directory cannot climb out of the checkout', async () => {
+  const { projectRoot, storeDir, tempDir } = await workspace('directory-escape');
+  const source = await sourceRepo(tempDir, 'tiny-invariant', '1.3.1');
+
+  // Registry metadata is attacker-controlled for any package a project references, and this
+  // field is joined onto the checkout to produce the path handed back as upstream source.
+  const [result] = await getReferences(projectRoot, ['tiny-invariant'], {
+    metadataMap: {
+      'tiny-invariant@1.3.1': {
+        name: 'tiny-invariant',
+        version: '1.3.1',
+        repository: { type: 'git', url: source.path, directory: '../../../../../../etc' }
+      }
+    },
+    storeDir
+  });
+
+  assert.equal(result?.path, result?.repositoryPath);
+  assert.ok(result?.path.startsWith(storeDir), `${result?.path} escaped the store`);
+});

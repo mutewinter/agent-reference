@@ -136,11 +136,6 @@ export interface CloneReferencesResult {
   manifestPath: string;
 }
 
-/**
- * Where the version being materialized came from. `registry` is the one worth saying out
- * loud: it means nothing in this project installs the package, so the checkout is upstream's
- * latest rather than anything this repository depends on.
- */
 /** A pinned config version that no longer matches what the project installs. */
 export interface PackageDrift {
   name: string;
@@ -149,6 +144,11 @@ export interface PackageDrift {
   importers: string[];
 }
 
+/**
+ * Where the version being materialized came from. `registry` is the one worth saying out
+ * loud: it means nothing in this project installs the package, so the checkout is upstream's
+ * latest rather than anything this repository depends on.
+ */
 export type PackageVersionSource = 'explicit' | 'lockfile' | 'registry' | 'config';
 
 /** One materialized (or located, for folders) reference returned by `get`. */
@@ -196,7 +196,12 @@ export interface PackageManifestReference {
   pinnedRef: string | null;
 }
 
-export type UnresolvedReason = 'no-repository' | 'registry-error' | 'unresolved-ref' | 'clone-failed';
+export type UnresolvedReason =
+  | 'no-repository'
+  | 'registry-error'
+  | 'unresolved-ref'
+  | 'clone-failed'
+  | 'rejected';
 
 /**
  * A reference that could not be materialized. Recorded in the lockfile so `status` can

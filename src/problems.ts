@@ -67,6 +67,9 @@ function unresolvedFix(failure: UnresolvedManifestReference, storeDir: string, c
   if (failure.reason === 'registry-error') {
     return `The registry lookup failed. If this package is private or unpublished, set both packages.${failure.name}.repository and packages.${failure.name}.ref in ${configFile} to skip the registry entirely. Otherwise check network access and run ${getCommand(failure.name)}.`;
   }
+  if (failure.reason === 'rejected') {
+    return `agent-reference refused this value rather than passing it to git. Correct packages.${failure.name} in ${configFile}: a ref, a commit, or a repository may not begin with "-", and a repository has to use https, ssh, git, or a local path. If this config came from somewhere else, treat the value as hostile rather than fixing it in place.`;
+  }
   if (failure.reason === 'clone-failed') {
     // The repository was never read, so there is no mirror to search and nothing to pin a
     // ref against: pointing at the tag workflow here sends an agent to a path that does not
@@ -84,8 +87,9 @@ function unresolvedPatch(failure: UnresolvedManifestReference): Record<string, u
   if (failure.reason === 'no-repository' || failure.reason === 'registry-error' || failure.reason === 'clone-failed') {
     pinned.repository = '<github:owner/repo>';
   }
-  // A ref cannot be chosen against a repository that was never read.
-  if (failure.reason !== 'clone-failed') {
+  // A ref cannot be chosen against a repository that was never read, and a rejected value
+  // needs correcting rather than a suggested shape to copy.
+  if (failure.reason !== 'clone-failed' && failure.reason !== 'rejected') {
     pinned.ref = '<commit-or-tag>';
   }
 

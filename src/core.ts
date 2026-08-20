@@ -2,7 +2,13 @@ import path from 'node:path';
 
 import { DEFAULT_CONFIG_FILE } from './config.ts';
 import { resolveConfigPath } from './fs-utils.ts';
-import { defaultStoreDir, ensureDependencyWorktree, ensureGitAvailable, ensureGitReferenceWorktree } from './git.ts';
+import {
+  defaultStoreDir,
+  ensureDependencyWorktree,
+  ensureGitAvailable,
+  ensureGitReferenceWorktree,
+  UnsafeGitValueError
+} from './git.ts';
 import { describeSelection, knownSelectorsMessage, selectionFilter } from './sets.ts';
 import { writeManifest } from './manifest.ts';
 import { unresolvedProblem } from './problems.ts';
@@ -148,6 +154,9 @@ export async function materializePackage(
     return { result };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
+    // A value refused on safety grounds is its own failure: blaming the ref's existence, or
+    // pointing at a mirror that was never created, sends an agent to fix the wrong thing.
+    if (error instanceof UnsafeGitValueError) return unresolvable('rejected', detail, repositoryUrl);
     return unresolvable(override?.ref ? 'unresolved-ref' : 'clone-failed', detail, repositoryUrl);
   }
 }

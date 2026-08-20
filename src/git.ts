@@ -31,6 +31,59 @@ const MINIMUM_GIT_VERSION = [2, 19, 0] as const;
 const MAX_DIRECTORY_PROBES = 12;
 const MAX_TAG_SEARCH_CANDIDATES = 10;
 
+/**
+ * Transport policy stated rather than inherited. `ext::` runs an arbitrary command as a
+ * transport, and a repository URL is attacker-controlled for any package a project
+ * references; CI images and dev setups do relax git's defaults, so this does not rely on
+ * them. `file` stays at `user`, which is git's own default and what direct `file:` support
+ * needs, while still refusing file transports reached indirectly.
+ */
+const GIT_SAFETY_CONFIG = [
+  '-c',
+  'protocol.ext.allow=never',
+  '-c',
+  'protocol.file.allow=user'
+];
+
+const ALLOWED_GIT_PROTOCOLS = new Set(['https:', 'http:', 'ssh:', 'git:', 'file:']);
+
+/**
+ * git reads an argument beginning with `-` as an option wherever it sits, so a ref or a URL
+ * out of a config file or registry metadata is an option injection rather than a value:
+ * `--upload-pack=<cmd>` turns a fetch into arbitrary code execution, and no protocol policy
+ * stops it. Every value reaching argv from outside this program passes through here.
+ */
+export class UnsafeGitValueError extends Error {}
+
+export function assertSafeGitValue(value: string, what: string): string {
+  if (value.startsWith('-')) {
+    throw new UnsafeGitValueError(
+      `${what} may not begin with "-". git would read ${JSON.stringify(value)} as an option rather than a value.`
+    );
+  }
+  return value;
+}
+
+/** Rejects a repository whose transport is not one git should be asked to speak. */
+export function assertSafeRepositoryUrl(url: string, what: string): string {
+  assertSafeGitValue(url, what);
+  if (path.isAbsolute(url)) return url;
+
+  let protocol: string;
+  try {
+    protocol = new URL(url).protocol;
+  } catch {
+    throw new UnsafeGitValueError(`${what} is not a usable git URL: ${JSON.stringify(url)}.`);
+  }
+
+  if (!ALLOWED_GIT_PROTOCOLS.has(protocol)) {
+    throw new UnsafeGitValueError(
+      `${what} uses the ${protocol} transport, which agent-reference will not run. Use https, ssh, git, or a local path.`
+    );
+  }
+  return url;
+}
+
 type PackageCheckoutSource = PackageRefSource;
 type GitReferenceCheckoutSource = GitReferenceWorktreeResult['refSource'];
 
@@ -126,7 +179,12 @@ export async function resolvePackagePath(
   const directory = normalizeDirectory(packageDirectory);
   if (!directory || directory === '.') return worktreePath;
 
-  const candidate = path.join(worktreePath, directory);
+  // Containment checked against the resolved path, not the input: normalizeDirectory rejects
+  // a literal `..`, and this catches anything that reaches outside by another route.
+  const candidate = path.resolve(worktreePath, directory);
+  const root = path.resolve(worktreePath);
+  if (candidate !== root && !candidate.startsWith(`${root}${path.sep}`)) return worktreePath;
+
   return (await pathExists(candidate)) ? candidate : worktreePath;
 }
 
@@ -142,10 +200,18 @@ async function ensureWorktree<RefSource extends string>(
   const checkout = await resolveCheckout(bareRepositoryPath);
   const worktreePath = sharedWorktreePath(storeDir, repositoryUrl, checkout.sha);
 
-  // The path is keyed by commit, so an existing one is already the right checkout.
+  // The path is keyed by commit, so an existing one is already the right checkout. Agents
+  // materialize several references at once, so two runs reach this together: the loser of
+  // that race finds the worktree already there, which is success rather than a failure.
   if (!(await pathExists(worktreePath))) {
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
-    await runGit(['-C', bareRepositoryPath, 'worktree', 'add', '--detach', worktreePath, checkout.sha]);
+    const added = await runGit(
+      ['-C', bareRepositoryPath, 'worktree', 'add', '--detach', worktreePath, checkout.sha],
+      { allowFailure: true }
+    );
+    if (added.exitCode !== 0 && !(await pathExists(worktreePath))) {
+      throw new Error(`git worktree add failed: ${added.stderr.trim() || 'unknown git failure'}`);
+    }
   }
 
   return {
@@ -162,7 +228,7 @@ export async function runGit(
   options: { allowFailure?: boolean } = {}
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   try {
-    const result = await execFileAsync('git', args, {
+    const result = await execFileAsync('git', [...GIT_SAFETY_CONFIG, ...args], {
       encoding: 'utf8',
       maxBuffer: 1024 * 1024 * 64
     });
@@ -244,6 +310,7 @@ function compareVersions(a: readonly number[], b: readonly number[]): number {
 }
 
 async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string): Promise<void> {
+  assertSafeRepositoryUrl(repoUrl, 'A repository URL');
   if (await pathExists(bareRepositoryPath)) {
     await ensureFetchRefspec(bareRepositoryPath);
     await reportProgress(
@@ -536,6 +603,7 @@ async function searchTagsForVersion(
   bareRepositoryPath: string,
   version: string
 ): Promise<string[]> {
+  assertSafeGitValue(version, 'A version');
   const result = await runGit(['-C', bareRepositoryPath, 'tag', '--list', `*${version}`, `*${version}*`], {
     allowFailure: true
   });
@@ -555,6 +623,7 @@ async function ensureCommitAvailable(
   const local = await resolveGitRevision(bareRepositoryPath, `${commitSha}^{commit}`);
   if (local) return true;
 
+  assertSafeGitValue(commitSha, 'A ref or commit');
   await runGit(['-C', bareRepositoryPath, 'fetch', '--filter=blob:none', 'origin', commitSha], {
     allowFailure: true
   });
@@ -566,6 +635,7 @@ async function resolveGitRevision(
   bareRepositoryPath: string,
   revision: string
 ): Promise<{ ref: string; sha: string } | null> {
+  if (revision.startsWith('-')) return null;
   const result = await runGit(['-C', bareRepositoryPath, 'rev-parse', '--verify', '--quiet', revision], {
     allowFailure: true
   });
@@ -620,10 +690,18 @@ async function resolveConfiguredRef(
   throw new Error(`Unable to resolve git reference ${refName} in ${bareRepositoryPath}`);
 }
 
+/**
+ * `repository.directory` is attacker-controlled for any package a project references, and it
+ * is joined onto the checkout to produce the path handed back as upstream source. A `..`
+ * segment there pointed that path at any readable location, so an agent would read `/etc` or
+ * a sibling checkout believing it was reading the package.
+ */
 function normalizeDirectory(directory: string | null | undefined): string | null {
   if (!directory) return null;
   const normalized = directory.replace(/^\.\//, '').replace(/^\/+/, '').replace(/\/+$/, '');
-  return normalized || null;
+  if (!normalized) return null;
+  if (normalized.split(/[\\/]/).includes('..')) return null;
+  return normalized;
 }
 
 function uniqueStrings(values: Array<string | null>): string[] {
