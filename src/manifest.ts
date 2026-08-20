@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import process from 'node:process';
 
 import { readJsonFile } from './fs-utils.ts';
 import type {
@@ -43,6 +44,25 @@ export async function writeManifest(
   gitResults: GitReferenceWorktreeResult[] = [],
   unresolved: UnresolvedManifestReference[] = []
 ): Promise<string> {
+  // Agents materialize several references at once, and this is a read-modify-write against
+  // one shared file, so without a lock two runs silently drop each other's entries. The lock
+  // is advisory and gives up: this file is a cache, and a lost entry costs one re-resolution,
+  // where blocking a `get` behind a stale lock would cost the whole command.
+  const release = await acquireLock(stateFilePath(storeDir, projectRoot));
+  try {
+    return await writeManifestLocked(projectRoot, storeDir, packageResults, gitResults, unresolved);
+  } finally {
+    await release();
+  }
+}
+
+async function writeManifestLocked(
+  projectRoot: string,
+  storeDir: string,
+  packageResults: GitWorktreeResult[],
+  gitResults: GitReferenceWorktreeResult[] = [],
+  unresolved: UnresolvedManifestReference[] = []
+): Promise<string> {
   const existing = (await readManifest(projectRoot, storeDir))?.manifest;
   const updates = [
     ...packageResults.map(packageResultToManifestReference),
@@ -65,8 +85,45 @@ export async function writeManifest(
 
   const manifestPath = stateFilePath(storeDir, projectRoot);
   await fs.mkdir(path.dirname(manifestPath), { recursive: true });
-  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  await writeAtomic(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   return manifestPath;
+}
+
+const LOCK_ATTEMPTS = 40;
+const LOCK_RETRY_MS = 25;
+/** A lock older than this is assumed to belong to a run that died. */
+const LOCK_STALE_MS = 10_000;
+
+async function acquireLock(target: string): Promise<() => Promise<void>> {
+  const lockPath = `${target}.lock`;
+  await fs.mkdir(path.dirname(lockPath), { recursive: true });
+
+  for (let attempt = 0; attempt < LOCK_ATTEMPTS; attempt += 1) {
+    try {
+      const handle = await fs.open(lockPath, 'wx');
+      await handle.close();
+      return async () => {
+        await fs.rm(lockPath, { force: true });
+      };
+    } catch {
+      const age = await fs
+        .stat(lockPath)
+        .then((stats) => Date.now() - stats.mtimeMs)
+        .catch(() => 0);
+      if (age > LOCK_STALE_MS) await fs.rm(lockPath, { force: true });
+      else await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
+    }
+  }
+
+  // Never block the command on a lock that will not clear.
+  return async () => {};
+}
+
+/** Rename is atomic within a filesystem, so a reader never sees a half-written state file. */
+async function writeAtomic(target: string, contents: string): Promise<void> {
+  const temporary = `${target}.${process.pid}.tmp`;
+  await fs.writeFile(temporary, contents);
+  await fs.rename(temporary, target);
 }
 
 export async function readManifest(
