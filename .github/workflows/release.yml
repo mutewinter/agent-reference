@@ -1,0 +1,42 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  # Signs the published tarball, so npm can show where it was built from.
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - name: the tag names the version being published
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json $version" >&2
+            exit 1
+          fi
+      - run: npm test
+      - name: publish
+        # A prerelease goes out under `beta` so `npm install -g agent-reference` keeps
+        # resolving the last release anyone should be running.
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          case "$version" in
+            *-*) tag=beta ;;
+            *) tag=latest ;;
+          esac
+          npm publish --provenance --access public --tag "$tag"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

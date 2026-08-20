@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    # The suite runs TypeScript sources directly, which needs type stripping. The published
+    # package ships compiled JavaScript, so this floor is the test suite's, not the tool's.
+    name: test on node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['22.6', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
+  install:
+    # What `npm install -g agent-reference` actually produces, on the oldest Node the
+    # package claims to support. Everything this catches is invisible from a source
+    # checkout: a file left out of `files`, a bin without its executable mode, a runtime
+    # read resolved against a path that only exists here.
+    name: install the tarball on node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['20', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm ci
+      - run: npm pack
+      - run: npm install -g ./agent-reference-*.tgz
+      - name: the commands that read shipped files
+        run: |
+          agent-reference version
+          agent-reference schema > /dev/null
+          agent-reference guide > /dev/null
+          mkdir -p /tmp/smoke && cd /tmp/smoke && agent-reference init > /dev/null
