@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "description": "Materialize package, git, and folder references for coding agents.",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mutewinter/agent-reference.git"
+  },
+  "homepage": "https://github.com/mutewinter/agent-reference#readme",
+  "bugs": "https://github.com/mutewinter/agent-reference/issues",
   "bin": {
     "agent-reference": "./dist/cli.js"
   },
