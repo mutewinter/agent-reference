@@ -21,11 +21,12 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "npm run clean && tsc -p tsconfig.json",
     "dev": "node --experimental-strip-types src/cli.ts",
     "test": "node --test --experimental-strip-types tests/*.test.ts",
-    "prepack": "tsc -p tsconfig.json",
-    "prepare": "tsc -p tsconfig.json"
+    "prepack": "npm run clean && tsc -p tsconfig.json",
+    "prepare": "npm run clean && tsc -p tsconfig.json",
+    "clean": "node --input-type=module -e \"import {rm} from 'node:fs/promises'; await rm(new URL('dist', import.meta.url), {recursive: true, force: true});\""
   },
   "keywords": [
     "references",
