@@ -42,6 +42,12 @@ async function main(argv: string[]): Promise<void> {
     case 'schema':
       process.stdout.write(await fs.readFile(new URL('../schema/agent-reference.schema.json', import.meta.url), 'utf8'));
       return;
+    // Served rather than installed: the skill file an agent finds on disk was copied into
+    // the project once, and nothing updates it. This is the same instructions, read out of
+    // the CLI the agent is about to run, so they cannot describe a different version.
+    case 'guide':
+      process.stdout.write(await fs.readFile(new URL('../guide/agent-reference.md', import.meta.url), 'utf8'));
+      return;
     case 'status': {
       const { projectPath, references } = await splitPositionals(options);
       const report = await getStatusReport(projectPath, { references, sets: options.sets });
@@ -231,6 +237,7 @@ Usage:
   agent-reference clone  [reference...] [--set <name>] [--json]
   agent-reference init   [project] [--json]
   agent-reference validate
+  agent-reference guide
   agent-reference schema
   agent-reference store [--prune] [--days <n>]
 
@@ -253,6 +260,9 @@ Commands:
             prints only; it never writes.
   validate  Check agent-reference.json and agent-reference.local.json; flags
             machine paths that do not belong in the committed file.
+  guide     Print the full agent instructions for this version. The installed
+            skill is a short stub that cannot go stale; everything about config
+            shape and setup lives here, next to the code it describes.
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
             checkouts unused for --days (default 30) and any repository left

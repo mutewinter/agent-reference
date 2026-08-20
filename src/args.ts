@@ -5,6 +5,7 @@ export type CliCommand =
   | 'clone'
   | 'init'
   | 'validate'
+  | 'guide'
   | 'schema'
   | 'store'
   | 'help'
@@ -27,6 +28,7 @@ const COMMANDS = new Set<string>([
   'clone',
   'init',
   'validate',
+  'guide',
   'schema',
   'store',
   'help',

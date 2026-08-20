@@ -18,6 +18,11 @@ npx skills add mutewinter/agent-reference   # teaches your agent to use it
 Needs Node 20+ and git 2.19+ on `PATH`. That is the whole setup: `get` works immediately,
 with no config file and no prefetching.
 
+The skill that lands in your project is a short stub, deliberately: it holds only what stays
+true across versions. Everything that changes with the tool, config shape included, is
+printed by `agent-reference guide` from the CLI itself, so a project that installed the skill
+months ago still gets instructions matching the version it runs.
+
 ## Set a project up
 
 Hand your agent one line:
@@ -51,6 +56,7 @@ agent-reference get design-notes             # a configured reference, by name
 agent-reference status                       # every configured reference, its scope and state
 agent-reference init                         # print a setup brief for an agent to carry out
 agent-reference validate                     # check the config files
+agent-reference guide                        # the full agent instructions, from this version
 agent-reference store                        # what the store holds, and how big
 agent-reference clone                        # optional bulk prefetch (CI, a long flight)
 ```

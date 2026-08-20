@@ -115,9 +115,14 @@ function skillStep(survey: InitSurvey): string {
     `  this project only, committed:   ${inProject[0] ?? ''}`
   ];
 
+  // Installed rather than copied, wherever it can be: the installer records where the file
+  // came from, so a later `skills update` refreshes it. A copy has no such record, and the
+  // skill is the artifact that changes most.
+  lines.push('Install it with: npx skills add mutewinter/agent-reference');
   if (survey.skill.source) {
-    lines.push(`Copy it from ${survey.skill.source}, or run: npx skills add mutewinter/agent-reference`);
+    lines.push(`With no network, copy ${survey.skill.source} into the directory instead.`);
   }
+  lines.push('Either way that file is a stub. Run `agent-reference guide` for the rest of it.');
 
   return lines.join('\n');
 }

@@ -15,6 +15,7 @@
   },
   "files": [
     "dist",
+    "guide",
     "schema",
     "skills",
     "README.md",

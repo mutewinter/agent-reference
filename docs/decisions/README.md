@@ -15,3 +15,4 @@ never rewritten; strike a superseded row here and link its replacement.
 | 2026-08-19 | [Locating a reference is its own verb](2026-08-19-locating-is-a-verb.md) |
 | 2026-08-20 | [init briefs the agent instead of scaffolding a config](2026-08-20-init-briefs-the-agent.md) |
 | 2026-08-20 | [A config entry is a coordinate, never a query](2026-08-20-coordinates-not-queries.md) |
+| 2026-08-20 | [The installed skill is a stub; the guide is served by the CLI](2026-08-20-a-stub-on-disk-and-a-served-guide.md) |
