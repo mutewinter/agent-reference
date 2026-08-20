@@ -44,6 +44,7 @@ entry to the committed file is your call, not a heuristic.
 agent-reference get zod                      # the version your lockfile has, resolved and
                                              # checked out; prints the path
 agent-reference get zod@3.22.0               # any other version, side by side with the first
+agent-reference versions zod                 # every version this project installs, and where
 agent-reference get vercel-labs/just-bash    # any GitHub repo (github:, git URLs, and
                                              # file:../repo work too)
 agent-reference get design-notes             # a configured reference, by name
@@ -54,7 +55,12 @@ agent-reference store                        # what the store holds, and how big
 agent-reference clone                        # optional bulk prefetch (CI, a long flight)
 ```
 
-`get` is the verb agents live in: it takes a name and returns a path. `status` is the
+`get` is the verb agents live in: it takes a coordinate and returns a path. A coordinate is
+`name@version`, a repository spec, or a bare name as shorthand for whatever this project
+installs. When the shorthand is ambiguous, because a workspace installs two versions of the
+same package, `get` prints the coordinates and stops rather than picking one; `versions`
+answers the same question directly and never fetches. A package name may carry an ecosystem
+prefix (`npm:zod@3.22.0`); npm is the default and the only one resolved today. `status` is the
 overview: it runs offline and instantly, and a reference that has never been fetched shows
 as `declared`, which is the normal state of a healthy config, not a problem. When something
 does need fixing, `status` leads with `problems:` and `next steps:`. Add `--json` for
@@ -98,8 +104,10 @@ checks it (unknown keys are rejected with a suggestion).
 
 Dependencies need no entry at all: `get <name>` reads the lockfile at call time. A
 `packages` entry exists only when there is something to remember about one, a pin the
-resolver could not find, a description, or a place in a set. `"installed"` follows the
-lockfile; an exact version, range, or dist-tag asks for that instead.
+resolver could not find, a description, or a place in a set, and it always carries an exact
+version. Ranges, dist-tags, and a "follow the lockfile" mode are all rejected, because a
+config entry has to mean the same thing on every machine and next month; `status` reports a
+pin that has fallen behind what the project installs instead of silently following it.
 
 A set is a labeled list: a description saying what the collection is for, with members
 declared inline the way a human would paste them. Member names derive from the path or
@@ -109,8 +117,7 @@ appear in several sets, and a set can mix folders, git repositories, and package
 one by its short `name` or any unambiguous piece of its description, so "the
 documentation sources" works in chat and on the command line alike.
 
-Other keys: `allImporters` to scan every workspace importer, `registry` for a private npm
-registry, `cacheDir` to move the store (an `agent-reference.local.json` with `cacheDir`
+Other keys: `registry` for a private npm registry, `cacheDir` to move the store (an `agent-reference.local.json` with `cacheDir`
 inside the project keeps every checkout under a sandboxed agent's readable root).
 
 Any directory is a project: the nearest config (walking up) anchors it, and a Node
@@ -120,7 +127,9 @@ lockfile is optional. In a Python repo, a Rust repo, or a plain folder, `folders
 ## How versions resolve
 
 Package versions come from the lockfile (PNPM, npm, Bun text lockfiles, and Yarn), read at
-`get` time, so what is checked out cannot drift from what is installed. For each
+`get` time, so what is checked out cannot drift from what is installed. Every workspace
+importer is read, not just the one nearest the working directory, and the nearest one wins
+when several install the same name at different versions. For each
 `name@version`, the registry manifest gives the git remote and, when present, the publish
 commit. Otherwise `agent-reference` tries the usual tags (`pkg@1.2.3`, `v1.2.3`, `1.2.3`),
 then searches the tag list.
@@ -137,7 +146,12 @@ belong to an unrelated package's release. Each checkout records how sure the res
 | `fallback` | nothing matched, so the default branch was checked out; not the published version |
 
 For a monorepo package the whole repository is checked out but the printed path points at
-the package's own directory; the repository root is `repositoryPath` in `--json`.
+the package's own directory, and only when a `package.json` there reports this exact name
+**and** version. A directory that merely carries the right name is not enough: repositories
+bundle demo apps that claim the package's name, and pointing an agent at one hands it two
+files and calls them the source. When nothing confirms, the path is the repository root,
+which is never a lie about what it contains. The repository root is `repositoryPath` in
+`--json`, and `directory` in the config overrides the whole question.
 
 ## When resolution fails
 

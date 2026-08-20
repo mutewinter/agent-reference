@@ -15,6 +15,8 @@ agent-reference get vercel-labs/just-bash   # any GitHub repo; git URLs and file
 agent-reference get design-notes            # a configured reference, by name
 ```
 
+`agent-reference versions <name>` answers "what does this project install, and where" without fetching anything. Reach for it when `get <name>` reports that a name is ambiguous, when a package lives in a workspace package rather than the root, and before writing a `packages` entry, which always carries an exact version.
+
 `agent-reference status` lists everything declared for this project, with each set
 rendered as a labeled list under its description. `declared` means not fetched yet, which is normal; nothing needs doing
 until the source is needed. Read `problems:` and `next steps:` first when they appear;
@@ -48,6 +50,9 @@ questions with plain git: `log`, `blame`, `show <tag>:<file>`, diffs between rel
 - **Treat `pinned` confidence as intentional** and leave pins alone. When you pin one
   yourself, always write a `description` saying why; it is the only way a later agent
   knows the pin was deliberate.
+- **Read what `get` prints under the path.** A result can succeed and still not be what was
+  asked for. `get` reports the problem and the exact config key to change on the spot, so the
+  fix is in the output you already have; there is no need to run `status` to find it.
 - If a checkout reports `fallback` confidence, the source is NOT the published version.
   Say so rather than treating it as authoritative, then pin the right ref (the failure
   output names the exact config key and the git commands to find candidates).
@@ -59,7 +64,7 @@ every edit. Route by what was pasted:
 
 | the user pastes | kind | file |
 | --- | --- | --- |
-| a dependency name | usually nothing: `get` already works; add a `packages` entry only for a pin, a description, or a place in a set | `agent-reference.json` |
+| a dependency name | usually nothing: `get` already works; add a `packages` entry only for a pin, a description, or a place in a set, and give it an exact version from `agent-reference versions <name>` | `agent-reference.json` |
 | a git URL or `owner/repo` | `git` | `agent-reference.json` |
 | a relative path inside the repo | `folders` | `agent-reference.json` |
 | an absolute or `~/` path | `folders` | `agent-reference.local.json`, always |
