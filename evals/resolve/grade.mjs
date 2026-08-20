@@ -66,7 +66,7 @@ check(
 );
 check(
   'never read the tool source to make progress',
-  !commands.some((command) => /finalpoint\/agent-reference\/src|cat .*\/src\/\w+\.ts/.test(command)),
+  !commands.some((command) => /agent-reference\/src\/|cat .*\/src\/\w+\.ts/.test(command)),
   'needing the implementation means the output did not say enough'
 );
 
