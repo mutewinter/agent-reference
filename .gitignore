@@ -3,3 +3,4 @@ docs/visual-explanations/
 node_modules/
 coverage/
 .DS_Store
+agent-reference.local.json
