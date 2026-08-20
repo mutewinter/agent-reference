@@ -1,48 +1,54 @@
-import { mergeDependencyEntries } from './package-utils.ts';
-import { resolveRegistryVersion } from './registry.ts';
-import type { AgentReferenceConfig, PackageReference, RegistryOptions } from './types.ts';
+import { mergeDependencyEntries, selectInstalledPackage } from './package-utils.ts';
+import type { AgentReferenceConfig, PackageDrift, PackageReference } from './types.ts';
 
 export interface ConfigPackageReferences {
   packages: PackageReference[];
-  missingInstalled: string[];
+  /** Entries whose pinned version is not what this project installs any more. */
+  drift: PackageDrift[];
 }
 
-export async function resolveConfigPackageReferences(
+/**
+ * Turns config package entries into references. Every entry carries an exact version, so
+ * this is a mapping rather than a resolution: nothing here reads a lockfile or a registry,
+ * and the answer cannot change between two runs on two machines.
+ *
+ * The lockfile is still read, for one thing only: saying so when a pin has fallen behind
+ * what the project installs. That is a report, never a correction, because a pinned version
+ * is a decision somebody made.
+ */
+export function resolveConfigPackageReferences(
   config: AgentReferenceConfig | undefined,
   installedPackages: PackageReference[],
-  options: RegistryOptions = {}
-): Promise<ConfigPackageReferences> {
+  options: { importer?: string } = {}
+): ConfigPackageReferences {
   if (!config || config.packages.length === 0) {
-    return { packages: [], missingInstalled: [] };
+    return { packages: [], drift: [] };
   }
 
   const packages: PackageReference[] = [];
-  const missingInstalled: string[] = [];
-  const installedByName = new Map(installedPackages.map((dependency) => [dependency.name, dependency]));
+  const drift: PackageDrift[] = [];
 
   for (const entry of config.packages) {
-    if (entry.version === 'installed') {
-      const installed = installedByName.get(entry.name);
-      if (installed) {
-        packages.push(installed);
-      } else {
-        missingInstalled.push(entry.name);
-      }
-      continue;
-    }
-
     packages.push({
       name: entry.name,
-      version: await resolveRegistryVersion(entry.name, entry.version, options),
+      version: entry.version,
       specifier: entry.version,
       packageManager: 'config',
       dependencyTypes: [],
       importers: ['agent-reference.json']
     });
+
+    const installed = selectInstalledPackage(entry.name, installedPackages, options.importer ?? '.');
+    const versions = [...new Set(installed.candidates.map((candidate) => candidate.version))];
+    if (versions.length > 0 && !versions.includes(entry.version)) {
+      drift.push({
+        name: entry.name,
+        pinned: entry.version,
+        installed: versions,
+        importers: [...new Set(installed.candidates.flatMap((candidate) => candidate.importers))]
+      });
+    }
   }
 
-  return {
-    packages: mergeDependencyEntries(packages),
-    missingInstalled
-  };
+  return { packages: mergeDependencyEntries(packages), drift };
 }

@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
@@ -12,7 +13,7 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
   const config = parseConfig(
     {
       packages: {
-        react: 'installed',
+        react: '18.2.0',
         zod: { version: '3.25.0', description: 'Schema shapes' }
       },
       folders: {
@@ -31,7 +32,7 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
     kind: 'package',
     name: 'react',
     scope: 'shared',
-    version: 'installed',
+    version: '18.2.0',
     ref: null,
     repository: null,
     directory: null,
@@ -51,7 +52,7 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
 
 test('rejects malformed config with a located, actionable message', () => {
   assert.throws(
-    () => parseConfig({ package: { react: 'installed' } }, 'agent-reference.json'),
+    () => parseConfig({ package: { react: '18.2.0' } }, 'agent-reference.json'),
     /unknown key package\. Did you mean "packages"\?/
   );
   assert.throws(
@@ -84,7 +85,7 @@ test('a set is a labeled list: description first, members inline, names derived'
           description: 'Documentation sources to read before writing docs',
           folders: ['./docs/design-notes', { path: '../platform/docs', name: 'api-docs', description: 'Endpoint contracts' }],
           git: ['github:acme/design-system#v4'],
-          packages: ['zod']
+          packages: ['zod@3.25.0']
         }
       ]
     },
@@ -101,7 +102,7 @@ test('a set is a labeled list: description first, members inline, names derived'
     'git:design-system'
   ]);
   assert.equal(config.git[0]?.ref, 'v4');
-  assert.equal(config.packages[0]?.version, 'installed');
+  assert.equal(config.packages[0]?.version, '3.25.0');
 });
 
 test('the same reference in two sets merges into one with both labels', () => {
@@ -136,7 +137,7 @@ test('two declarations disagreeing about a name is a conflict, not repetition', 
 test('selects references by set name, description substring, and qualified name', () => {
   const config = parseConfig(
     {
-      packages: { react: 'installed' },
+      packages: { react: '18.2.0' },
       folders: { react: './react-notes' },
       sets: [{ name: 'docs', description: 'Documentation sources', folders: ['./notes'] }]
     },
@@ -199,4 +200,16 @@ test('validate reports errors and warnings without needing a lockfile', async ()
 
   assert.equal(broken.valid, false);
   assert.match(broken.errors.join('\n'), /is not valid JSON/);
+});
+
+test('the printed schema and the parser accept the same top-level keys', async () => {
+  const schema = JSON.parse(
+    await readFile(new URL('../schema/agent-reference.schema.json', import.meta.url), 'utf8')
+  ) as { properties: Record<string, unknown> };
+
+  // `schema` is what an agent reads to learn the format, so a key here that the parser
+  // rejects is a config that fails on its first run.
+  for (const key of Object.keys(schema.properties)) {
+    assert.doesNotThrow(() => parseConfig({ [key]: undefined }, 'agent-reference.json'), `schema key ${key}`);
+  }
 });

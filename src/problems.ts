@@ -1,8 +1,23 @@
 import { bareRepositoryPathFor } from './git.ts';
-import type { AgentReferenceProblem, UnresolvedManifestReference } from './types.ts';
+import type { AgentReferenceProblem, PackageReference, UnresolvedManifestReference } from './types.ts';
 
 export function getCommand(name: string): string {
   return `agent-reference get ${name}`;
+}
+
+/**
+ * Names every version and where it is installed, so the next command is a copy of a line
+ * that is already on screen. Guessing here would be silent and wrong half the time.
+ */
+export function ambiguousInstalledMessage(name: string, candidates: PackageReference[]): string {
+  const width = Math.max(...candidates.map((entry) => entry.version.length));
+  const rows = candidates.map((entry) => `  ${entry.version.padEnd(width)}  ${entry.importers.join(', ')}`);
+
+  return (
+    `${name} is installed at ${candidates.length} versions in this project:\n${rows.join('\n')}\n` +
+    `Ask for the one you want, for example ${getCommand(`${name}@${candidates[0]?.version ?? ''}`)}. ` +
+    `Running from inside one of those workspace packages picks its version automatically.`
+  );
 }
 
 /**
@@ -52,15 +67,27 @@ function unresolvedFix(failure: UnresolvedManifestReference, storeDir: string, c
   if (failure.reason === 'registry-error') {
     return `The registry lookup failed. If this package is private or unpublished, set both packages.${failure.name}.repository and packages.${failure.name}.ref in ${configFile} to skip the registry entirely. Otherwise check network access and run ${getCommand(failure.name)}.`;
   }
+  if (failure.reason === 'clone-failed') {
+    // The repository was never read, so there is no mirror to search and nothing to pin a
+    // ref against: pointing at the tag workflow here sends an agent to a path that does not
+    // exist. The wrong value is the repository, so that is the only key worth naming.
+    const source = failure.repository
+      ? `packages.${failure.name}.repository in ${configFile}`
+      : `the npm registry metadata for ${failure.name}@${failure.version}`;
+    return `The repository could not be read, so nothing was cloned and no ref was tried. It came from ${source}. If the project moved or was renamed, set packages.${failure.name}.repository in ${configFile} to the current location (github:owner/repo, a git URL, or file:../repo). If it is private, agent-reference clones with your own git credentials, so check that git can read it directly. Then run ${getCommand(failure.name)}.`;
+  }
   return pinFix(failure.name, failure.version, failure.repositoryUrl, storeDir, configFile);
 }
 
 function unresolvedPatch(failure: UnresolvedManifestReference): Record<string, unknown> {
   const pinned: Record<string, unknown> = { version: failure.version };
-  if (failure.reason === 'no-repository' || failure.reason === 'registry-error') {
+  if (failure.reason === 'no-repository' || failure.reason === 'registry-error' || failure.reason === 'clone-failed') {
     pinned.repository = '<github:owner/repo>';
   }
-  pinned.ref = '<commit-or-tag>';
+  // A ref cannot be chosen against a repository that was never read.
+  if (failure.reason !== 'clone-failed') {
+    pinned.ref = '<commit-or-tag>';
+  }
 
   return { packages: { [failure.name]: pinned } };
 }

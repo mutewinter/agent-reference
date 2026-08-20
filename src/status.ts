@@ -28,6 +28,7 @@ import type {
   PackageReference,
   ReferenceSelectionOptions,
   ScanProjectOptions,
+  PackageDrift,
   UnresolvedManifestReference
 } from './types.ts';
 
@@ -81,29 +82,6 @@ export async function getStatusReport(
     );
   }
 
-  for (const name of configPackages.missingInstalled) {
-    const manifestEntry = packageManifestByName.get(name);
-    const worktreePath = manifestEntry ? referencePathFor(manifestEntry) : null;
-    entries.push(
-      statusEntry({
-        kind: 'package',
-        name,
-        ...(annotations.get(`package:${name}`) ?? {}),
-        requested: 'installed',
-        clonedVersion: manifestEntry?.version ?? null,
-        path: worktreePath && manifestEntry
-          ? await resolvePackagePath(worktreePath, manifestEntry.repositoryDirectory)
-          : null,
-        repositoryPath: worktreePath,
-        repositoryUrl: manifestEntry?.repositoryUrl ?? null,
-        checkoutSha: manifestEntry?.checkoutSha ?? null,
-        confidence: manifestEntry?.confidence ?? null,
-        status: 'not-installed',
-        action: 'Install this package or update agent-reference.json. Do not use an old clone as current project source.'
-      })
-    );
-  }
-
   for (const folder of config?.folders ?? []) {
     entries.push(await buildFolderStatus(project.projectRoot, folder, annotations.get(`folder:${folder.name}`)));
   }
@@ -127,7 +105,14 @@ export async function getStatusReport(
       `Nothing matched ${describeSelection(options)}. ${knownSelectorsMessage(config)}`
     );
   }
-  const problems = await collectProblems(references, unresolvedByName, storeDir, loadedConfig?.path ?? null);
+  const problems = await collectProblems(
+    references,
+    unresolvedByName,
+    new Set((config?.packages ?? []).filter((entry) => entry.directory).map((entry) => entry.name)),
+    configPackages.drift,
+    storeDir,
+    loadedConfig?.path ?? null
+  );
 
   return {
     generatedAt: new Date().toISOString(),
@@ -155,6 +140,9 @@ export async function getStatusReport(
 async function collectProblems(
   entries: AgentReferenceStatusEntry[],
   unresolvedByName: Map<string, UnresolvedManifestReference>,
+  /** Names whose package directory was chosen by hand, so an unconfirmed version is expected. */
+  directoryPinned: Set<string>,
+  drift: PackageDrift[],
   storeDir: string,
   configPath: string | null
 ): Promise<AgentReferenceProblem[]> {
@@ -170,26 +158,15 @@ async function collectProblems(
       continue;
     }
 
-    if (entry.status === 'not-installed') {
+    const drifted = drift.find((candidate) => candidate.name === entry.name);
+    if (drifted) {
       problems.push({
         reference,
-        severity: 'error',
-        summary: `${entry.name} is configured as "installed" but is not in the lockfile.`,
-        fix: `Install ${entry.name}, or change packages.${entry.name} in ${configFile} to a pinned version. Do not treat the old checkout as current source.`,
-        configPatch: null
+        severity: 'warning',
+        summary: `${entry.name} is pinned to ${drifted.pinned}, but this project installs ${drifted.installed.join(' and ')} (${drifted.importers.join(', ')}).`,
+        fix: `If the pin is deliberate, say so in packages.${entry.name}.description. Otherwise set packages.${entry.name} in ${configFile} to ${drifted.installed[0]} and run ${getCommand(entry.name)}.`,
+        configPatch: { packages: { [entry.name]: drifted.installed[0] } }
       });
-      continue;
-    }
-
-    if (entry.kind === 'folder' && entry.status === 'missing') {
-      problems.push({
-        reference,
-        severity: 'error',
-        summary: `Folder reference ${entry.name} points at ${entry.path}, which does not exist.`,
-        fix: `Create that folder, or correct folders.${entry.name} in ${configFile}. Folder references are never cloned.`,
-        configPatch: null
-      });
-      continue;
     }
 
     if (entry.status === 'ready' && entry.confidence === 'fallback') {
@@ -203,7 +180,7 @@ async function collectProblems(
       continue;
     }
 
-    if (entry.status === 'ready' && entry.confidence === 'unverified') {
+    if (entry.status === 'ready' && entry.confidence === 'unverified' && !directoryPinned.has(entry.name)) {
       problems.push({
         reference,
         severity: 'warning',
@@ -421,7 +398,6 @@ function summarizeStatus(entries: AgentReferenceStatusEntry[]): Record<AgentRefe
     declared: 0,
     stale: 0,
     missing: 0,
-    'not-installed': 0,
     unresolvable: 0
   };
 

@@ -115,6 +115,12 @@ export async function validateConfig(
     }
   }
 
+  if (loaded.config?.allImporters) {
+    report.warnings.push(
+      'allImporters no longer does anything: every workspace importer is read now, and a name installed at several versions is reported rather than picked. The key can be removed.'
+    );
+  }
+
   if (references.length === 0) {
     report.warnings.push('No references are configured yet.');
   }

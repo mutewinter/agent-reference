@@ -49,15 +49,10 @@
       },
       "examples": [
         {
-          "react": "installed",
+          "prettier": "3.6.2",
           "zod": {
             "version": "3.25.0",
             "description": "Schema shapes we mirror in our own validators"
-          },
-          "odd-tags": {
-            "version": "2.1.0",
-            "ref": "release-2.1.0",
-            "description": "Pinned by hand: tags do not follow any known pattern"
           }
         }
       ]
@@ -143,21 +138,14 @@
         }
       ]
     },
-    "allPackages": {
-      "type": "boolean",
-      "description": "Track every discovered direct dependency, not just the ones listed in `packages`."
-    },
     "allImporters": {
       "type": "boolean",
-      "description": "Scan every workspace importer in the lockfile instead of only the current package."
+      "deprecated": true,
+      "description": "No longer used. Every workspace importer is read, and a name installed at several versions is reported rather than picked."
     },
     "registry": {
       "type": "string",
       "description": "npm registry base URL. Defaults to https://registry.npmjs.org."
-    },
-    "worktreeDir": {
-      "type": "string",
-      "description": "Keep checkouts in this project-local directory instead of the machine-wide store."
     },
     "cacheDir": {
       "type": "string",
@@ -317,8 +305,8 @@
   "$defs": {
     "packageVersion": {
       "type": "string",
-      "minLength": 1,
-      "description": "\"installed\" to follow the active lockfile, or an exact version, semver range, or dist-tag resolved through the registry."
+      "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$",
+      "description": "An exact published version, such as \"3.25.0\". Ranges, dist-tags, and \"installed\" are rejected: a config entry is a fixed coordinate that has to mean the same thing on every machine and next month. Run `agent-reference versions <name>` to see what this project installs."
     },
     "description": {
       "type": "string",

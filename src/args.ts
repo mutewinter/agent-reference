@@ -1,4 +1,14 @@
-export type CliCommand = 'status' | 'get' | 'clone' | 'init' | 'validate' | 'schema' | 'store' | 'help' | 'version';
+export type CliCommand =
+  | 'status'
+  | 'get'
+  | 'versions'
+  | 'clone'
+  | 'init'
+  | 'validate'
+  | 'schema'
+  | 'store'
+  | 'help'
+  | 'version';
 
 export interface CliOptions {
   command: CliCommand;
@@ -10,7 +20,18 @@ export interface CliOptions {
   days: number | null;
 }
 
-const COMMANDS = new Set<string>(['status', 'get', 'clone', 'init', 'validate', 'schema', 'store', 'help', 'version']);
+const COMMANDS = new Set<string>([
+  'status',
+  'get',
+  'versions',
+  'clone',
+  'init',
+  'validate',
+  'schema',
+  'store',
+  'help',
+  'version'
+]);
 const VALID_OPTIONS = '--set <name-or-description>, --json, --prune, --days <n>';
 
 export function parseArgv(argv: string[]): CliOptions {

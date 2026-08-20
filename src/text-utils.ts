@@ -1,3 +1,20 @@
+/**
+ * Strips control characters from a value that came from somewhere else: a config
+ * description, registry metadata, a git ref, or git's own stderr. Left raw, those bytes
+ * reposition and recolor a terminal, and reach an agent's context as text shaped like
+ * instructions. Newlines and tabs survive, because they carry the shape of relayed output
+ * without being able to move a cursor. `--json` needs none of this: JSON.stringify escapes
+ * control bytes already, so this guards the human formatter only.
+ */
+export function sanitizeRelayed(value: string): string {
+  return value.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
+}
+
+/** The same, flattened, for a field rendered inside one aligned line. */
+export function sanitizeRelayedLine(value: string): string {
+  return sanitizeRelayed(value).replace(/\s+/g, ' ').trim();
+}
+
 export function splitOutsideQuotes(value: string, separator: string): string[] {
   const parts: string[] = [];
   let quote: string | null = null;

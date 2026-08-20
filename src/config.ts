@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import { pathExists, readJsonFile } from './fs-utils.ts';
+import { isExactRegistryVersion, parsePackageAtVersion } from './package-utils.ts';
 import { repositoryNameFromSpec } from './repository.ts';
 import type {
   AgentReferenceConfig,
@@ -25,6 +26,31 @@ const TOP_LEVEL_KEYS = [
   'registry',
   'cacheDir'
 ];
+/**
+ * A package entry is a coordinate, not a question. `installed` used to mean "whatever the
+ * lockfile says", which resolved differently depending on the directory the command ran in
+ * and, in a workspace, could name a version this project does not install. Ranges and
+ * dist-tags have the same defect one step removed: they answer differently next week.
+ */
+const VERSION_HELP =
+  'Run `agent-reference versions <name>` to see every version this project installs, then pin that number.';
+
+function requirePackageVersion(value: unknown, configPath: string, field: string): string {
+  if (value === undefined || value === null) {
+    fail(configPath, `${field} is required and must be an exact version such as "1.2.3". ${VERSION_HELP}`);
+  }
+
+  const version = requireNonEmpty(expectString(value, configPath, field), configPath, field);
+  if (!isExactRegistryVersion(version)) {
+    fail(
+      configPath,
+      `${field} is "${version}", which is not an exact version. Ranges, dist-tags, and "installed" are not accepted: a config entry has to mean the same thing on every machine and next month. ${VERSION_HELP}`
+    );
+  }
+
+  return version;
+}
+
 const PACKAGE_KEYS = ['version', 'ref', 'repository', 'directory', 'description'];
 const FOLDER_KEYS = ['path', 'description'];
 const GIT_KEYS = ['repository', 'ref', 'description'];
@@ -204,11 +230,15 @@ function parseSetPackage(
   label: string
 ): ConfiguredPackageReference {
   if (typeof item === 'string') {
+    const parsed = parsePackageAtVersion(requireNonEmpty(item, configPath, field));
+    if (!parsed) {
+      fail(configPath, `${field} must be "name@version" with an exact version, such as "react@18.2.0". ${VERSION_HELP}`);
+    }
     return {
       kind: 'package',
-      name: requireNonEmpty(item, configPath, field),
+      name: parsed.name,
       scope: 'shared',
-      version: 'installed',
+      version: parsed.version,
       ref: null,
       repository: null,
       directory: null,
@@ -225,10 +255,7 @@ function parseSetPackage(
     kind: 'package',
     name: requireNonEmpty(expectString(object.name, configPath, `${field}.name`), configPath, `${field}.name`),
     scope: 'shared',
-    version:
-      object.version === undefined || object.version === null
-        ? 'installed'
-        : requireNonEmpty(expectString(object.version, configPath, `${field}.version`), configPath, `${field}.version`),
+    version: requirePackageVersion(object.version, configPath, `${field}.version`),
     ref: optionalString(object.ref, configPath, `${field}.ref`),
     repository: optionalString(object.repository, configPath, `${field}.repository`),
     directory: optionalString(object.directory, configPath, `${field}.directory`),
@@ -244,7 +271,7 @@ function parseSetPackage(
  */
 function mergeDuplicateReferences(config: AgentReferenceConfig, configPath: string): void {
   config.packages = mergeKind(config.packages, configPath, (entry) =>
-    [entry.version, entry.ref, entry.repository, entry.directory].join(' ')
+    [entry.version, entry.ref, entry.repository, entry.directory].join('\u0000')
   );
   config.folders = mergeKind(config.folders, configPath, (entry) => entry.path);
   config.git = mergeKind(config.git, configPath, (entry) => entry.spec);
@@ -295,7 +322,7 @@ function parsePackageEntry(name: string, entry: unknown, configPath: string): Co
       kind: 'package',
       name,
       scope: 'shared',
-      version: requireNonEmpty(entry, configPath, field),
+      version: requirePackageVersion(entry, configPath, field),
       ref: null,
       repository: null,
       directory: null,
@@ -306,15 +333,12 @@ function parsePackageEntry(name: string, entry: unknown, configPath: string): Co
 
   const object = expectObject(entry, configPath, field, 'a version string or an object');
   assertKnownKeys(object, PACKAGE_KEYS, configPath, field);
-  if (object.version === undefined) {
-    fail(configPath, `${field}.version is required. Use "installed", an exact version, a range, or a dist-tag.`);
-  }
 
   return {
     kind: 'package',
     name,
     scope: 'shared',
-    version: requireNonEmpty(expectString(object.version, configPath, `${field}.version`), configPath, `${field}.version`),
+    version: requirePackageVersion(object.version, configPath, `${field}.version`),
     ref: optionalString(object.ref, configPath, `${field}.ref`),
     repository: optionalString(object.repository, configPath, `${field}.repository`),
     directory: optionalString(object.directory, configPath, `${field}.directory`),

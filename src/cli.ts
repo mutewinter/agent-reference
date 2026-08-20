@@ -9,10 +9,18 @@ import { cloneReferences } from './core.ts';
 import { getReferences } from './get.ts';
 import { briefSteps, formatInitBrief } from './init-format.ts';
 import { surveyProject } from './init.ts';
-import { dependencyKey } from './package-utils.ts';
+import {
+  dependencyKey,
+  formatCoordinate,
+  parsePackageCoordinate,
+  SUPPORTED_ECOSYSTEM,
+  unsupportedEcosystemMessage
+} from './package-utils.ts';
 import { KEEP_REFERENCE_NOTE } from './problems.ts';
 import { formatProblem, formatStatusReport } from './status-format.ts';
+import { sanitizeRelayedLine } from './text-utils.ts';
 import { getStatusReport } from './status.ts';
+import { formatVersionsReport, getVersionsReport } from './versions.ts';
 import { formatBytes, inspectStore, type StoreReport } from './store.ts';
 import { validateConfig, type ValidationReport } from './validate.ts';
 import type { CloneReferencesResult, GetReferenceResult } from './types.ts';
@@ -48,6 +56,15 @@ async function main(argv: string[]): Promise<void> {
       // specs like github:owner/repo would be misread as paths by splitPositionals.
       const results = await getReferences(null, options.positionals);
       write(options, results, formatGetResults);
+      return;
+    }
+    case 'versions': {
+      const [spec] = options.positionals;
+      if (!spec) throw new Error('versions needs a package name, for example agent-reference versions zod.');
+      const { ecosystem, name } = parsePackageCoordinate(spec);
+      if (ecosystem !== SUPPORTED_ECOSYSTEM) throw new Error(unsupportedEcosystemMessage(ecosystem, name));
+      const report = await getVersionsReport(null, name);
+      write(options, report, formatVersionsReport);
       return;
     }
     case 'clone': {
@@ -115,15 +132,25 @@ function displayPath(value: string | null): string {
 }
 
 function formatGetResults(results: GetReferenceResult[]): string {
-  const lines = results.map((result) => {
+  const lines: string[] = [];
+
+  for (const result of results) {
     if (result.kind === 'package') {
-      return `${dependencyKey(result.name, result.version ?? '')} -> ${displayPath(result.path)} (${result.confidence}, ${result.refSource} ${result.checkoutRef})`;
+      lines.push(
+        `${formatCoordinate(result.name, result.version)} -> ${displayPath(result.path)} (${result.confidence}, ${result.refSource} ${sanitizeRelayedLine(result.checkoutRef ?? '')})`
+      );
+    } else if (result.kind === 'git') {
+      lines.push(
+        `${sanitizeRelayedLine(result.requested)} -> ${displayPath(result.path)} (${sanitizeRelayedLine(result.checkoutRef ?? '')} @ ${result.checkoutSha?.slice(0, 12)})`
+      );
+    } else {
+      lines.push(`${result.name} -> ${displayPath(result.path)}`);
     }
-    if (result.kind === 'git') {
-      return `${result.requested} -> ${displayPath(result.path)} (${result.checkoutRef} @ ${result.checkoutSha?.slice(0, 12)})`;
-    }
-    return `${result.name} -> ${displayPath(result.path)}`;
-  });
+
+    // The fix travels with the result that needs it, rather than waiting for `status`.
+    if (result.problem) lines.push(formatProblem(result.problem));
+  }
+
   return `${lines.join('\n')}\n`;
 }
 
@@ -199,6 +226,7 @@ fetched until asked for.
 
 Usage:
   agent-reference get <spec>... [--json]
+  agent-reference versions <name> [--json]
   agent-reference status [reference...] [--set <name>] [--json]
   agent-reference clone  [reference...] [--set <name>] [--json]
   agent-reference init   [project] [--json]
@@ -210,7 +238,12 @@ Commands:
   get       Materialize one reference and print its path. A spec is a configured
             reference name, a dependency name (version from the lockfile), a
             name@version, github:owner/repo, owner/repo, a git URL, or file:../repo.
-            Works with no config and no project at all.
+            A package may carry an ecosystem prefix (npm:zod@3.22.0); npm is
+            the default and the only one resolved today. Works with no config
+            and no project at all.
+  versions  Report every version of a package this project installs, and which
+            workspace package installs it. Reads only; never fetches, and an
+            unknown ecosystem or an absent package is an answer, not an error.
   status    Report every configured reference: scope, state, and absolute path.
             Declared-but-not-fetched is the normal state, not a problem.
   clone     Bulk prefetch every configured reference, for CI or a long flight.

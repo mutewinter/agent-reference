@@ -68,6 +68,8 @@ export interface GitWorktreeOptions {
   storeDir: string;
   /** Checkout chosen by hand in the config; skips version resolution entirely. */
   pinnedRef?: string | null;
+  /** Package subdirectory chosen by hand in the config; wins over name-based detection. */
+  pinnedDirectory?: string | null;
 }
 
 /**
@@ -88,6 +90,8 @@ export interface GitWorktreeResult {
   checkoutSha: string;
   refSource: PackageRefSource;
   confidence: CheckoutConfidence;
+  /** A directory that claimed the package's name without confirming its version. */
+  nameOnlyDirectory: string | null;
   pinnedRef: string | null;
 }
 
@@ -132,6 +136,21 @@ export interface CloneReferencesResult {
   manifestPath: string;
 }
 
+/**
+ * Where the version being materialized came from. `registry` is the one worth saying out
+ * loud: it means nothing in this project installs the package, so the checkout is upstream's
+ * latest rather than anything this repository depends on.
+ */
+/** A pinned config version that no longer matches what the project installs. */
+export interface PackageDrift {
+  name: string;
+  pinned: string;
+  installed: string[];
+  importers: string[];
+}
+
+export type PackageVersionSource = 'explicit' | 'lockfile' | 'registry' | 'config';
+
 /** One materialized (or located, for folders) reference returned by `get`. */
 export interface GetReferenceResult {
   kind: AgentReferenceKind;
@@ -139,6 +158,7 @@ export interface GetReferenceResult {
   /** The spec as the caller wrote it. */
   requested: string;
   version: string | null;
+  versionSource: PackageVersionSource | null;
   path: string;
   repositoryPath: string | null;
   repositoryUrl: string | null;
@@ -149,6 +169,13 @@ export interface GetReferenceResult {
   description: string | null;
   /** True when the result was written to this project's materialization state. */
   recorded: boolean;
+  /**
+   * Anything the caller has to know about this result to read it correctly: a checkout that
+   * is not the requested version, or a version that came from the registry rather than this
+   * project. `get` is the command an agent runs, so what is wrong with a result is reported
+   * here rather than only by `status`.
+   */
+  problem: AgentReferenceProblem | null;
 }
 
 export type AgentReferenceKind = 'package' | 'folder' | 'git';
@@ -217,7 +244,6 @@ export type AgentReferenceStatusState =
   | 'declared'
   | 'stale'
   | 'missing'
-  | 'not-installed'
   | 'unresolvable';
 
 export interface AgentReferenceStatusEntry {

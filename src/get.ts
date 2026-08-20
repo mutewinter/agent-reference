@@ -7,16 +7,25 @@ import { materializePackage } from './core.ts';
 import { resolveConfigPath, resolveReferencePath, pathExists } from './fs-utils.ts';
 import { defaultStoreDir, ensureGitReferenceWorktree, resolvePackagePath } from './git.ts';
 import { writeManifest } from './manifest.ts';
-import { unresolvedProblem } from './problems.ts';
+import { ambiguousInstalledMessage, pinFix, unresolvedProblem } from './problems.ts';
+import { isWorkspaceVersion, workspaceVersionPath } from './pnpm-lock.ts';
 import { loadReferenceContext, type LoadedReferenceContext } from './reference-context.ts';
+import {
+  parsePackageCoordinate,
+  selectInstalledPackage,
+  SUPPORTED_ECOSYSTEM,
+  unsupportedEcosystemMessage
+} from './package-utils.ts';
 import { resolveRegistryVersion } from './registry.ts';
 import type {
   ConfiguredReference,
+  AgentReferenceProblem,
   GetReferenceResult,
   GitReferenceWorktreeResult,
   GitWorktreeOptions,
   GitWorktreeResult,
   PackageReference,
+  PackageVersionSource,
   RegistryOptions,
   ScanProjectOptions
 } from './types.ts';
@@ -129,6 +138,7 @@ async function getConfigured(
       name: reference.name,
       requested: reference.path,
       version: null,
+      versionSource: null,
       path: resolvedPath,
       repositoryPath: null,
       repositoryUrl: null,
@@ -137,7 +147,8 @@ async function getConfigured(
       refSource: null,
       confidence: null,
       description: reference.description,
-      recorded: false
+      recorded: false,
+      problem: null
     };
   }
 
@@ -149,6 +160,7 @@ async function getConfigured(
       name: reference.name,
       requested: reference.spec,
       version: null,
+      versionSource: null,
       path: result.worktreePath,
       repositoryPath: result.worktreePath,
       repositoryUrl: result.repositoryUrl,
@@ -157,20 +169,20 @@ async function getConfigured(
       refSource: result.refSource,
       confidence: null,
       description: reference.description,
-      recorded: true
+      recorded: true,
+      problem: null
     };
   }
 
   const dependency = context.configPackages.packages.find((entry) => entry.name === reference.name);
   if (!dependency) {
-    throw new Error(
-      `packages.${reference.name} is configured as "${reference.version}" but is not in the active lockfile. Install it, or change the entry to an exact version.`
-    );
+    throw new Error(`packages.${reference.name} is declared but carries no version. Give it an exact version such as "1.2.3".`);
   }
 
   return materializeToResult(dependency, reference.name, dependency.name, registryOptions, worktreeOptions, {
     override: reference,
-    record: recordedPackages
+    record: recordedPackages,
+    versionSource: 'config'
   });
 }
 
@@ -181,24 +193,35 @@ async function getPackage(
   worktreeOptions: GitWorktreeOptions,
   recordedPackages: GitWorktreeResult[]
 ): Promise<GetReferenceResult> {
-  const { name, version: requestedVersion } = parsePackageSpec(spec);
-  const installed = context.installedPackages.find((entry) => entry.name === name) ?? null;
+  const { ecosystem, name, version: requestedVersion } = parsePackageCoordinate(spec);
+  if (ecosystem !== SUPPORTED_ECOSYSTEM) throw new Error(unsupportedEcosystemMessage(ecosystem, name));
+
+  const { match, candidates } = selectInstalledPackage(name, context.installedPackages, context.project.importer);
 
   let dependency: PackageReference;
-  if (!requestedVersion && installed) {
-    dependency = installed;
+  let versionSource: PackageVersionSource;
+  if (requestedVersion) {
+    const exact = semver.valid(requestedVersion);
+    const version = exact ?? (await resolveRegistryVersion(name, requestedVersion, registryOptions));
+    dependency = adHocDependency(name, version, requestedVersion, match);
+    versionSource = 'explicit';
+  } else if (match) {
+    dependency = match;
+    versionSource = 'lockfile';
+  } else if (candidates.length > 1) {
+    throw new Error(ambiguousInstalledMessage(name, candidates));
+  } else if (workspaceMatch(name, context)) {
+    const local = workspaceMatch(name, context);
+    throw new Error(
+      `${name} is a workspace package in this repository, at ${local}. Its source is already on disk, so there is nothing to materialize; open that directory directly.`
+    );
   } else {
-    const specifier = requestedVersion ?? 'latest';
-    const exact = semver.valid(requestedVersion ?? '');
-    const version = exact ?? (await resolveRegistryVersion(name, specifier, registryOptions));
-    dependency = {
-      name,
-      version,
-      specifier,
-      packageManager: installed?.packageManager ?? 'config',
-      dependencyTypes: [],
-      importers: []
-    };
+    // Nothing here installs it, which is the "look at a library I might adopt" case rather
+    // than an error. The result says where the version came from, so it cannot be mistaken
+    // for the one this project uses.
+    const version = await resolveRegistryVersion(name, 'latest', registryOptions);
+    dependency = adHocDependency(name, version, 'latest', null);
+    versionSource = 'registry';
   }
 
   const override = context.config?.packages.find((entry) => entry.name === name);
@@ -206,9 +229,35 @@ async function getPackage(
     // A pin belongs to the version it was made for: it must not redirect an explicit
     // historical request like name@old-version.
     override: override && requestedVersion ? { ...override, ref: null } : override,
-    // Explicit versions are one-off lookups; only the project's current version is state.
-    record: requestedVersion || !installed ? null : recordedPackages
+    // Explicit and registry versions are one-off lookups; only the version this project
+    // installs is worth recording as its current checkout.
+    record: versionSource === 'lockfile' ? recordedPackages : null,
+    versionSource
   });
+}
+
+/** The path of an in-repo workspace package, when that is what the name refers to. */
+function workspaceMatch(name: string, context: LoadedReferenceContext): string | null {
+  const entry = context.installedPackages.find(
+    (candidate) => candidate.name === name && isWorkspaceVersion(candidate.version)
+  );
+  return entry ? workspaceVersionPath(entry.version) : null;
+}
+
+function adHocDependency(
+  name: string,
+  version: string,
+  specifier: string,
+  installed: PackageReference | null
+): PackageReference {
+  return {
+    name,
+    version,
+    specifier,
+    packageManager: installed?.packageManager ?? 'config',
+    dependencyTypes: [],
+    importers: []
+  };
 }
 
 async function materializeToResult(
@@ -220,6 +269,7 @@ async function materializeToResult(
   options: {
     override: Parameters<typeof materializePackage>[1];
     record: GitWorktreeResult[] | null;
+    versionSource: PackageVersionSource;
   }
 ): Promise<GetReferenceResult> {
   const outcome = await materializePackage(dependency, options.override, registryOptions, worktreeOptions);
@@ -239,6 +289,7 @@ async function materializeToResult(
     name,
     requested,
     version: dependency.version,
+    versionSource: options.versionSource,
     path: packagePath,
     repositoryPath: outcome.result.worktreePath,
     repositoryUrl: outcome.result.metadata.repositoryUrl,
@@ -247,8 +298,73 @@ async function materializeToResult(
     refSource: outcome.result.refSource,
     confidence: outcome.result.confidence,
     description: null,
-    recorded: options.record !== null
+    recorded: options.record !== null,
+    problem: resultProblem(
+      name,
+      dependency.version,
+      outcome.result,
+      options.versionSource,
+      worktreeOptions.storeDir,
+      Boolean(options.override?.directory)
+    )
   };
+}
+
+/**
+ * A `get` that succeeds can still hand back something the caller would misread: the default
+ * branch when no release commit matched, or upstream's latest when this project installs
+ * nothing by that name. Both are reported here, with the same fix text `status` would give,
+ * because `get` is the command an agent runs and the output it acts on.
+ */
+function resultProblem(
+  name: string,
+  version: string,
+  result: GitWorktreeResult,
+  versionSource: PackageVersionSource,
+  storeDir: string,
+  directoryPinned: boolean
+): AgentReferenceProblem | null {
+  if (result.confidence === 'fallback') {
+    return {
+      reference: `package:${name}`,
+      severity: 'error',
+      summary: `No release commit matched ${name}@${version}, so the default branch was checked out. The source at this path is NOT version ${version}.`,
+      fix: pinFix(name, version, result.metadata.repositoryUrl, storeDir, 'agent-reference.json'),
+      configPatch: { packages: { [name]: { version, ref: '<commit-or-tag>' } } }
+    };
+  }
+
+  if (result.confidence === 'unverified' && !directoryPinned) {
+    const directory = result.metadata.repositoryDirectory;
+    const nearMiss = result.nameOnlyDirectory
+      ? `, because nothing in it confirms both name and version (${result.nameOnlyDirectory}/ claims the name but states no matching version, so it is not the package)`
+      : ', because no directory in it identifies itself as this package';
+    const wherePath =
+      directory && directory !== '.'
+        ? `${directory}/ inside the checkout`
+        : directory === '.'
+          ? `the repository root, as packages.${name}.directory asks for`
+          : `the repository root${nearMiss}`;
+    return {
+      reference: `package:${name}`,
+      severity: 'warning',
+      summary: `The ref for ${name}@${version} looks right, but no package.json confirmed the version. The path is ${wherePath}.`,
+      fix: `Spot-check the source before trusting it as ${version}. If it is wrong, ${pinFix(name, version, result.metadata.repositoryUrl, storeDir, 'agent-reference.json')}`,
+      configPatch: null
+    };
+  }
+
+  if (versionSource === 'registry') {
+    return {
+      reference: `package:${name}`,
+      severity: 'warning',
+      summary: `Nothing in this project installs ${name}, so this is ${version}, the registry's latest, rather than a version this repository depends on.`,
+      fix: `If you meant a specific version, ask for it: agent-reference get ${name}@<version>.`,
+      configPatch: null
+    };
+  }
+
+  return null;
 }
 
 async function getAdHocGit(spec: string, worktreeOptions: GitWorktreeOptions): Promise<GetReferenceResult> {
@@ -261,6 +377,7 @@ async function getAdHocGit(spec: string, worktreeOptions: GitWorktreeOptions): P
     name,
     requested: spec,
     version: null,
+    versionSource: null,
     path: result.worktreePath,
     repositoryPath: result.worktreePath,
     repositoryUrl: result.repositoryUrl,
@@ -270,7 +387,8 @@ async function getAdHocGit(spec: string, worktreeOptions: GitWorktreeOptions): P
     confidence: null,
     description: null,
     // An ad hoc repository is an exploration, not part of this project's declared state.
-    recorded: false
+    recorded: false,
+    problem: null
   };
 }
 
@@ -295,10 +413,4 @@ function repoNameFromSpec(spec: string): string {
   return base.replace(/\.git$/, '') || withoutRef;
 }
 
-function parsePackageSpec(spec: string): { name: string; version: string | null } {
-  const at = spec.lastIndexOf('@');
-  if (at > 0) {
-    return { name: spec.slice(0, at), version: spec.slice(at + 1) || null };
-  }
-  return { name: spec, version: null };
-}
+

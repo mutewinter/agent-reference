@@ -163,7 +163,7 @@ async function copyFixtureProject(): Promise<string> {
 
 async function useConfig(projectRoot: string): Promise<void> {
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    packages: { 'tiny-invariant': 'installed' }
+    packages: { 'tiny-invariant': '1.3.3' }
   }, null, 2));
 }
 

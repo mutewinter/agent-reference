@@ -121,8 +121,12 @@ function normalizeVersionValue(
   let version = stripPnpmPeerSuffix(rawVersion);
   if (!version) return { name: packageName, version: null, specifier };
 
-  if (version.startsWith('link:') || version.startsWith('file:') || version.startsWith('workspace:')) {
-    return { name: packageName, version: null, specifier };
+  // Kept, not dropped. A workspace dependency has no registry version, but dropping it made
+  // an in-repo package indistinguishable from one nothing installs, so asking for it sent a
+  // `link:` string to the registry and came back 404. Callers that fetch skip these; callers
+  // that answer questions about the project report them.
+  if (isWorkspaceVersion(version)) {
+    return { name: packageName, version, specifier };
   }
 
   if (version.startsWith('npm:')) {
@@ -208,4 +212,15 @@ function stripYamlComment(line: string): string {
   }
 
   return line;
+}
+
+const WORKSPACE_PROTOCOL = /^(?:link|file|workspace):/;
+
+/** A dependency resolved inside this repository rather than from a registry. */
+export function isWorkspaceVersion(version: string): boolean {
+  return WORKSPACE_PROTOCOL.test(version);
+}
+
+export function workspaceVersionPath(version: string): string {
+  return version.replace(WORKSPACE_PROTOCOL, '') || '.';
 }

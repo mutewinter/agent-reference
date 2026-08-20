@@ -9,6 +9,7 @@ import { unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import { resolvePackageMetadata } from './registry.ts';
 import { normalizeConfiguredRepository } from './repository.ts';
+import { sanitizeRelayed } from './text-utils.ts';
 import type {
   CloneReferencesOptions,
   CloneReferencesResult,
@@ -58,11 +59,7 @@ export async function cloneReferences(
 
   const cloned: CloneReferencesResult['cloned'] = [];
   const unresolved: UnresolvedManifestReference[] = [];
-  const skipped: CloneReferencesResult['skipped'] = configPackages.missingInstalled.map((name) => ({
-    name,
-    version: null,
-    reason: 'Configured as "installed" but not present in the active lockfile.'
-  }));
+  const skipped: CloneReferencesResult['skipped'] = [];
   const overrides = new Map((config?.packages ?? []).map((entry) => [entry.name, entry]));
 
   for (const dependency of packages) {
@@ -112,7 +109,8 @@ export async function materializePackage(
       name: dependency.name,
       version: dependency.version,
       reason,
-      detail,
+      // git's stderr and registry errors are third-party text on their way to a terminal.
+      detail: sanitizeRelayed(detail),
       repositoryUrl,
       pinnedRef: override?.ref ?? null,
       repository: override?.repository ?? null
@@ -144,12 +142,8 @@ export async function materializePackage(
   try {
     const result = await ensureDependencyWorktree(
       dependency,
-      {
-        ...metadata,
-        repositoryUrl,
-        repositoryDirectory: override?.directory ?? metadata.repositoryDirectory
-      },
-      { ...worktreeOptions, pinnedRef: override?.ref ?? null }
+      { ...metadata, repositoryUrl },
+      { ...worktreeOptions, pinnedRef: override?.ref ?? null, pinnedDirectory: override?.directory ?? null }
     );
     return { result };
   } catch (error) {

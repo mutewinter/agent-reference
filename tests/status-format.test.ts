@@ -29,7 +29,8 @@ test('renders scope sections with sets as labeled-list subsections', () => {
   assert.match(output, /agent-reference\.local\.json \(this machine\)\n  design-notes {2,}folder · ready · \/refs\/design-notes/);
   assert.match(output, /"Sketches and early notes"/);
   assert.doesNotMatch(output, / - /);
-  assert.match(output, /1 declared · nothing fetched until needed · agent-reference get <name>/);
+  // Counted against the whole list: one of the two references here has not been fetched.
+  assert.match(output, /1 of 2 not fetched yet, which is normal · agent-reference get <name>/);
 });
 
 test('package lines carry version, confidence, and staleness inline', () => {

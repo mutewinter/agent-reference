@@ -1,3 +1,4 @@
+import { isWorkspaceVersion } from './pnpm-lock.ts';
 import type { PackageReference } from './types.ts';
 
 export function dependencyKey(name: string, version: string): string {
@@ -36,6 +37,33 @@ export function tagCandidatesForDependency(name: string, version: string): strin
   return [...new Set(candidates)];
 }
 
+export interface InstalledSelection {
+  /** The one version to use, or null when there is nothing to use or nothing to choose by. */
+  match: PackageReference | null;
+  /** Every version of this name the lockfile installs, across all workspace importers. */
+  candidates: PackageReference[];
+}
+
+/**
+ * A lockfile holds one dependency list per workspace importer, so a name can be installed at
+ * several versions at once. Preferring the importer the command ran in keeps the obvious
+ * answer obvious, and anything left over is reported rather than guessed: the alternatives
+ * are picking whichever version sorts first, or asking the registry for `latest`, and both
+ * hand back a version this project does not install without saying so.
+ */
+export function selectInstalledPackage(
+  name: string,
+  packages: PackageReference[],
+  importer: string
+): InstalledSelection {
+  // Workspace links are part of the answer to "what is installed" but never to "what should
+  // be fetched": the source is already in the repository.
+  const candidates = packages.filter((entry) => entry.name === name && !isWorkspaceVersion(entry.version));
+  if (candidates.length <= 1) return { match: candidates[0] ?? null, candidates };
+
+  return { match: candidates.find((entry) => entry.importers.includes(importer)) ?? null, candidates };
+}
+
 export function mergeDependencyEntries(entries: PackageReference[]): PackageReference[] {
   const byKey = new Map<string, PackageReference>();
 
@@ -67,4 +95,47 @@ export function mergeDependencyEntries(entries: PackageReference[]): PackageRefe
     const byName = a.name.localeCompare(b.name);
     return byName || a.version.localeCompare(b.version);
   });
+}
+
+/**
+ * Ecosystems a coordinate can name. Only npm resolves today, but the prefix is accepted and
+ * printed now rather than retrofitted later: `requests` is a PyPI package and `request` is an
+ * npm one, so a bare name stops being unambiguous the moment a second ecosystem exists, and
+ * by then coordinates are sitting in committed configs and in agents' habits.
+ */
+export const SUPPORTED_ECOSYSTEM = 'npm';
+const KNOWN_ECOSYSTEMS = ['npm', 'pypi', 'crates', 'gem', 'go'];
+
+export interface PackageCoordinate {
+  ecosystem: string;
+  name: string;
+  version: string | null;
+}
+
+export function parsePackageCoordinate(spec: string): PackageCoordinate {
+  let ecosystem = SUPPORTED_ECOSYSTEM;
+  let rest = spec;
+
+  const colon = spec.indexOf(':');
+  if (colon > 0 && KNOWN_ECOSYSTEMS.includes(spec.slice(0, colon))) {
+    ecosystem = spec.slice(0, colon);
+    rest = spec.slice(colon + 1);
+  }
+
+  const at = rest.lastIndexOf('@');
+  if (at > 0) return { ecosystem, name: rest.slice(0, at), version: rest.slice(at + 1) || null };
+  return { ecosystem, name: rest, version: null };
+}
+
+/** The canonical spelling, printed back so an agent picks up the unambiguous form. */
+export function formatCoordinate(name: string, version: string | null): string {
+  return version ? `${SUPPORTED_ECOSYSTEM}:${name}@${version}` : `${SUPPORTED_ECOSYSTEM}:${name}`;
+}
+
+export function unsupportedEcosystemMessage(ecosystem: string, name: string): string {
+  return (
+    `${ecosystem}: coordinates are not supported yet. agent-reference resolves ${SUPPORTED_ECOSYSTEM} packages today. ` +
+    `Point it at the source repository instead: agent-reference get github:<owner>/<repo>#<tag>, ` +
+    `or declare ${name} under "git" in agent-reference.json with the ref you want.`
+  );
 }

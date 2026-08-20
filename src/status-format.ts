@@ -2,6 +2,7 @@ import path from 'node:path';
 
 import { displayPath } from './fs-utils.ts';
 import { getCommand, KEEP_REFERENCE_NOTE } from './problems.ts';
+import { sanitizeRelayedLine } from './text-utils.ts';
 import type {
   AgentReferenceProblem,
   AgentReferenceStatusEntry,
@@ -23,7 +24,6 @@ const STATUS_COLORS: Partial<Record<AgentReferenceStatusEntry['status'], AnsiCol
   ready: 'green',
   stale: 'yellow',
   missing: 'red',
-  'not-installed': 'red',
   unresolvable: 'red'
 };
 
@@ -72,10 +72,18 @@ export function formatStatusReport(report: AgentReferenceStatusReport, options: 
   return sections.join('\n');
 }
 
+/**
+ * Keeps relayed multi-line text visibly nested under the line that introduced it, so git's
+ * stderr cannot be mistaken for the tool's own next line of output.
+ */
+function indentWrapped(value: string, indent: string): string {
+  return value.split('\n').map((line, index) => (index === 0 ? line : `${indent}${line.trim()}`)).join('\n');
+}
+
 export function formatProblem(problem: AgentReferenceProblem): string {
   const lines = [
-    `  [${problem.severity}] ${problem.reference ? `${problem.reference}: ` : ''}${problem.summary}`,
-    `    fix: ${problem.fix}`
+    indentWrapped(`  [${problem.severity}] ${problem.reference ? `${problem.reference}: ` : ''}${problem.summary}`, '    '),
+    indentWrapped(`    fix: ${problem.fix}`, '      ')
   ];
 
   if (problem.configPatch) {
@@ -127,7 +135,7 @@ function entryLines(entries: AgentReferenceStatusEntry[], indent: number, option
     const fragments = [entry.kind, paintStatus(entry, options.color), ...primaryFragments(entry, options)];
     lines.push(`${pad}${entry.name.padEnd(width)}${fragments.join(' · ')}`);
     if (entry.description) {
-      lines.push(`${pad}${' '.repeat(width)}${paint(`"${entry.description}"`, 'dim', options.color)}`);
+      lines.push(`${pad}${' '.repeat(width)}${paint(`"${sanitizeRelayedLine(entry.description)}"`, 'dim', options.color)}`);
     }
   }
 
@@ -144,8 +152,8 @@ function primaryFragments(entry: AgentReferenceStatusEntry, options: StatusForma
 
   if (entry.kind === 'git') {
     if (entry.status === 'ready') return [shownPath()];
-    if (entry.status === 'stale') return [entry.requested ?? '', getCommand(entry.name)];
-    return [entry.requested ?? ''];
+    if (entry.status === 'stale') return [sanitizeRelayedLine(entry.requested ?? ''), getCommand(entry.name)];
+    return [sanitizeRelayedLine(entry.requested ?? '')];
   }
 
   switch (entry.status) {
@@ -155,20 +163,21 @@ function primaryFragments(entry: AgentReferenceStatusEntry, options: StatusForma
       return [`lockfile ${entry.currentVersion}, checkout ${entry.clonedVersion}`, getCommand(entry.name)];
     case 'declared':
       return entry.currentVersion ? [entry.currentVersion] : [];
-    case 'not-installed':
-      return ['configured "installed", not in the lockfile'];
     default:
       return ['see problems above'];
   }
 }
 
 function footerLine(report: AgentReferenceStatusReport, options: StatusFormatOptions): string | null {
-  const parts: string[] = [];
-  if (report.summary.declared > 0) parts.push(`${report.summary.declared} declared`);
-  if (report.summary.stale > 0) parts.push(paint(`${report.summary.stale} stale`, 'yellow', options.color));
-  if (parts.length === 0) return null;
+  const { declared, stale } = report.summary;
+  if (declared === 0 && stale === 0) return null;
 
-  if (report.summary.declared > 0) parts.push('nothing fetched until needed');
+  // Counted against the whole list, not on its own: "1 declared" under five references reads
+  // as a wrong total rather than as the one thing not fetched yet.
+  const total = report.references.length;
+  const parts: string[] = [];
+  if (declared > 0) parts.push(`${declared} of ${total} not fetched yet, which is normal`);
+  if (stale > 0) parts.push(paint(`${stale} stale`, 'yellow', options.color));
   parts.push('agent-reference get <name>');
   return `${parts.join(' · ')}\n`;
 }

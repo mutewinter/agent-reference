@@ -58,7 +58,7 @@ export async function ensureDependencyWorktree(
     throw new Error(`No repository URL found for ${dependency.name}@${dependency.version}`);
   }
 
-  const locator = createPackageLocator(dependency, metadata);
+  const locator = createPackageLocator(dependency, metadata, options.pinnedDirectory ?? null);
   const materialized = await ensureWorktree(options.storeDir, metadata.repositoryUrl, (bareRepositoryPath) =>
     options.pinnedRef
       ? resolvePinnedCheckout(bareRepositoryPath, dependency, options.pinnedRef, locator)
@@ -70,6 +70,7 @@ export async function ensureDependencyWorktree(
     dependency,
     metadata: { ...metadata, repositoryDirectory: packageDirectory },
     ...materialized,
+    nameOnlyDirectory: packageDirectory ? null : locator.nameOnly(),
     pinnedRef: options.pinnedRef ?? null,
     packagePath: await resolvePackagePath(materialized.worktreePath, packageDirectory)
   };
@@ -309,10 +310,22 @@ interface PackageLocator {
   /** The target package's version at a commit, plus where in the tree it was found. */
   inspect: (bareRepositoryPath: string, sha: string) => Promise<{ directory: string | null; version: string | null }>;
   directory: () => string | null;
+  /** A directory claiming the package's name that never confirmed its version. */
+  nameOnly: () => string | null;
 }
 
-function createPackageLocator(dependency: PackageReference, metadata: DependencyMetadata): PackageLocator {
-  let knownDirectory: string | null = null;
+function createPackageLocator(
+  dependency: PackageReference,
+  metadata: DependencyMetadata,
+  pinnedDirectory: string | null
+): PackageLocator {
+  const pinned = normalizeDirectory(pinnedDirectory);
+  // Two different questions. `probe` is where to read a manifest while deciding whether a
+  // commit is the right one, and a name match is good enough for that. `confirmed` is what
+  // gets handed back as the package's path, and only a manifest reporting this exact name
+  // and version earns it: electron's `default_app` is named `electron` and is not electron.
+  let probe: string | null = pinned;
+  let confirmed: string | null = pinned;
   let searched = false;
 
   const readManifest = async (
@@ -352,25 +365,42 @@ function createPackageLocator(dependency: PackageReference, metadata: Dependency
     return null;
   };
 
+  let nameOnly: string | null = null;
+  const record = (directory: string, version: string | null): { directory: string; version: string | null } => {
+    probe = directory;
+    if (version === dependency.version) confirmed = directory;
+    else if (directory !== '.') nameOnly = directory;
+    return { directory, version };
+  };
+
   return {
-    directory: () => knownDirectory,
+    // Nothing confirmed means the repository root, which is never a lie about what it holds.
+    // A wrong subdirectory is: the agent believes it has the package and finds two files.
+    directory: () => confirmed,
+    nameOnly: () => nameOnly,
     async inspect(bareRepositoryPath, sha) {
-      const candidates = uniqueStrings([knownDirectory, normalizeDirectory(metadata.repositoryDirectory), '.']);
-      for (const directory of candidates) {
-        const manifest = await readManifest(bareRepositoryPath, sha, directory);
-        if (manifest?.name === dependency.name) {
-          knownDirectory = directory;
-          return { directory, version: manifest.version ?? null };
-        }
+      // A directory chosen by hand wins outright, the way a pinned ref does. The manifest
+      // there is read only to answer the verify gate, and a name or version that disagrees
+      // makes the commit inconclusive rather than wrong: the pin asserts where the package
+      // lives, not that this directory carries the package's own manifest.
+      if (pinned) {
+        const manifest = await readManifest(bareRepositoryPath, sha, pinned);
+        const version = manifest?.name === dependency.name ? (manifest.version ?? null) : null;
+        return { directory: pinned, version: version === dependency.version ? version : null };
       }
 
+      const candidates = uniqueStrings([probe, normalizeDirectory(metadata.repositoryDirectory), '.']);
+      for (const directory of candidates) {
+        const manifest = await readManifest(bareRepositoryPath, sha, directory);
+        if (manifest?.name === dependency.name) return record(directory, manifest.version ?? null);
+      }
+
+      // One tree walk per resolution, not per candidate commit. What it finds is remembered
+      // as a place to probe, so later commits check it directly.
       if (!searched) {
         searched = true;
         const found = await search(bareRepositoryPath, sha);
-        if (found) {
-          knownDirectory = found.directory;
-          return found;
-        }
+        if (found) return record(found.directory, found.version);
       }
 
       return { directory: null, version: null };

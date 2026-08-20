@@ -31,13 +31,11 @@ export async function loadReferenceContext(
   const project = await resolveProjectInput(projectPath, cwd);
   const loadedConfig = await loadAgentReferenceConfig(project.projectRoot);
   const config = loadedConfig?.config;
-  const installedPackages = await scanResolvedProject(project, {
-    ...options,
-    allImporters: options.allImporters || config?.allImporters
-  });
-  const configPackages = await resolveConfigPackageReferences(config, installedPackages, {
-    registry: options.registry ?? config?.registry
-  });
+  // Every importer, always. Reading only the nearest one made a dependency held by a
+  // workspace package invisible from the repository root, which then resolved as though it
+  // were not installed at all. Which of several versions to use is decided per lookup.
+  const installedPackages = await scanResolvedProject(project, { ...options, allImporters: true });
+  const configPackages = resolveConfigPackageReferences(config, installedPackages, { importer: project.importer });
 
   return { cwd, project, loadedConfig, config, configPackages, installedPackages };
 }
