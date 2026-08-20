@@ -18,6 +18,10 @@ jobs:
         with:
           node-version: '24'
           registry-url: https://registry.npmjs.org
+      # Trusted publishing needs npm 11.5.1 or newer, which is later than some Node 24
+      # releases bundle. Pinning to latest here costs seconds and removes the whole class of
+      # "OIDC silently did not engage".
+      - run: npm install -g npm@latest
       - run: npm ci
       - name: the tag names the version being published
         run: |
@@ -31,12 +35,18 @@ jobs:
       - name: publish
         # A prerelease goes out under `beta` so `npm install -g agent-reference` keeps
         # resolving the last release anyone should be running.
+        #
+        # No --provenance flag: under trusted publishing npm attests automatically, and a
+        # private source repository cannot be attested at all, so naming the flag can only
+        # fail a publish that would otherwise succeed.
         run: |
           version="$(node -p "require('./package.json').version")"
           case "$version" in
             *-*) tag=beta ;;
             *) tag=latest ;;
           esac
-          npm publish --provenance --access public --tag "$tag"
+          npm publish --access public --tag "$tag"
         env:
+          # Only read when npm falls back from OIDC, which is the case until a trusted
+          # publisher is configured for this package on npmjs.com.
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
