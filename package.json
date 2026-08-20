@@ -21,11 +21,11 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "npm run clean && tsc -p tsconfig.json",
+    "build": "npm run clean && tsc -p tsconfig.json && node --input-type=module -e \"import {chmod} from 'node:fs/promises'; await chmod(new URL('dist/cli.js', import.meta.url), 0o755);\"",
     "dev": "node --experimental-strip-types src/cli.ts",
     "test": "node --test --experimental-strip-types tests/*.test.ts",
-    "prepack": "npm run clean && tsc -p tsconfig.json",
-    "prepare": "npm run clean && tsc -p tsconfig.json",
+    "prepack": "npm run build",
+    "prepare": "npm run build",
     "clean": "node --input-type=module -e \"import {rm} from 'node:fs/promises'; await rm(new URL('dist', import.meta.url), {recursive: true, force: true});\""
   },
   "keywords": [
