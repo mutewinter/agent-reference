@@ -8,7 +8,7 @@ import { resolveConfigPath, resolveReferencePath, pathExists } from './fs-utils.
 import { defaultStoreDir, ensureGitReferenceWorktree, resolvePackagePath } from './git.ts';
 import { writeManifest } from './manifest.ts';
 import { ambiguousInstalledMessage, pinFix, unresolvedProblem } from './problems.ts';
-import { isWorkspaceVersion, workspaceVersionPath } from './pnpm-lock.ts';
+import { isWorkspaceVersion, workspaceVersionDirectory, workspaceVersionPath } from './pnpm-lock.ts';
 import { loadReferenceContext, type LoadedReferenceContext } from './reference-context.ts';
 import {
   parsePackageCoordinate,
@@ -211,9 +211,8 @@ async function getPackage(
   } else if (candidates.length > 1) {
     throw new Error(ambiguousInstalledMessage(name, candidates));
   } else if (workspaceMatch(name, context)) {
-    const local = workspaceMatch(name, context);
     throw new Error(
-      `${name} is a workspace package in this repository, at ${local}. Its source is already on disk, so there is nothing to materialize; open that directory directly.`
+      `${name} is a workspace package in this repository, at ${workspaceMatch(name, context)}. Its source is already on disk, so there is nothing to materialize; open that directory directly.`
     );
   } else {
     // Nothing here installs it, which is the "look at a library I might adopt" case rather
@@ -236,12 +235,27 @@ async function getPackage(
   });
 }
 
-/** The path of an in-repo workspace package, when that is what the name refers to. */
+/**
+ * Where an in-repo workspace package lives, when that is what the name refers to. Absolute,
+ * because the link string in the lockfile is relative to the importer that wrote it and this
+ * message is read from wherever the agent ran the command.
+ */
 function workspaceMatch(name: string, context: LoadedReferenceContext): string | null {
   const entry = context.installedPackages.find(
     (candidate) => candidate.name === name && isWorkspaceVersion(candidate.version)
   );
-  return entry ? workspaceVersionPath(entry.version) : null;
+  if (!entry) return null;
+
+  const lockfilePath = context.project.lockfilePath;
+  if (!lockfilePath) return workspaceVersionPath(entry.version);
+
+  const importer = entry.importers.includes(context.project.importer)
+    ? context.project.importer
+    : entry.importers[0] ?? '.';
+  return (
+    workspaceVersionDirectory(path.dirname(lockfilePath), importer, entry.version) ??
+    workspaceVersionPath(entry.version)
+  );
 }
 
 function adHocDependency(

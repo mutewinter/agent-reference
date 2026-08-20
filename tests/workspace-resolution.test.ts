@@ -9,7 +9,8 @@ import { promisify } from 'node:util';
 import { getReferences } from '../src/get.ts';
 import { parseConfig } from '../src/config.ts';
 import { getStatusReport } from '../src/status.ts';
-import { getVersionsReport } from '../src/versions.ts';
+import { formatVersionsReport, getVersionsReport } from '../src/versions.ts';
+import { workspaceVersionDirectory } from '../src/pnpm-lock.ts';
 import { sanitizeRelayed, sanitizeRelayedLine } from '../src/text-utils.ts';
 
 const execFileAsync = promisify(execFile);
@@ -358,3 +359,83 @@ test('a package directory cannot climb out of the checkout', async () => {
   assert.equal(result?.path, result?.repositoryPath);
   assert.ok(result?.path.startsWith(storeDir), `${result?.path} escaped the store`);
 });
+
+test('one workspace package linked from two importers is one place, stated once', async () => {
+  const { projectRoot } = await linkedWorkspace('links');
+
+  const report = await getVersionsReport(projectRoot, '@mono/shared');
+
+  // apps/web writes link:../../packages/shared and packages/tools writes link:../shared for
+  // the same directory, so keying on the lockfile string reported the package twice, each
+  // time with a path that resolves from neither the caller's directory nor the other's.
+  assert.equal(report.versions.length, 1);
+  assert.equal(report.versions[0]?.workspace, true);
+  assert.equal(report.versions[0]?.path, path.join(projectRoot, 'packages', 'shared'));
+  assert.deepEqual(report.versions[0]?.importers.sort(), ['apps/web', 'packages/tools']);
+
+  const text = formatVersionsReport(report);
+  assert.equal(text.match(/is a workspace package/g)?.length, 1);
+  assert.doesNotMatch(text, /\.\.\//);
+});
+
+test('get sends an agent to a workspace package by a path it can open', async () => {
+  const { projectRoot, storeDir } = await linkedWorkspace('links-get');
+
+  await assert.rejects(getReferences(projectRoot, ['@mono/shared'], { storeDir }), (error: Error) => {
+    assert.match(error.message, new RegExp(escapeRegExp(path.join(projectRoot, 'packages', 'shared'))));
+    return true;
+  });
+});
+
+test('a workspace range names the package as local without inventing a path', async () => {
+  assert.equal(workspaceVersionDirectory('/repo', 'apps/web', 'workspace:*'), null);
+  assert.equal(workspaceVersionDirectory('/repo', 'apps/web', 'workspace:^1.2.0'), null);
+  assert.equal(workspaceVersionDirectory('/repo', 'apps/web', 'link:../../packages/shared'), '/repo/packages/shared');
+  assert.equal(workspaceVersionDirectory('/repo', '.', 'file:./vendor/thing'), '/repo/vendor/thing');
+});
+
+/** Two importers depending on one in-repo package, each by its own relative link. */
+async function linkedWorkspace(label: string): Promise<{ projectRoot: string; storeDir: string }> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `agent-reference-${label}-test-`));
+  const projectRoot = path.join(tempDir, 'project');
+
+  for (const [dir, name] of [
+    ['apps/web', '@mono/web'],
+    ['packages/tools', '@mono/tools'],
+    ['packages/shared', '@mono/shared']
+  ]) {
+    await fs.mkdir(path.join(projectRoot, dir!), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, dir!, 'package.json'), JSON.stringify({ name }));
+  }
+
+  await fs.writeFile(path.join(projectRoot, 'package.json'), JSON.stringify({ name: 'root', private: true }));
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({}));
+  await fs.writeFile(
+    path.join(projectRoot, 'pnpm-lock.yaml'),
+    [
+      "lockfileVersion: '9.0'",
+      '',
+      'importers:',
+      '  .: {}',
+      '  apps/web:',
+      '    dependencies:',
+      "      '@mono/shared':",
+      '        specifier: workspace:*',
+      '        version: link:../../packages/shared',
+      '  packages/tools:',
+      '    dependencies:',
+      "      '@mono/shared':",
+      '        specifier: workspace:*',
+      '        version: link:../shared',
+      '',
+      'packages: {}',
+      ''
+    ].join('\n')
+  );
+
+  return { projectRoot, storeDir: path.join(tempDir, 'store') };
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

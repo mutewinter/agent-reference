@@ -1,8 +1,9 @@
+import path from 'node:path';
 import process from 'node:process';
 
-import { isWorkspaceVersion, workspaceVersionPath } from './pnpm-lock.ts';
+import { isWorkspaceVersion, workspaceVersionDirectory, workspaceVersionPath } from './pnpm-lock.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
-import type { PackageReference } from './types.ts';
+import type { PackageReference, ProjectContext } from './types.ts';
 
 export interface InstalledVersion {
   version: string;
@@ -10,7 +11,7 @@ export interface InstalledVersion {
   dependencyTypes: string[];
   /** True when the version is a workspace link rather than something to fetch. */
   workspace: boolean;
-  /** Where the workspace package lives, relative to the lockfile, when it is one. */
+  /** Absolute directory a workspace package lives in, when the link names one. */
   path: string | null;
 }
 
@@ -49,20 +50,65 @@ export async function getVersionsReport(
     lockfile: project.lockfilePath,
     packageManager: project.packageManager,
     importer: project.importer,
-    versions: installed.filter((entry) => entry.name === name).map(describeVersion)
+    versions: describeVersions(
+      installed.filter((entry) => entry.name === name),
+      project
+    )
   };
 }
 
-function describeVersion(entry: PackageReference): InstalledVersion {
-  const workspace = isWorkspaceVersion(entry.version);
+/**
+ * One entry per thing a caller could fetch or open. Registry versions are already one entry
+ * each, but workspace links arrive one per importer that wrote a different relative string
+ * for the same directory, so those are resolved and regrouped by where they actually point.
+ */
+function describeVersions(entries: PackageReference[], project: ProjectContext): InstalledVersion[] {
+  const lockfileDir = project.lockfilePath ? path.dirname(project.lockfilePath) : project.projectRoot;
+  const versions: InstalledVersion[] = [];
+  const byDirectory = new Map<string, InstalledVersion>();
 
-  return {
-    version: entry.version,
-    importers: entry.importers,
-    dependencyTypes: entry.dependencyTypes,
-    workspace,
-    path: workspace ? workspaceVersionPath(entry.version) : null
-  };
+  for (const entry of entries) {
+    if (!isWorkspaceVersion(entry.version)) {
+      versions.push({
+        version: entry.version,
+        importers: entry.importers,
+        dependencyTypes: entry.dependencyTypes,
+        workspace: false,
+        path: null
+      });
+      continue;
+    }
+
+    for (const importer of entry.importers) {
+      const directory = workspaceVersionDirectory(lockfileDir, importer, entry.version);
+      const key = directory ?? `unlocated:${workspaceVersionPath(entry.version)}`;
+      const existing = byDirectory.get(key);
+
+      if (existing) {
+        merge(existing.importers, [importer]);
+        merge(existing.dependencyTypes, entry.dependencyTypes);
+        continue;
+      }
+
+      const created: InstalledVersion = {
+        version: entry.version,
+        importers: [importer],
+        dependencyTypes: [...entry.dependencyTypes],
+        workspace: true,
+        path: directory
+      };
+      byDirectory.set(key, created);
+      versions.push(created);
+    }
+  }
+
+  return versions;
+}
+
+function merge(into: string[], values: string[]): void {
+  for (const value of values) {
+    if (!into.includes(value)) into.push(value);
+  }
 }
 
 export function formatVersionsReport(report: VersionsReport): string {
@@ -80,7 +126,11 @@ export function formatVersionsReport(report: VersionsReport): string {
 
   const workspace = report.versions.filter((entry) => entry.workspace);
   if (workspace.length > 0) {
-    const lines = workspace.map((entry) => `${report.name} is a workspace package in this repository, at ${entry.path}.`);
+    const lines = workspace.map((entry) =>
+      entry.path
+        ? `${report.name} is a workspace package in this repository, at ${entry.path}.`
+        : `${report.name} is a workspace package in this repository. The lockfile records it as ${entry.version}, which does not say where.`
+    );
     return `${[...lines, 'It is already on disk; there is nothing to fetch.', ''].join('\n')}`;
   }
 

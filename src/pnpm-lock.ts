@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import path from 'node:path';
 
 import {
   isExactRegistryVersion,
@@ -223,4 +224,28 @@ export function isWorkspaceVersion(version: string): boolean {
 
 export function workspaceVersionPath(version: string): string {
   return version.replace(WORKSPACE_PROTOCOL, '') || '.';
+}
+
+/**
+ * The directory a workspace link points at, as an absolute path.
+ *
+ * A link is written relative to the importer that declares it, so one package reaches the
+ * lockfile as a different string from every importer that depends on it: `link:../shared`
+ * and `link:../../packages/shared` are the same directory said twice. Only resolving each
+ * against its own importer makes them comparable, and only an absolute path is readable
+ * from whichever directory the caller happened to run in.
+ *
+ * Null when the version names a range rather than a place, which `workspace:*` and
+ * `workspace:^1.2.0` do. Those say a package is local without saying where.
+ */
+export function workspaceVersionDirectory(
+  lockfileDir: string,
+  importer: string,
+  version: string
+): string | null {
+  const target = workspaceVersionPath(version);
+  const protocol = version.slice(0, version.indexOf(':'));
+  if (protocol === 'workspace' && !target.startsWith('.') && !target.includes('/')) return null;
+
+  return path.resolve(lockfileDir, importer, target);
 }
