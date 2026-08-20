@@ -7,6 +7,8 @@ import { parseArgv, type CliOptions } from './args.ts';
 import { displayPath as shortenPath } from './fs-utils.ts';
 import { cloneReferences } from './core.ts';
 import { getReferences } from './get.ts';
+import { briefSteps, formatInitBrief } from './init-format.ts';
+import { surveyProject } from './init.ts';
 import { dependencyKey } from './package-utils.ts';
 import { KEEP_REFERENCE_NOTE } from './problems.ts';
 import { formatProblem, formatStatusReport } from './status-format.ts';
@@ -52,6 +54,15 @@ async function main(argv: string[]): Promise<void> {
       const { projectPath, references } = await splitPositionals(options);
       const result = await cloneReferences(projectPath, { references, sets: options.sets });
       write(options, result, formatCloneResult);
+      return;
+    }
+    case 'init': {
+      const { projectPath } = await splitPositionals(options);
+      const survey = await surveyProject(projectPath);
+      const humanOutput = Boolean(process.stdout.isTTY);
+      write(options, { ...survey, brief: briefSteps(survey) }, () =>
+        formatInitBrief(survey, { color: humanOutput && !process.env.NO_COLOR, tilde: humanOutput })
+      );
       return;
     }
     case 'validate': {
@@ -190,6 +201,7 @@ Usage:
   agent-reference get <spec>... [--json]
   agent-reference status [reference...] [--set <name>] [--json]
   agent-reference clone  [reference...] [--set <name>] [--json]
+  agent-reference init   [project] [--json]
   agent-reference validate
   agent-reference schema
   agent-reference store [--prune] [--days <n>]
@@ -202,6 +214,10 @@ Commands:
   status    Report every configured reference: scope, state, and absolute path.
             Declared-but-not-fetched is the normal state, not a problem.
   clone     Bulk prefetch every configured reference, for CI or a long flight.
+  init      Survey this project and print a setup brief for the agent to carry
+            out: install the skill, mine recent sessions for references worth
+            declaring, write the config, and show the user the result. Reads and
+            prints only; it never writes.
   validate  Check agent-reference.json and agent-reference.local.json; flags
             machine paths that do not belong in the committed file.
   schema    Print the JSON Schema for agent-reference.json.
