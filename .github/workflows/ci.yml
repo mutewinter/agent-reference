@@ -16,13 +16,15 @@ jobs:
       matrix:
         node: ['22.6', '24']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm test
 
   install:
     # What `npm install -g agent-reference` actually produces, on the oldest Node the
@@ -36,11 +38,15 @@ jobs:
       matrix:
         node: ['20', '24']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node }}
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Packed and installed with npm, because that is the route a user takes. pnpm only
+      # puts the dependencies in place.
       - run: npm pack
       - run: npm install -g ./agent-reference-*.tgz
       - name: the commands that read shipped files

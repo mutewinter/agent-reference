@@ -6,23 +6,27 @@ on:
 
 permissions:
   contents: read
-  # Signs the published tarball, so npm can show where it was built from.
+  # Trusted publishing: npm exchanges this token for a short-lived credential, so nothing
+  # long-lived is stored anywhere. There is no token fallback, by design.
   id-token: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '24'
           registry-url: https://registry.npmjs.org
+          # Deliberately no cache here: a release must not be assembled from anything a
+          # previous run left behind.
       # Trusted publishing needs npm 11.5.1 or newer, which is later than some Node 24
-      # releases bundle. Pinning to latest here costs seconds and removes the whole class of
-      # "OIDC silently did not engage".
+      # releases bundle. Pinning here removes the whole class of "OIDC silently did not
+      # engage" for the cost of a few seconds.
       - run: npm install -g npm@latest
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
       - name: the tag names the version being published
         run: |
           tag="${GITHUB_REF_NAME#v}"
@@ -31,14 +35,16 @@ jobs:
             echo "tag $GITHUB_REF_NAME does not match package.json $version" >&2
             exit 1
           fi
-      - run: npm test
+      - run: pnpm test
       - name: publish
         # A prerelease goes out under `beta` so `npm install -g agent-reference` keeps
         # resolving the last release anyone should be running.
         #
-        # No --provenance flag: under trusted publishing npm attests automatically, and a
-        # private source repository cannot be attested at all, so naming the flag can only
-        # fail a publish that would otherwise succeed.
+        # npm rather than pnpm, because the OIDC exchange lives in the npm CLI. No
+        # --provenance flag: trusted publishing attests automatically, and a private source
+        # repository cannot be attested at all, so naming it could only fail a publish that
+        # would otherwise succeed. No NODE_AUTH_TOKEN either; there is no token to fall
+        # back to.
         run: |
           version="$(node -p "require('./package.json').version")"
           case "$version" in
@@ -46,7 +52,3 @@ jobs:
             *) tag=latest ;;
           esac
           npm publish --access public --tag "$tag"
-        env:
-          # Only read when npm falls back from OIDC, which is the case until a trusted
-          # publisher is configured for this package on npmjs.com.
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
