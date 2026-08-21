@@ -157,6 +157,26 @@ async function writeShims(runDir, home) {
     `#!/bin/sh\nHOME=${JSON.stringify(home)} exec node ${JSON.stringify(path.join(repoRoot, 'dist', 'cli.js'))} "$@"\n`,
     { mode: 0o755 }
   );
+  // The brief now leads with the skills installer, which is not on this machine and would
+  // reach the network if it were. This lands the checkout's skill where the real installer
+  // would put it, inside the synthetic home, so step one stays offline and testable.
+  await fs.writeFile(
+    path.join(binDir, 'skills'),
+    [
+      '#!/bin/sh',
+      'if [ "$1" != "add" ]; then',
+      '  echo "eval skills shim: only \'add\' is supported" >&2',
+      '  exit 1',
+      'fi',
+      `dest=${JSON.stringify(path.join(home, '.claude', 'skills', 'agent-reference'))}`,
+      'mkdir -p "$dest"',
+      `cp -R ${JSON.stringify(path.join(repoRoot, 'skills', 'agent-reference') + '/.')} "$dest/"`,
+      'echo "added agent-reference to $dest"',
+      ''
+    ].join('\n'),
+    { mode: 0o755 }
+  );
+
   await fs.writeFile(
     path.join(binDir, 'npx'),
     [

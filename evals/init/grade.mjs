@@ -51,6 +51,9 @@ const skillPaths = [
 const skillAt = [];
 for (const candidate of skillPaths) if (await exists(candidate)) skillAt.push(candidate);
 check(`installed the skill${skillAt.length > 0 ? ` (${skillAt.join(', ')})` : ''}`, skillAt.length > 0);
+// The skill on disk is a stub by design, so a run that installs it and stops has only done
+// half of step one; the rest of the instructions come from the CLI.
+check('read the served guide', commands.some((command) => /agent-reference\S*\s+guide/.test(command)));
 check(
   'added one sentence to AGENTS.md',
   ((await read(path.join(projectRoot, 'AGENTS.md'))) ?? '').includes('agent-reference')
