@@ -1,0 +1,9 @@
+[2magent-reference.json (shared)[0m
+  semver      package · [32mready[0m · 7.8.4 verified · ~/.agent-reference/src/github.com/npm/node-semver/8640bd68f165
+  typescript  package · declared · 5.9.3
+
+  Schema libraries we compare against
+    zod   git · declared · github:colinhacks/zod
+    hono  git · declared · github:honojs/hono
+
+3 of 4 not fetched yet, which is normal · agent-reference get <name>

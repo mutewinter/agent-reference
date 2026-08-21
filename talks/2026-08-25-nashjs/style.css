@@ -1,0 +1,89 @@
+/* Swiss. Ported from the Marp theme of the last talk: Helvetica, black on
+   white, tight tracking, one idea per slide. */
+
+.slidev-layout {
+  --swiss-ink: #000;
+  --swiss-paper: #fff;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  background: var(--swiss-paper);
+  color: var(--swiss-ink);
+  padding: 80px;
+  font-size: 28px;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+}
+
+.slidev-layout h1 {
+  font-size: 64px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.3em;
+}
+
+.slidev-layout h2 {
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5em;
+}
+
+.slidev-layout h3 {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.4em;
+}
+
+.slidev-layout.cover h1,
+.slidev-layout.statement h1 {
+  font-size: 92px;
+  letter-spacing: -0.04em;
+}
+
+.slidev-layout ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.slidev-layout ul li {
+  margin-bottom: 0.4em;
+}
+
+.slidev-layout ul li::before {
+  content: "\2022";
+  font-weight: 700;
+  margin-right: 0.5em;
+}
+
+/* Emotional beats, same palette as the last deck. */
+.anti-pattern {
+  background: #1a1a1a !important;
+  color: #ff6b6b !important;
+}
+
+.outcome {
+  background: #1a1a1a !important;
+  color: rgb(210, 161, 15) !important;
+}
+
+.dark {
+  background: #000 !important;
+  color: #fff !important;
+}
+
+/* Code and terminal blocks read as one family: mono, generous line height,
+   never a rounded toy window unless the slide asks for chrome. */
+.slidev-layout .slidev-code {
+  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  font-size: 0.62em;
+  line-height: 1.65;
+  border-radius: 6px;
+  padding: 1.1em 1.3em;
+}
+
+.term-plain .slidev-code {
+  background: #0d0d0d !important;
+  border: 1px solid #262626;
+}

@@ -1,0 +1,16 @@
+{
+  "name": "nashjs-2026-08-25",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "slidev --open",
+    "build": "slidev build",
+    "export": "slidev export",
+    "capture": "./capture.sh"
+  },
+  "dependencies": {
+    "@slidev/cli": "^52.19.1",
+    "vue": "^3.5.13"
+  },
+  "description": "Your Agent is Starving: the NashJS talk for agent-reference"
+}
