@@ -16,3 +16,4 @@ never rewritten; strike a superseded row here and link its replacement.
 | 2026-08-20 | [init briefs the agent instead of scaffolding a config](2026-08-20-init-briefs-the-agent.md) |
 | 2026-08-20 | [A config entry is a coordinate, never a query](2026-08-20-coordinates-not-queries.md) |
 | 2026-08-20 | [The installed skill is a stub; the guide is served by the CLI](2026-08-20-a-stub-on-disk-and-a-served-guide.md) |
+| 2026-08-20 | [Commit history needs no affordance; the checkout is already a worktree](2026-08-20-history-needs-no-affordance.md) |

@@ -194,12 +194,13 @@ gitignored `agent-reference.local.json`. Everything else lives in one machine-wi
 shared across projects and worktrees, like the pnpm store:
 
 - Store root: `~/.agent-reference`, the same on every platform, or `$AGENT_REFERENCE_STORE_DIR`.
-- Mirrors at `<store>/git/<host>/<owner>/<repo>.git`: the whole repository, every version.
-  History questions (`git log`, `blame`, `show <tag>:<file>`, diffs between releases) run
-  here with plain git and no checkout at all.
+- Mirrors at `<store>/git/<host>/<owner>/<repo>.git`: the whole repository, every version,
+  cloned without file contents until something asks for them.
 - Checkouts at `<store>/src/<host>/<owner>/<repo>/<commit>`, keyed by commit, so two
   projects on the same version share one directory, and two agents can hold two versions
-  of the same repository at once with no `HEAD` to fight over.
+  of the same repository at once with no `HEAD` to fight over. Each one is a git worktree
+  on the mirror, so history questions (`git log`, `blame`, `show <tag>:<file>`, diffs
+  between releases) run with plain git at the path `get` printed.
 - Materialization state at `<store>/state/<project>.json`, one file per project on this
   machine, recording what has been resolved and checked out. It is a cache, not a
   lockfile, and is never committed.

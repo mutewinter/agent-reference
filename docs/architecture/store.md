@@ -7,14 +7,17 @@ default root is `~/.agent-reference`, movable with `$AGENT_REFERENCE_STORE_DIR` 
 ## Zones
 
 - `git/<host>/<owner>/<repo>.git`: bare mirrors, fetched with `--filter=blob:none`. A
-  mirror is the raw repository, every version at once. History-wide questions (`git log`,
-  `blame`, `show <tag>:<file>`, diffs between releases) run here with plain git and no
-  checkout.
+  mirror is the raw repository, every version at once, and it is what a failure message
+  points at when there is no checkout to work from yet.
 - `src/<host>/<owner>/<repo>/<commit>`: read-only worktrees attached to the mirror, one
   per commit. Two projects on the same version share one directory; two agents holding
   different versions of the same repository get different directories, so there is no
   shared `HEAD` to fight over. Worktrees share the mirror's objects, so a new version
-  costs one file tree, not one clone.
+  costs one file tree, not one clone, and every history-wide question (`git log`, `blame`,
+  `show <tag>:<file>`, diffs between releases) is answerable from the worktree without
+  naming the mirror at all. The `blob:none` filter shows up here rather than in the
+  commit graph: metadata is local, while `-p`, `--stat`, `blame`, and `-S` fetch file
+  contents the first time they need them.
 - `state/<project>.json`: per-project materialization state, keyed by a hash of the
   project root. Records which commit each reference resolved to and which resolutions
   failed, so `status` can report without network access. A cache, never committed.

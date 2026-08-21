@@ -10,7 +10,7 @@ The instructions the skill on disk is too short to carry, printed by the install
 
 ## When to use this instead of node_modules
 
-`node_modules` holds only what a package published, usually build output. `get` checks out the package's repository at the exact shipped commit, which is the only way to read tests, examples, CI workflows, git history, and the source behind `dist/`. The bare mirror in the store (printed in fix output, under `~/.agent-reference/git/`) answers history-wide questions with plain git: `log`, `blame`, `show <tag>:<file>`, diffs between releases.
+`node_modules` holds only what a package published, usually build output. `get` checks out the package's repository at the exact shipped commit, which is the only way to read tests, examples, CI workflows, git history, and the source behind `dist/`. The path it prints is a git worktree, so the repository's history is already there: `git -C <path> log`, `show <tag>:<file>`, `blame`, and diffs between releases all run against the whole repository rather than the one commit checked out. Mirrors are cloned without file contents, so commit metadata and `--name-only` are free and offline, while `-p`, `--stat`, `blame`, and `-S` fetch what they need the first time they run.
 
 ## Adding references ("add this as a reference: ...")
 
