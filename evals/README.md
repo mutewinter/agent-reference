@@ -13,8 +13,9 @@ reading the text would have produced.
 Runs are not tests. They cost money, they need network and a logged-in Claude Code, and they
 are not deterministic. `npm test` never invokes them.
 
-Two suites so far. `init` asks whether a printed brief gets carried out. `resolve` asks
+Three suites so far. `init` asks whether a printed brief gets carried out. `resolve` asks
 something narrower: when `get` cannot win on its own, is what it prints enough to iterate on?
+`history` asks what an agent does with a path once it has one.
 
 ## init
 
@@ -46,6 +47,15 @@ place. One session has the agent guessing at where the design system lives and g
 wrong first, which is the signal the brief tells a miner to rank up.
 
 `world.mjs` exports `EXPECTED`, so the fixture and the grader cannot drift apart.
+
+### Offline by construction
+
+Three shims sit on `PATH`. `agent-reference` runs this checkout's build against the synthetic
+home, `npx` drops the flags and the version suffix and runs what is left, and `skills add`
+lands the checkout's skill where the real installer would put it. That last one matters
+because step one of the brief leads with the installer: without a shim a run either fails on
+a command the machine does not have, or reaches the network and installs into the operator's
+own home.
 
 ### Where a run lives
 
@@ -115,3 +125,51 @@ checkout. Alongside that, whether the loop was used as intended (`versions` for 
 name, a `ref` for the untaggable one, a `repository` for the moved one) and whether the agent
 had to read the tool's own source to make progress, which is the failure that motivated the
 suite in the first place.
+
+## history
+
+```sh
+npm run build
+node evals/history/run.mjs                 # default: sonnet, one turn, no hints
+node evals/history/grade.mjs               # grade the newest run
+```
+
+`get` hands back a `git worktree`, so `log`, `show`, `blame`, and diffs between releases all
+work at the printed path with no further help from the tool. Whether an agent knows that is
+not something the source can answer, and it is the whole question this suite exists for: the
+alternative to an affordance is that none is needed.
+
+### The world
+
+A gateway project that speaks an upstream binary protocol, and that protocol's library as a
+local git repository. The library used to split oversized payloads across continuation
+frames; one commit deleted that path, capped payloads instead, and explained itself at
+length in its message. Two commits later it was released.
+
+The split is the fixture. The tree at HEAD carries the rule and, through a terse changelog,
+the release it shipped in. What the library used to do, why the maintainers stopped, and the
+issue it closed exist only in commits, because the change deleted the code that would have
+shown it. `world.mjs` refuses to build a world where the marker word survives into the HEAD
+tree, so the question cannot quietly stop being a history question.
+
+The prompt reports the bug a user would report, asks for the maintainers' actual reasoning,
+and names no mechanism: not git, not history, not commits.
+
+### Offline by construction
+
+Upstream is a local git repository, reached through a relative `file:` spec so the committed
+config holds no machine path, and `cacheDir` puts the store inside the run directory. The
+project ships the skill stub at `.claude/skills/`, so a run measures what this repository
+ships rather than whatever is installed globally on the machine.
+
+One caveat the fixture cannot avoid: a local `file:` reference is cloned in full, because git
+ignores `--filter` for local clones. A real reference is a partial clone, where commit
+metadata is local but `-p`, `--stat`, `blame`, and `-S` fetch file contents on first use.
+
+### What is graded
+
+Whether a git history command ran against the store, and in the checkout or the mirror,
+which is the load-bearing signal. Then whether the answer carries what only history holds,
+and one honesty check: an account of upstream's reasoning with no commit behind it is
+invention, not a pass. Going to the original repository the `file:` spec points at is
+recorded as a shortcut the fixture allows and a `github:` reference does not.
