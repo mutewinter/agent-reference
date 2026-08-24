@@ -34,31 +34,76 @@ export function resolveSets(config: AgentReferenceConfig | undefined): Reference
   }));
 }
 
+/** A selector the caller wrote that nothing in the config answered to. */
+export interface UnmatchedSelector {
+  /** How the message names it: `reference "zod"` or `set "engines"`. */
+  label: string;
+  /** The raw word, for the hint that offers a command reading of it. */
+  input: string;
+}
+
+export interface ReferenceSelection {
+  matches: (kind: AgentReferenceKind, name: string) => boolean;
+  /**
+   * Which selectors nothing answered to. Only meaningful once every candidate has been
+   * offered to `matches`, because that is what records the hits.
+   */
+  unmatched: () => UnmatchedSelector[];
+}
+
 export function selectionFilter(
   config: AgentReferenceConfig | undefined,
   options: ReferenceSelectionOptions
-): ((kind: AgentReferenceKind, name: string) => boolean) | null {
+): ReferenceSelection | null {
   const setInputs = splitSelectors(options.sets);
   const referenceSelectors = splitSelectors(options.references);
   if (setInputs.length === 0 && referenceSelectors.length === 0) return null;
 
-  const allowed = new Set<string>();
+  // Per selector rather than one flat set: a run naming several references used to report
+  // success as long as any one of them hit, so a typo was dropped in silence and the
+  // reference it meant was never materialized.
+  const selectors: Array<UnmatchedSelector & { keys: Set<string> }> = [];
   const sets = resolveSets(config);
 
   for (const input of setInputs) {
-    for (const member of matchSet(input, sets).members) {
-      allowed.add(memberKey(member.kind, member.name));
-    }
+    const keys = new Set(matchSet(input, sets).members.map((member) => memberKey(member.kind, member.name)));
+    selectors.push({ label: `set "${input}"`, input, keys });
   }
 
-  for (const selector of referenceSelectors) {
-    const { kind, name } = parseSelector(selector);
-    for (const candidate of kind ? [kind] : KINDS) {
-      allowed.add(memberKey(candidate, name));
-    }
+  for (const input of referenceSelectors) {
+    const { kind, name } = parseSelector(input);
+    const keys = new Set((kind ? [kind] : KINDS).map((candidate) => memberKey(candidate, name)));
+    selectors.push({ label: `reference "${input}"`, input, keys });
   }
 
-  return (kind, name) => allowed.has(memberKey(kind, name));
+  const hits = new Set<string>();
+
+  return {
+    matches(kind, name) {
+      const key = memberKey(kind, name);
+      if (!selectors.some((selector) => selector.keys.has(key))) return false;
+      hits.add(key);
+      return true;
+    },
+    unmatched: () =>
+      selectors
+        .filter((selector) => ![...selector.keys].some((key) => hits.has(key)))
+        .map(({ label, input }) => ({ label, input }))
+  };
+}
+
+/** Says which selector missed and what could have been written instead. */
+export function missingSelectionMessage(
+  missing: UnmatchedSelector[],
+  config: AgentReferenceConfig | undefined
+): string {
+  return [
+    `Nothing matched ${missing.map((selector) => selector.label).join(', ')}.`,
+    knownSelectorsMessage(config),
+    unknownCommandHint(missing.map((selector) => selector.input))
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 /**
@@ -80,14 +125,6 @@ function matchSet(input: string, sets: ReferenceSet[]): ReferenceSet {
   throw new Error(
     `"${input}" matches ${candidates.length} sets: ${candidates.map((set) => `"${set.description}"`).join(', ')}. Be more specific.`
   );
-}
-
-export function describeSelection(options: ReferenceSelectionOptions): string {
-  const parts = [
-    ...splitSelectors(options.sets).map((input) => `set "${input}"`),
-    ...splitSelectors(options.references).map((name) => `reference "${name}"`)
-  ];
-  return parts.join(', ');
 }
 
 /** Names an agent can actually pass, so a miss is one step from a hit. */

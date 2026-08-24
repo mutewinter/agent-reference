@@ -6,13 +6,7 @@ import {
   resolveStoreDir,
   UnsafeGitValueError
 } from './git.ts';
-import {
-  describeSelection,
-  knownSelectorsMessage,
-  selectionFilter,
-  splitSelectors,
-  unknownCommandHint
-} from './sets.ts';
+import { missingSelectionMessage, selectionFilter } from './sets.ts';
 import { writeManifest } from './manifest.ts';
 import { configFileFor, gitDirectoryProblem } from './get.ts';
 import { gitUnresolvedProblem, unresolvedProblem } from './problems.ts';
@@ -40,24 +34,21 @@ export async function cloneReferences(
 ): Promise<CloneReferencesResult> {
   const { config, configPackages, cwd, loadedConfig, project } = await loadReferenceContext(projectPath, options);
 
-  const filter = selectionFilter(config, options);
-  const packages = configPackages.packages.filter((entry) => !filter || filter('package', entry.name));
-  const gitReferences = (config?.git ?? []).filter((entry) => !filter || filter('git', entry.name));
+  const selection = selectionFilter(config, options);
+  const packages = configPackages.packages.filter((entry) => !selection || selection.matches('package', entry.name));
+  const gitReferences = (config?.git ?? []).filter((entry) => !selection || selection.matches('git', entry.name));
   const paths = (config?.paths ?? [])
-    .filter((entry) => !filter || filter('path', entry.name))
+    .filter((entry) => !selection || selection.matches('path', entry.name))
     .map((entry) => entry.name);
+
+  // Every selector has to hit something. One typo among several names was dropped in
+  // silence, so the run reported success for a reference it never touched.
+  const missing = selection?.unmatched() ?? [];
+  if (missing.length > 0) throw new Error(missingSelectionMessage(missing, config));
 
   if (packages.length === 0 && gitReferences.length === 0 && paths.length === 0) {
     throw new Error(
-      filter
-        ? [
-            `Nothing matched ${describeSelection(options)}.`,
-            knownSelectorsMessage(config),
-            unknownCommandHint(splitSelectors(options.references))
-          ]
-            .filter(Boolean)
-            .join(' ')
-        : `No references configured. Add packages, paths, or git entries to ${loadedConfig?.path ?? DEFAULT_CONFIG_FILE}.`
+      `No references configured. Add packages, paths, or git entries to ${loadedConfig?.path ?? DEFAULT_CONFIG_FILE}.`
     );
   }
 

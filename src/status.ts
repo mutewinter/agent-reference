@@ -2,13 +2,10 @@ import { pathExists, pathKind, resolveReferencePath } from './fs-utils.ts';
 import { manifestReferencePath, resolvePackagePath, resolveSubpath, resolveStoreDir } from './git.ts';
 import {
   configuredReferences,
-  describeSelection,
-  knownSelectorsMessage,
+  missingSelectionMessage,
   resolveSets,
   selectionFilter,
-  setMemberKey,
-  splitSelectors,
-  unknownCommandHint
+  setMemberKey
 } from './sets.ts';
 import { committedPathLeaks } from './config-hygiene.ts';
 import { readManifest } from './manifest.ts';
@@ -96,20 +93,12 @@ export async function getStatusReport(
     );
   }
 
-  const filter = selectionFilter(config, options);
-  const references = filter ? entries.filter((entry) => filter(entry.kind, entry.name)) : entries;
-  if (filter && references.length === 0) {
-    // Silently printing an empty table would read as "this reference has no problems".
-    throw new Error(
-      [
-        `Nothing matched ${describeSelection(options)}.`,
-        knownSelectorsMessage(config),
-        unknownCommandHint(splitSelectors(options.references))
-      ]
-        .filter(Boolean)
-        .join(' ')
-    );
-  }
+  const selection = selectionFilter(config, options);
+  const references = selection ? entries.filter((entry) => selection.matches(entry.kind, entry.name)) : entries;
+  // Silently printing a table without a selector's reference in it, or no table at all,
+  // would read as "that reference has no problems".
+  const missing = selection?.unmatched() ?? [];
+  if (missing.length > 0) throw new Error(missingSelectionMessage(missing, config));
   const problems = await collectProblems(
     references,
     unresolvedByName,

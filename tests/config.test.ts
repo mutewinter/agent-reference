@@ -7,7 +7,7 @@ import test from 'node:test';
 
 import { loadAgentReferenceConfig, parseConfig } from '../src/config.ts';
 import { runGit } from '../src/git.ts';
-import { resolveSets, selectionFilter } from '../src/sets.ts';
+import { missingSelectionMessage, resolveSets, selectionFilter } from '../src/sets.ts';
 import { validateConfig } from '../src/validate.ts';
 
 test('accepts shorthand strings and longhand objects for every reference kind', () => {
@@ -158,18 +158,47 @@ test('selects references by set name, description substring, and qualified name'
   );
 
   const byName = selectionFilter(config, { sets: ['docs'] });
-  assert.equal(byName?.('path', 'notes'), true);
-  assert.equal(byName?.('package', 'react'), false);
+  assert.equal(byName?.matches('path', 'notes'), true);
+  assert.equal(byName?.matches('package', 'react'), false);
 
   const bySubstring = selectionFilter(config, { sets: ['documentation'] });
-  assert.equal(bySubstring?.('path', 'notes'), true);
+  assert.equal(bySubstring?.matches('path', 'notes'), true);
 
   const byQualifiedName = selectionFilter(config, { references: ['path:react'] });
-  assert.equal(byQualifiedName?.('path', 'react'), true);
-  assert.equal(byQualifiedName?.('package', 'react'), false);
+  assert.equal(byQualifiedName?.matches('path', 'react'), true);
+  assert.equal(byQualifiedName?.matches('package', 'react'), false);
 
   assert.equal(selectionFilter(config, {}), null);
   assert.throws(() => selectionFilter(config, { sets: ['nope'] }), /No set matches "nope"/);
+});
+
+test('a selector that matched nothing is named, not dropped', () => {
+  const config = parseConfig(
+    { packages: { react: '18.2.0' }, paths: { notes: './notes' } },
+    'agent-reference.json'
+  );
+
+  const selection = selectionFilter(config, { references: ['react', 'tanstck-router'] });
+  // Offering every candidate is what records the hits, exactly as a caller filters.
+  for (const [kind, name] of [['package', 'react'], ['path', 'notes']] as const) {
+    selection?.matches(kind, name);
+  }
+
+  // One name hitting used to be enough to report the whole run a success, so the reference
+  // the typo meant was never materialized and nothing said so.
+  assert.deepEqual(selection?.unmatched(), [{ label: 'reference "tanstck-router"', input: 'tanstck-router' }]);
+  assert.match(
+    missingSelectionMessage(selection?.unmatched() ?? [], config),
+    /Nothing matched reference "tanstck-router"\. Known references: package:react, path:notes\./
+  );
+});
+
+test('every selector hitting leaves nothing unmatched', () => {
+  const config = parseConfig({ packages: { react: '18.2.0' } }, 'agent-reference.json');
+  const selection = selectionFilter(config, { references: ['react'] });
+
+  assert.equal(selection?.matches('package', 'react'), true);
+  assert.deepEqual(selection?.unmatched(), []);
 });
 
 test('local config overrides shared entries by name', async () => {

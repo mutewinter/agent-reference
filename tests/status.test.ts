@@ -195,6 +195,22 @@ test('a selector that is nobody\'s reference offers the reading that it was a co
   });
 });
 
+test('one name hitting does not excuse the one beside it that missed', async () => {
+  const projectRoot = await copyFixtureProject();
+  await useConfig(projectRoot);
+
+  // A run naming several references used to succeed as long as any one of them hit, so a
+  // typo was dropped in silence and the reference it meant was quietly never reported.
+  await assert.rejects(
+    getStatusReport(projectRoot, { references: ['tiny-invariant', 'tiny-invarient'], storeDir: STORE_DIR }),
+    (error: Error) => {
+      assert.match(error.message, /Nothing matched reference "tiny-invarient"/);
+      assert.doesNotMatch(error.message, /reference "tiny-invariant"/);
+      return true;
+    }
+  );
+});
+
 test('a miss on a name this build does have as a command reads as an ordinary miss', async () => {
   const projectRoot = await copyFixtureProject();
   await useConfig(projectRoot);
