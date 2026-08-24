@@ -1,12 +1,11 @@
 import path from 'node:path';
 
 import { DEFAULT_CONFIG_FILE } from './config.ts';
-import { resolveConfigPath } from './fs-utils.ts';
 import {
-  defaultStoreDir,
   ensureDependencyWorktree,
   ensureGitAvailable,
   ensureGitReferenceWorktree,
+  resolveStoreDir,
   UnsafeGitValueError
 } from './git.ts';
 import {
@@ -71,10 +70,9 @@ export async function cloneReferences(
     fetchImpl: options.fetchImpl,
     metadataMap: options.metadataMap
   };
-  const configuredStore = options.storeDir ?? config?.cacheDir;
   const worktreeOptions: GitWorktreeOptions = {
     projectRoot: project.projectRoot,
-    storeDir: configuredStore ? resolveConfigPath(project.projectRoot, cwd, configuredStore) : defaultStoreDir()
+    storeDir: resolveStoreDir(project.projectRoot, cwd, options.storeDir ?? config?.cacheDir)
   };
 
   const cloned: CloneReferencesResult['cloned'] = [];

@@ -1,7 +1,7 @@
 import path from 'node:path';
 
-import { pathExists, pathKind, resolveConfigPath, resolveReferencePath } from './fs-utils.ts';
-import { defaultStoreDir, manifestReferencePath, resolvePackagePath, resolveSubpath } from './git.ts';
+import { pathExists, pathKind, resolveReferencePath } from './fs-utils.ts';
+import { manifestReferencePath, resolvePackagePath, resolveSubpath, resolveStoreDir } from './git.ts';
 import {
   configuredReferences,
   describeSelection,
@@ -48,10 +48,7 @@ export async function getStatusReport(
     projectPath,
     options
   );
-  const configuredStore = options.storeDir ?? config?.cacheDir;
-  const storeDir = configuredStore
-    ? resolveConfigPath(project.projectRoot, cwd, configuredStore)
-    : defaultStoreDir();
+  const storeDir = resolveStoreDir(project.projectRoot, cwd, options.storeDir ?? config?.cacheDir);
   const loadedManifest = await readManifest(project.projectRoot, storeDir);
   const referencePathFor = (reference: PackageManifestReference | GitManifestReference): string =>
     manifestReferencePath(storeDir, reference);

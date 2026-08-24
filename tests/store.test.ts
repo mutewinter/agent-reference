@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import { displayPath } from '../src/fs-utils.ts';
 import { defaultStoreDir } from '../src/git.ts';
+import { resolveProjectStoreDir } from '../src/reference-context.ts';
 import { formatBytes, inspectStore } from '../src/store.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -86,6 +87,29 @@ test('a repository under a subgroup is one repository, not two', async () => {
   const pruned = await inspectStore({ storeDir, prune: true, days: 30 });
   assert.deepEqual(pruned.removed, []);
   assert.equal(await exists(bare), true);
+});
+
+test('the store a project configures is the store store reads', async () => {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-cachedir-test-'));
+  const projectRoot = path.join(tempDir, 'project');
+  await fs.mkdir(path.join(projectRoot, '.cache', 'src', 'github.com', 'acme', 'zod', 'aaaaaaaaaaaa'), {
+    recursive: true
+  });
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({ cacheDir: './.cache', packages: { zod: '3.22.0' } })
+  );
+
+  // get, clone, and status all honor cacheDir. store reading the default store instead made
+  // it report an empty store, and made --prune trim a store nothing here had written.
+  const storeDir = await resolveProjectStoreDir(projectRoot, { cwd: projectRoot });
+  assert.equal(storeDir, path.join(projectRoot, '.cache'));
+
+  const report = await inspectStore({ storeDir });
+  assert.deepEqual(
+    report.repositories.map((repository) => repository.name),
+    ['github.com/acme/zod']
+  );
 });
 
 test('formats byte counts for humans', () => {

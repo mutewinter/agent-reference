@@ -1,5 +1,6 @@
 import { resolveConfigPackageReferences, type ConfigPackageReferences } from './config-dependencies.ts';
 import { loadAgentReferenceConfig } from './config.ts';
+import { resolveStoreDir } from './git.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
 import type {
   AgentReferenceConfig,
@@ -38,4 +39,20 @@ export async function loadReferenceContext(
   const configPackages = resolveConfigPackageReferences(config, installedPackages, { importer: project.importer });
 
   return { cwd, project, loadedConfig, config, configPackages, installedPackages };
+}
+
+/**
+ * The store a command should work against, without the lockfile scan a full context does.
+ * `store` needs the config's `cacheDir` and nothing else about the project, and reading the
+ * default store while every other command reads the configured one made it report an empty
+ * store and prune checkouts belonging to unrelated projects.
+ */
+export async function resolveProjectStoreDir(
+  projectPath: string | null | undefined,
+  options: { cwd?: string; storeDir?: string } = {}
+): Promise<string> {
+  const cwd = options.cwd ?? process.cwd();
+  const project = await resolveProjectInput(projectPath, cwd);
+  const loaded = await loadAgentReferenceConfig(project.projectRoot).catch(() => null);
+  return resolveStoreDir(project.projectRoot, cwd, options.storeDir ?? loaded?.config.cacheDir);
 }

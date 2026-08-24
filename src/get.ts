@@ -5,8 +5,8 @@ import semver from 'semver';
 
 import { materializePackage } from './core.ts';
 import { DEFAULT_CONFIG_FILE, DEFAULT_LOCAL_CONFIG_FILE } from './config.ts';
-import { resolveConfigPath, resolveReferencePath, pathExists } from './fs-utils.ts';
-import { defaultStoreDir, ensureGitReferenceWorktree, resolvePackagePath } from './git.ts';
+import { resolveReferencePath, pathExists } from './fs-utils.ts';
+import { ensureGitReferenceWorktree, resolvePackagePath, resolveStoreDir } from './git.ts';
 import { writeManifest } from './manifest.ts';
 import { ambiguousInstalledMessage, missingDirectoryProblem, pinFix, unresolvedProblem } from './problems.ts';
 import { isWorkspaceVersion, workspaceVersionDirectory, workspaceVersionPath } from './pnpm-lock.ts';
@@ -61,10 +61,9 @@ export async function getReferences(
   const context = await loadReferenceContext(projectPath, options);
   const config = context.config;
   const projectRoot = context.project.projectRoot;
-  const configuredStore = options.storeDir ?? config?.cacheDir;
   const worktreeOptions: GitWorktreeOptions = {
     projectRoot,
-    storeDir: configuredStore ? resolveConfigPath(projectRoot, cwd, configuredStore) : defaultStoreDir()
+    storeDir: resolveStoreDir(projectRoot, cwd, options.storeDir ?? config?.cacheDir)
   };
   const registryOptions: RegistryOptions = {
     registry: options.registry ?? config?.registry,

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 
-import { pathExists } from './fs-utils.ts';
+import { pathExists, resolveConfigPath } from './fs-utils.ts';
 import { tagCandidatesForDependency } from './package-utils.ts';
 import { normalizeConfiguredRepository, repositoryCacheParts } from './repository.ts';
 import type {
@@ -704,6 +704,15 @@ async function resolveGitRevision(
  */
 export function defaultStoreDir(): string {
   return process.env.AGENT_REFERENCE_STORE_DIR ?? path.join(os.homedir(), STORE_DIR_NAME);
+}
+
+/**
+ * Which store a command works against: an explicit option, then the config's `cacheDir`,
+ * then the default. Every command has to answer this the same way, or one of them reads a
+ * store the others never write to.
+ */
+export function resolveStoreDir(projectRoot: string, cwd: string, configured: string | undefined): string {
+  return configured ? resolveConfigPath(projectRoot, cwd, configured) : defaultStoreDir();
 }
 
 function parseGitReferenceSpec(spec: string, projectRoot: string): { repositoryUrl: string; ref: string | null } {

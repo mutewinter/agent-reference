@@ -17,6 +17,7 @@ import {
   unsupportedEcosystemMessage
 } from './package-utils.ts';
 import { KEEP_REFERENCE_NOTE } from './problems.ts';
+import { resolveProjectStoreDir } from './reference-context.ts';
 import { formatProblem, formatStatusReport } from './status-format.ts';
 import { sanitizeRelayedLine } from './text-utils.ts';
 import { getStatusReport } from './status.ts';
@@ -96,7 +97,9 @@ async function main(argv: string[]): Promise<void> {
       return;
     }
     case 'store': {
-      const report = await inspectStore({ prune: options.prune, days: options.days ?? undefined });
+      const { projectPath } = await splitPositionals(options);
+      const storeDir = await resolveProjectStoreDir(projectPath);
+      const report = await inspectStore({ storeDir, prune: options.prune, days: options.days ?? undefined });
       write(options, report, formatStoreReport);
       return;
     }
