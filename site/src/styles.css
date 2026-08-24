@@ -62,3 +62,10 @@ a {
   height: 1px;
   background: var(--color-line);
 }
+
+/* Shiki writes its own background and padding; the panel already provides both. */
+.shiki-block pre {
+  background: transparent !important;
+  margin: 0;
+  padding: 0;
+}

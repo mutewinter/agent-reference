@@ -1,4 +1,4 @@
-import { HeadContent, Link, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 
 import appCss from '../styles.css?url'
 
@@ -48,17 +48,18 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 function Header() {
   return (
     <header className="flex items-center justify-between border-b border-line py-4">
-      <Link to="/" className="text-fg hover:text-accent">
+      <a href="/" className="text-fg hover:text-accent">
         agent-reference
-      </Link>
-      <nav className="flex gap-4 text-muted">
-        <Link to="/docs" className="hover:text-accent">
-          docs
-        </Link>
+      </a>
+      <nav className="flex items-center gap-4 text-muted">
         <a
-          href="https://github.com/mutewinter/agent-reference"
-          className="hover:text-accent"
+          href={`https://www.npmjs.com/package/agent-reference/v/${__CLI_VERSION__}`}
+          className="border border-line px-1.5 py-0.5 text-[12px] hover:border-accent hover:text-accent"
+          title="This version on npm"
         >
+          v{__CLI_VERSION__}
+        </a>
+        <a href="https://github.com/mutewinter/agent-reference" className="hover:text-accent">
           github
         </a>
         <a href="https://www.npmjs.com/package/agent-reference" className="hover:text-accent">
@@ -73,7 +74,9 @@ function Footer() {
   return (
     <footer className="mt-20 flex flex-wrap items-center justify-between gap-2 border-t border-line py-5 text-[12px] text-faint">
       <span>MIT licensed. Needs Node 20+ and git 2.19+.</span>
-      <span>Nothing is fetched until an agent asks for it.</span>
+      <a href="https://github.com/mutewinter/agent-reference" className="hover:text-accent">
+        github.com/mutewinter/agent-reference
+      </a>
     </footer>
   )
 }

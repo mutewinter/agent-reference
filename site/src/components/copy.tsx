@@ -1,6 +1,23 @@
 import { useState } from 'react'
 
-function useCopy(text: string) {
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true">
+      <rect x="5.5" y="5.5" width="9" height="9" rx="1.5" />
+      <path d="M10.5 3.2V3A1.5 1.5 0 0 0 9 1.5H3A1.5 1.5 0 0 0 1.5 3v6A1.5 1.5 0 0 0 3 10.5h.3" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+      <path d="M3 8.6 6.4 12 13 4.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
 
   async function copy() {
@@ -14,56 +31,33 @@ function useCopy(text: string) {
     }
   }
 
-  return { copied, copy }
-}
-
-export function CopyButton({ text, label = 'copy' }: { text: string; label?: string }) {
-  const { copied, copy } = useCopy(text)
-
   return (
     <button
       type="button"
       onClick={copy}
+      title={copied ? 'Copied' : 'Copy'}
       aria-label={copied ? 'Copied' : 'Copy to clipboard'}
-      className="shrink-0 cursor-pointer border border-line px-2 py-0.5 text-[11px] tracking-wider text-muted uppercase transition-colors hover:border-accent hover:text-accent"
+      className={`shrink-0 cursor-pointer border p-1.5 transition-colors ${
+        copied
+          ? 'border-ready/50 text-ready'
+          : 'border-line text-muted hover:border-accent hover:text-accent'
+      }`}
     >
-      {copied ? 'copied' : label}
+      {copied ? <CheckIcon /> : <CopyIcon />}
     </button>
   )
 }
 
-/** Shell commands, with the trailing comment column the README uses. */
-export function Command({ lines }: { lines: Array<[string, string?]> }) {
-  const text = lines.map(([command]) => command).join('\n')
-
-  return (
-    <div className="border border-line bg-panel">
-      <div className="flex items-center justify-between border-b border-line px-3 py-1.5">
-        <span className="text-[11px] tracking-wider text-faint uppercase">shell</span>
-        <CopyButton text={text} />
-      </div>
-      <pre className="overflow-x-auto px-3 py-3 text-[13px] leading-relaxed">
-        {lines.map(([command, comment]) => (
-          <div key={command}>
-            <span className="text-faint select-none">$ </span>
-            <span>{command}</span>
-            {comment ? <span className="text-faint">{`  # ${comment}`}</span> : null}
-          </div>
-        ))}
-      </pre>
-    </div>
-  )
-}
-
 /**
- * A block meant to be handed to an agent rather than run. It is deliberately
- * not styled as terminal output: what the reader copies here is a sentence they
- * say to their agent, and the authority to act on it has to come from them.
+ * The one thing on the page meant to be copied. It is deliberately not styled
+ * as terminal output: what the reader takes is a sentence they say to their
+ * agent, and the authority to act on a brief has to come from the person, not
+ * from something that looks like the tool talking.
  */
 export function ForYourAgent({ text, note }: { text: string; note?: string }) {
   return (
-    <div className="border border-accent/40 bg-accent/[0.04]">
-      <div className="flex items-center justify-between border-b border-accent/25 px-3 py-1.5">
+    <div className="border border-accent/40 bg-accent/[0.05]">
+      <div className="flex items-center justify-between gap-3 border-b border-accent/25 px-3 py-1.5">
         <span className="text-[11px] tracking-wider text-accent uppercase">
           say this to your agent
         </span>
@@ -75,19 +69,6 @@ export function ForYourAgent({ text, note }: { text: string; note?: string }) {
           {note}
         </p>
       ) : null}
-    </div>
-  )
-}
-
-/** Any other code the reader might want on their clipboard. */
-export function Snippet({ title, code }: { title: string; code: string }) {
-  return (
-    <div className="border border-line bg-panel">
-      <div className="flex items-center justify-between border-b border-line px-3 py-1.5">
-        <span className="text-[11px] tracking-wider text-faint uppercase">{title}</span>
-        <CopyButton text={code} />
-      </div>
-      <pre className="overflow-x-auto px-3 py-3 text-[13px] leading-relaxed">{code}</pre>
     </div>
   )
 }
