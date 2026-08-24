@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import { parseJsonc } from './jsonc.ts';
+
 export function resolveConfigPath(projectRoot: string, cwd: string, configuredPath: string): string {
   if (path.isAbsolute(configuredPath)) return configuredPath;
   if (configuredPath.startsWith('.')) return path.resolve(projectRoot, configuredPath);
@@ -42,6 +44,11 @@ export async function pathKind(target: string): Promise<'file' | 'folder' | null
 
 export async function readJsonFile<T>(filePath: string): Promise<T> {
   return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
+}
+
+/** For the files people edit by hand, where a comment beside an entry has to survive. */
+export async function readJsoncFile<T>(filePath: string): Promise<T> {
+  return parseJsonc<T>(await fs.readFile(filePath, 'utf8'));
 }
 
 /**

@@ -223,6 +223,45 @@ test('local config overrides shared entries by name', async () => {
   );
 });
 
+test('config files are JSONC, and the same characters inside a string stay data', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-jsonc-test-'));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    `{
+  // Sources for the engine work.
+  "git": {
+    "chess-engine": {
+      "repository": "github:acme/chess-engine",
+      /* A description is prose: whatever it holds is a value, not syntax. */
+      "description": "Docs at https://acme.example/docs, and the config shape is { \\"zod\\": \\"3.25.0\\", }"
+    },
+  },
+  "paths": {
+    "notes": "./notes" // where the write-ups live
+  },
+}
+`
+  );
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.local.json'),
+    '{ "paths": { "vault": "~/notes" } } // the gitignored file reads the same way\n'
+  );
+
+  const loaded = await loadAgentReferenceConfig(projectRoot);
+
+  assert.equal(
+    loaded?.config.git[0]?.description,
+    'Docs at https://acme.example/docs, and the config shape is { "zod": "3.25.0", }'
+  );
+  assert.deepEqual(
+    loaded?.config.paths.map((entry) => [entry.name, entry.path]),
+    [
+      ['notes', './notes'],
+      ['vault', '~/notes']
+    ]
+  );
+});
+
 test('validate reports errors and warnings without needing a lockfile', async () => {
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-validate-test-'));
   await fs.writeFile(

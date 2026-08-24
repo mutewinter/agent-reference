@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { pathExists, readJsonFile } from './fs-utils.ts';
+import { pathExists, readJsoncFile } from './fs-utils.ts';
 import { isExactRegistryVersion, parsePackageAtVersion } from './package-utils.ts';
 import { repositoryNameFromSpec } from './repository.ts';
 import type {
@@ -84,10 +84,12 @@ export async function loadAgentReferenceConfig(projectRoot: string): Promise<Loa
 
 async function readConfigJson(configPath: string): Promise<unknown> {
   try {
-    return await readJsonFile<unknown>(configPath);
+    return await readJsoncFile<unknown>(configPath);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`${configPath} is not valid JSON: ${message}`);
+    throw new Error(
+      `${configPath} is not valid JSON: ${message}. Comments and trailing commas are accepted here, so the problem is something else.`
+    );
   }
 }
 
