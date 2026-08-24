@@ -18,6 +18,9 @@ importers:
       '@types/semver':
         specifier: ^7.7.1
         version: 7.7.1
+      js-yaml:
+        specifier: ^5.3.0
+        version: 5.3.0
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -29,6 +32,13 @@ packages:
 
   '@types/semver@7.7.1':
     resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
+
+  argparse@2.0.1:
+    resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
+
+  js-yaml@5.3.0:
+    resolution: {integrity: sha512-muutsYr+e2+d3rTgUGslq5rxbBlUy3cJ61IsHag2QNDQV+7zXWjkUpmALIajhrlLlrgRUiymj6U3zUr/TMK84Q==}
+    hasBin: true
 
   semver@7.8.4:
     resolution: {integrity: sha512-rUCObTnP32Q08R2uuIrt7r9PlEonuTmtuXYcW6s5kjdlj3xbnwe+21yXptAUYcMAABLkYYTtnmzb3w3EDZfueA==}
@@ -50,6 +60,12 @@ snapshots:
       undici-types: 7.18.2
 
   '@types/semver@7.7.1': {}
+
+  argparse@2.0.1: {}
+
+  js-yaml@5.3.0:
+    dependencies:
+      argparse: 2.0.1
 
   semver@7.8.4: {}
 

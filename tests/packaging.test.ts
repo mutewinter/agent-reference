@@ -4,6 +4,8 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { load } from 'js-yaml';
+
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 
 test('every file the CLI reads at runtime is one npm packs', async () => {
@@ -38,4 +40,31 @@ test('the built CLI is executable', async (t) => {
   // linked from a source checkout stops running until the build restores the mode itself.
   assert.ok(stat.mode & 0o111, `${cli} is mode ${(stat.mode & 0o777).toString(8)}, not executable`);
   assert.match(await fs.readFile(cli, 'utf8'), /^#!/);
+});
+
+test('every shipped skill has frontmatter a real YAML parser accepts', async () => {
+  const skillsDir = path.join(repoRoot, 'skills');
+  const skills = await fs.readdir(skillsDir);
+  assert.ok(skills.length > 0, `no skills under ${skillsDir}`);
+
+  for (const skill of skills) {
+    const file = path.join(skillsDir, skill, 'SKILL.md');
+    const contents = await fs.readFile(file, 'utf8');
+    const frontmatter = /^---\n([\s\S]*?)\n---\n/.exec(contents);
+    assert.ok(frontmatter, `${skill}/SKILL.md opens with no frontmatter block`);
+
+    // The harness that installs a skill reads this leniently; nothing else does. An unquoted
+    // scalar holding ": " is a mapping entry rather than prose, so a description phrased as
+    // one sentence with a colon in it stops the whole file loading for every other consumer.
+    // The description is the part that gets rewritten whenever the trigger is tuned, which is
+    // what puts this failure in front of users rather than in front of this repo.
+    let parsed: unknown;
+    assert.doesNotThrow(() => {
+      parsed = load(frontmatter[1]!);
+    }, `${skill}/SKILL.md frontmatter is not valid YAML`);
+
+    const fields = parsed as Record<string, unknown>;
+    assert.equal(typeof fields.name, 'string', `${skill}/SKILL.md frontmatter has no name`);
+    assert.equal(typeof fields.description, 'string', `${skill}/SKILL.md frontmatter has no description`);
+  }
 });
