@@ -246,6 +246,10 @@ async function ensureWorktree<RefSource extends string>(
 ): Promise<MaterializedWorktree<RefSource>> {
   await ensureGitAvailable();
 
+  // Before the store path is derived, not after: deriving it parses the URL, so an
+  // unusable repository failed as a raw TypeError from deep in path construction, which
+  // then read as a clone failure and sent the agent to check its network and credentials.
+  assertSafeRepositoryUrl(repositoryUrl, 'A repository URL');
   const bareRepositoryPath = bareRepositoryPathFor(storeDir, repositoryUrl);
   await ensureBareRepository(repositoryUrl, bareRepositoryPath);
   const checkout = await resolveCheckout(bareRepositoryPath);
@@ -361,7 +365,6 @@ function compareVersions(a: readonly number[], b: readonly number[]): number {
 }
 
 async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string): Promise<void> {
-  assertSafeRepositoryUrl(repoUrl, 'A repository URL');
   if (await pathExists(bareRepositoryPath)) {
     await ensureFetchRefspec(bareRepositoryPath);
     await reportProgress(

@@ -340,6 +340,23 @@ test('a transport git should not be asked to speak is refused', async () => {
   });
 });
 
+test('a repository that is not a URL is refused, not reported as a failed clone', async () => {
+  const { projectRoot, storeDir } = await workspace('bad-url');
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    // A scheme left off, which is a typo rather than an attack. Deriving the store path
+    // parses the URL, so this used to surface as `TypeError: Invalid URL` from inside path
+    // construction, and then as a clone failure blaming the network.
+    JSON.stringify({ git: { internal: 'forge.example/team/repo' } })
+  );
+
+  await assert.rejects(getReferences(projectRoot, ['internal'], { storeDir }), (error: Error) => {
+    assert.match(error.message, /not a usable git URL/);
+    assert.doesNotMatch(error.message, /Invalid URL/);
+    return true;
+  });
+});
+
 test('the transport policy rides on the argv, not on how git is started', async () => {
   // A clone with a human watching is spawned rather than exec'd so git can draw its own
   // progress. That is a display choice, and it once silently dropped the policy below.
