@@ -3,8 +3,9 @@ import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 import appCss from '../styles.css?url'
 
 const TITLE = 'agent-reference'
+const TAGLINE = 'Give your agents the source'
 const DESCRIPTION =
-  'A CLI that gives coding agents readable upstream source on demand: any dependency at the exact version your lockfile installs, any git repository, any local folder, all by name.'
+  'Give your agents the source. A CLI that resolves any dependency, git repository, file, or folder to a path on disk, at the exact version you install.'
 
 export const Route = createRootRoute({
   head: () => ({
@@ -12,7 +13,7 @@ export const Route = createRootRoute({
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { name: 'color-scheme', content: 'dark' },
-      { title: `${TITLE} — readable upstream source for coding agents` },
+      { title: `${TITLE} \u00b7 ${TAGLINE}` },
       { name: 'description', content: DESCRIPTION },
       { property: 'og:title', content: TITLE },
       { property: 'og:description', content: DESCRIPTION },
@@ -34,10 +35,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-5">
+        <div className="mx-auto max-w-6xl px-6 pb-24">
           <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <main>{children}</main>
         </div>
         <Scripts />
       </body>
@@ -47,15 +47,14 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 function Header() {
   return (
-    <header className="flex items-center justify-between border-b border-line py-4">
+    <header className="flex items-center justify-between border-b border-line py-4 text-[13px]">
       <a href="/" className="text-fg hover:text-accent">
         agent-reference
       </a>
-      <nav className="flex items-center gap-4 text-muted">
+      <nav className="flex items-center gap-5 text-muted">
         <a
           href={`https://www.npmjs.com/package/agent-reference/v/${__CLI_VERSION__}`}
-          className="border border-line px-1.5 py-0.5 text-[12px] hover:border-accent hover:text-accent"
-          title="This version on npm"
+          className="hover:text-accent"
         >
           v{__CLI_VERSION__}
         </a>
@@ -67,16 +66,5 @@ function Header() {
         </a>
       </nav>
     </header>
-  )
-}
-
-function Footer() {
-  return (
-    <footer className="mt-20 flex flex-wrap items-center justify-between gap-2 border-t border-line py-5 text-[12px] text-faint">
-      <span>MIT licensed. Needs Node 20+ and git 2.19+.</span>
-      <a href="https://github.com/mutewinter/agent-reference" className="hover:text-accent">
-        github.com/mutewinter/agent-reference
-      </a>
-    </footer>
   )
 }
