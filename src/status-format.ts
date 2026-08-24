@@ -137,7 +137,7 @@ function entryLines(entries: AgentReferenceStatusEntry[], indent: number, option
   const lines: string[] = [];
 
   for (const entry of entries) {
-    const fragments = [entry.kind, paintStatus(entry, options.color), ...primaryFragments(entry, options)];
+    const fragments = [kindLabel(entry), paintStatus(entry, options.color), ...primaryFragments(entry, options)];
     lines.push(`${pad}${entry.name.padEnd(width)}${fragments.join(' · ')}`);
     if (entry.description) {
       lines.push(`${pad}${' '.repeat(width)}${paint(`"${sanitizeRelayedLine(entry.description)}"`, 'dim', options.color)}`);
@@ -147,11 +147,20 @@ function entryLines(entries: AgentReferenceStatusEntry[], indent: number, option
   return lines;
 }
 
+/**
+ * A path reference reads as what it turned out to be, because "folder" and "file" are what a
+ * reader is actually looking for and the config declares neither. A missing one falls back
+ * to the kind, since nothing is there to have a shape.
+ */
+function kindLabel(entry: AgentReferenceStatusEntry): string {
+  return entry.kind === 'path' ? (entry.pathType ?? 'path') : entry.kind;
+}
+
 /** The datum that matters for this entry right now; never a `-` placeholder. */
 function primaryFragments(entry: AgentReferenceStatusEntry, options: StatusFormatOptions): string[] {
   const shownPath = (): string => displayPath(entry.path, { tilde: options.tilde });
 
-  if (entry.kind === 'folder') {
+  if (entry.kind === 'path') {
     return [shownPath()];
   }
 

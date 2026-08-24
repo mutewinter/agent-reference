@@ -84,7 +84,7 @@ export async function validateConfig(
 
   for (const set of report.sets) {
     if (set.references.length === 0) {
-      report.warnings.push(`Set "${set.description}" has no members. Add folders, git, or packages entries inside it.`);
+      report.warnings.push(`Set "${set.description}" has no members. Add paths, git, or packages entries inside it.`);
     }
   }
 
@@ -100,10 +100,10 @@ export async function validateConfig(
     }
   }
 
-  for (const folder of loaded.config.folders) {
-    const resolved = resolveFolderPath(projectRoot, folder.path);
+  for (const reference of loaded.config.paths) {
+    const resolved = resolveFolderPath(projectRoot, reference.path);
     if (!(await pathExists(resolved))) {
-      report.warnings.push(`folders.${folder.name} points at ${resolved}, which does not exist.`);
+      report.warnings.push(`paths.${reference.name} points at ${resolved}, which does not exist.`);
     }
   }
 

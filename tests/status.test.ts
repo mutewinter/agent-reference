@@ -70,13 +70,38 @@ test('reports config-only packages as configured references', async () => {
   assert.equal(report.references[0]?.status, 'declared');
 });
 
+test('a path reference may name a file, and status reports which it found', async () => {
+  const projectRoot = await copyFixtureProject();
+  await fs.mkdir(path.join(projectRoot, 'references'), { recursive: true });
+  const notePath = path.join(projectRoot, 'references', 'release-checklist.md');
+  await fs.writeFile(notePath, '# Release checklist\n');
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
+    paths: {
+      checklist: './references/release-checklist.md',
+      references: './references',
+      gone: './references/missing.md'
+    }
+  }, null, 2));
+
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const byName = new Map(report.references.map((entry) => [entry.name, entry]));
+
+  assert.equal(byName.get('checklist')?.status, 'ready');
+  assert.equal(byName.get('checklist')?.pathType, 'file');
+  assert.equal(byName.get('checklist')?.path, notePath);
+  assert.equal(byName.get('references')?.pathType, 'folder');
+  // Nothing is on disk, so there is no shape to report.
+  assert.equal(byName.get('gone')?.status, 'missing');
+  assert.equal(byName.get('gone')?.pathType, null);
+});
+
 test('reports local folder references with absolute paths', async () => {
   const projectRoot = await copyFixtureProject();
   const folderPath = path.join(projectRoot, 'references', 'design-notes');
   await fs.mkdir(folderPath, { recursive: true });
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), '{}\n');
   await fs.writeFile(path.join(projectRoot, 'agent-reference.local.json'), JSON.stringify({
-    folders: {
+    paths: {
       'design-notes': './references/design-notes'
     }
   }, null, 2));
@@ -84,7 +109,7 @@ test('reports local folder references with absolute paths', async () => {
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
 
   assert.equal(report.references.length, 1);
-  assert.equal(report.references[0]?.kind, 'folder');
+  assert.equal(report.references[0]?.kind, 'path');
   assert.equal(report.references[0]?.name, 'design-notes');
   assert.equal(report.references[0]?.status, 'ready');
   assert.equal(report.references[0]?.scope, 'local');
@@ -123,7 +148,7 @@ test('works in a directory with no package.json or lockfile at all', async () =>
   const folderPath = path.join(projectRoot, 'notes');
   await fs.mkdir(folderPath, { recursive: true });
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    folders: { notes: './notes' },
+    paths: { notes: './notes' },
     git: { tooling: 'github:example/tooling' }
   }, null, 2));
 
@@ -185,7 +210,7 @@ test('a miss on a name this build does have as a command reads as an ordinary mi
 test('a machine path in the committed config is a warning here, not a blocked reference', async () => {
   const projectRoot = await copyFixtureProject();
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    folders: { notes: '~/notes' },
+    paths: { notes: '~/notes' },
     git: { internal: 'file:/opt/checkouts/internal' }
   }));
 
@@ -194,7 +219,7 @@ test('a machine path in the committed config is a warning here, not a blocked re
   assert.deepEqual(
     report.problems.map((problem) => [problem.reference, problem.severity]),
     [
-      ['folder:notes', 'warning'],
+      ['path:notes', 'warning'],
       ['git:internal', 'warning']
     ]
   );

@@ -73,7 +73,7 @@ function configSummary(survey: InitSurvey): string {
 }
 
 function lockfileSummary(survey: InitSurvey): string {
-  if (!survey.lockfilePath) return 'none; folder and git references work without one';
+  if (!survey.lockfilePath) return 'none; path and git references work without one';
   const count = survey.dependencyCount;
   return `${path.basename(survey.lockfilePath)}, ${count} ${count === 1 ? 'dependency' : 'dependencies'}`;
 }
@@ -161,8 +161,8 @@ function proposeStep(): string {
     'Everything you propose goes in agent-reference.local.json first, whatever the path looks like,',
     "because it came out of the user's own session history. Ask before promoting any of it to the",
     'committed agent-reference.json.',
-    'Do not propose folders inside this project unless the mining shows the user pointing agents at',
-    'that subtree again and again. An in-repo folder earns a reference when the description carries',
+    'Do not propose paths inside this project unless the mining shows the user pointing agents at',
+    'that subtree again and again. An in-repo path earns a reference when the description carries',
     'the value, not the path.'
   ].join('\n');
 }

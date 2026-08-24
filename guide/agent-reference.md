@@ -22,14 +22,16 @@ Edit the JSON directly; there are no add commands. Run `agent-reference validate
 | a git URL or `owner/repo` | `git` | `agent-reference.json` |
 | a git URL naming one package inside a monorepo | `git`, with `directory` set to that subtree | `agent-reference.json` |
 | a `file:` path to a checkout on this machine | `git` | `agent-reference.local.json`, always |
-| a relative path inside the repo | `folders` | `agent-reference.json` |
-| an absolute or `~/` path | `folders` | `agent-reference.local.json`, always |
+| a relative path inside the repo | `paths` | `agent-reference.json` |
+| an absolute or `~/` path | `paths` | `agent-reference.local.json`, always |
 
-`agent-reference.local.json` is gitignored and overrides same-named entries; machine paths and private references live there and never reach a commit. `validate` enforces that mechanically: a machine path in the committed file is an error whichever key holds it, whether a `folders` path, a `file:` repository under `git`, or `cacheDir`, and so is `agent-reference.local.json` itself being tracked by git. `status` reports the same path leaks as warnings, so the config gets checked on a command you already run. Collections are sets: a labeled list with a `description` heading and members declared inline, mirroring how users paste these lists. When the user says "add this to the documentation sources", find the set whose description matches and append the member. Record intent as a `description` on the set or the reference; descriptions are how instructions like "never mention this folder in committed code" travel to future agents.
+`agent-reference.local.json` is gitignored and overrides same-named entries; machine paths and private references live there and never reach a commit. `validate` enforces that mechanically: a machine path in the committed file is an error whichever key holds it, whether a `paths` entry, a `file:` repository under `git`, or `cacheDir`, and so is `agent-reference.local.json` itself being tracked by git. `status` reports the same path leaks as warnings, so the config gets checked on a command you already run. Collections are sets: a labeled list with a `description` heading and members declared inline, mirroring how users paste these lists. When the user says "add this to the documentation sources", find the set whose description matches and append the member. Record intent as a `description` on the set or the reference; descriptions are how instructions like "never mention this folder in committed code" travel to future agents.
 
 A `git` reference checks out a whole repository. When only one subtree of it is worth reading, set `directory` to that path and the reference resolves to the subtree while `status` still reports the checkout root alongside it. Several subtrees of one monorepo are several entries with distinct names, not one nested entry: the store keys a checkout on repository and commit, so they share one clone, and each gets its own description and its own `ref`. A `directory` that is not in the checkout is an error naming the path to fix, because upstream reorganizations are the normal cause and a silent fall back to the repository root would hand you the wrong scope.
 
-A useful pattern for links, issues, and gathered research: create a folder, save the fetched material into it, and declare it as a folder reference with a description. The user may ask you to maintain such a folder over time.
+A `paths` entry may name a file as easily as a folder: one note out of a vault, a checklist, a spec. The config declares the path and nothing more, so `status` reports whether it is a `file` or a `folder` from what it finds on disk, and a folder that later becomes a file needs no config change.
+
+A useful pattern for links, issues, and gathered research: create a folder, save the fetched material into it, and declare it as a path reference with a description. The user may ask you to maintain such a folder over time.
 
 ## Setting a project up
 

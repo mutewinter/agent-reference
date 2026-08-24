@@ -29,7 +29,7 @@ test('an untouched folder is surveyed without a config, a lockfile, or a reposit
   const output = formatInitBrief(survey, PLAIN);
   assert.match(output, /init reads and prints\. It writes nothing/);
   assert.match(output, /config +none/);
-  assert.match(output, /lockfile +none; folder and git references work without one/);
+  assert.match(output, /lockfile +none; path and git references work without one/);
   assert.match(output, /gitignore +not a git repository/);
 });
 
@@ -165,8 +165,8 @@ test('config text never reaches the brief', async () => {
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      folders: { notes: { path: './notes', description: planted } },
-      sets: [{ description: planted, folders: ['./notes'] }]
+      paths: { notes: { path: './notes', description: planted } },
+      sets: [{ description: planted, paths: ['./notes'] }]
     })
   );
 

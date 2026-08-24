@@ -170,7 +170,7 @@ function formatCloneResult(result: CloneReferencesResult): string {
       (skip) => `${skip.version ? dependencyKey(skip.name, skip.version) : skip.name} skipped: ${skip.reason}`
     ),
     ...result.clonedGit.map((clone) => `git:${clone.name} -> ${displayPath(clone.referencePath)}`),
-    ...result.folders.map((name) => `folder:${name} is already local, nothing to clone`),
+    ...result.paths.map((name) => `path:${name} is already local, nothing to clone`),
     `state -> ${displayPath(result.manifestPath)}`,
     ...(result.problems.length > 0
       ? ['', `problems:\n${result.problems.map(formatProblem).join('\n')}`, `  ${KEEP_REFERENCE_NOTE}`]
@@ -227,7 +227,7 @@ function helpText(): string {
   return `agent-reference
 
 Gives an agent readable upstream source on demand: dependencies at their exact
-installed version, git repositories, and local folders, all by name. Nothing is
+installed version, git repositories, and local files and folders, all by name. Nothing is
 fetched until asked for.
 
 Usage:

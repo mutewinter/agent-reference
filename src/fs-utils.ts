@@ -8,7 +8,7 @@ export function resolveConfigPath(projectRoot: string, cwd: string, configuredPa
   return path.resolve(cwd, configuredPath);
 }
 
-/** Folder reference paths accept `~/`, absolute, and project-relative forms. */
+/** Path references accept `~/`, absolute, and project-relative forms. */
 export function resolveReferencePath(projectRoot: string, requested: string): string {
   if (requested.startsWith('~/')) {
     return path.join(os.homedir(), requested.slice(2));
@@ -23,6 +23,20 @@ export async function pathExists(filePath: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * What a declared path turned out to be on disk, or null when nothing is there. A path
+ * reference names a coordinate; whether it is a file or a folder is a fact about this
+ * machine, so it is observed here rather than declared in the config.
+ */
+export async function pathKind(target: string): Promise<'file' | 'folder' | null> {
+  try {
+    const stat = await fs.stat(target);
+    return stat.isDirectory() ? 'folder' : 'file';
+  } catch {
+    return null;
   }
 }
 

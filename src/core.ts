@@ -46,11 +46,11 @@ export async function cloneReferences(
   const filter = selectionFilter(config, options);
   const packages = configPackages.packages.filter((entry) => !filter || filter('package', entry.name));
   const gitReferences = (config?.git ?? []).filter((entry) => !filter || filter('git', entry.name));
-  const folders = (config?.folders ?? [])
-    .filter((entry) => !filter || filter('folder', entry.name))
+  const paths = (config?.paths ?? [])
+    .filter((entry) => !filter || filter('path', entry.name))
     .map((entry) => entry.name);
 
-  if (packages.length === 0 && gitReferences.length === 0 && folders.length === 0) {
+  if (packages.length === 0 && gitReferences.length === 0 && paths.length === 0) {
     throw new Error(
       filter
         ? [
@@ -60,7 +60,7 @@ export async function cloneReferences(
           ]
             .filter(Boolean)
             .join(' ')
-        : `No references configured. Add packages, folders, or git entries to ${loadedConfig?.path ?? DEFAULT_CONFIG_FILE}.`
+        : `No references configured. Add packages, paths, or git entries to ${loadedConfig?.path ?? DEFAULT_CONFIG_FILE}.`
     );
   }
 
@@ -106,7 +106,7 @@ export async function cloneReferences(
   return {
     cloned,
     clonedGit,
-    folders,
+    paths,
     skipped,
     unresolved,
     // Reported here as well as in `status`: an agent acts on the output it just got back.

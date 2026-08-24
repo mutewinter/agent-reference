@@ -12,11 +12,12 @@ test('renders scope sections with sets as labeled-list subsections', () => {
       [
         entry({ kind: 'git', name: 'chess-engine', scope: 'shared', status: 'declared', requested: 'github:acme/chess-engine', sets: ['engines'] }),
         entry({
-          kind: 'folder',
+          kind: 'path',
           name: 'design-notes',
           scope: 'local',
           status: 'ready',
           path: '/refs/design-notes',
+          pathType: 'folder',
           description: 'Sketches and early notes'
         })
       ],
@@ -31,6 +32,22 @@ test('renders scope sections with sets as labeled-list subsections', () => {
   assert.doesNotMatch(output, / - /);
   // Counted against the whole list: one of the two references here has not been fetched.
   assert.match(output, /1 of 2 not fetched yet, which is normal · agent-reference get <name>/);
+});
+
+test('a path reference reads as what it turned out to be on disk', () => {
+  const output = formatStatusReport(
+    report([
+      entry({ kind: 'path', name: 'notes', scope: 'local', status: 'ready', path: '/vault/notes.md', pathType: 'file' }),
+      entry({ kind: 'path', name: 'vault', scope: 'local', status: 'ready', path: '/vault', pathType: 'folder' }),
+      // Nothing is there, so there is no shape to report and the kind stands in.
+      entry({ kind: 'path', name: 'gone', scope: 'local', status: 'missing', path: '/vault/gone.md' })
+    ]),
+    PLAIN
+  );
+
+  assert.match(output, /notes {2,}file · ready · \/vault\/notes\.md/);
+  assert.match(output, /vault {2,}folder · ready · \/vault/);
+  assert.match(output, /gone {2,}path · missing · \/vault\/gone\.md/);
 });
 
 test('package lines carry version, confidence, and staleness inline', () => {
@@ -73,7 +90,7 @@ test('an empty report is an initialization hint, and color stays off when disabl
 
 test('color paints statuses only when enabled', () => {
   const colored = formatStatusReport(
-    report([entry({ kind: 'folder', name: 'notes', scope: 'shared', status: 'ready', path: '/notes' })]),
+    report([entry({ kind: 'path', name: 'notes', scope: 'shared', status: 'ready', path: '/notes' })]),
     { color: true, tilde: false }
   );
   assert.match(colored, /\[32mready\[0m/);

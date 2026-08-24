@@ -5,7 +5,7 @@ import { isExactRegistryVersion, parsePackageAtVersion } from './package-utils.t
 import { repositoryNameFromSpec } from './repository.ts';
 import type {
   AgentReferenceConfig,
-  ConfiguredFolderReference,
+  ConfiguredPathReference,
   ConfiguredGitReference,
   ConfiguredPackageReference,
   ConfiguredReference,
@@ -19,7 +19,7 @@ export const DEFAULT_LOCAL_CONFIG_FILE = 'agent-reference.local.json';
 const TOP_LEVEL_KEYS = [
   '$schema',
   'packages',
-  'folders',
+  'paths',
   'git',
   'sets',
   'allImporters',
@@ -52,15 +52,15 @@ function requirePackageVersion(value: unknown, configPath: string, field: string
 }
 
 const PACKAGE_KEYS = ['version', 'ref', 'repository', 'directory', 'description'];
-const FOLDER_KEYS = ['path', 'description'];
+const PATH_KEYS = ['path', 'description'];
 const GIT_KEYS = ['repository', 'ref', 'directory', 'description'];
-const SET_KEYS = ['name', 'description', 'packages', 'folders', 'git'];
-const SET_FOLDER_KEYS = ['path', 'name', 'description'];
+const SET_KEYS = ['name', 'description', 'packages', 'paths', 'git'];
+const SET_PATH_KEYS = ['path', 'name', 'description'];
 const SET_GIT_KEYS = ['repository', 'ref', 'directory', 'name', 'description'];
 const SET_PACKAGE_KEYS = ['name', 'version', 'ref', 'repository', 'directory', 'description'];
 
 function emptyConfig(): AgentReferenceConfig {
-  return { packages: [], folders: [], git: [], sets: [] };
+  return { packages: [], paths: [], git: [], sets: [] };
 }
 
 export async function loadAgentReferenceConfig(projectRoot: string): Promise<LoadedAgentReferenceConfig | null> {
@@ -71,7 +71,7 @@ export async function loadAgentReferenceConfig(projectRoot: string): Promise<Loa
 
   const baseConfig = configPath ? parseConfig(await readConfigJson(configPath), configPath) : emptyConfig();
   const localConfig = localPath ? parseConfig(await readConfigJson(localPath), localPath) : emptyConfig();
-  for (const reference of [...localConfig.packages, ...localConfig.folders, ...localConfig.git]) {
+  for (const reference of [...localConfig.packages, ...localConfig.paths, ...localConfig.git]) {
     reference.scope = 'local';
   }
 
@@ -93,6 +93,7 @@ async function readConfigJson(configPath: string): Promise<unknown> {
 
 export function parseConfig(value: unknown, configPath: string): AgentReferenceConfig {
   const object = expectObject(value, configPath, null);
+  assertRenamedKeys(object, configPath, null);
   assertKnownKeys(object, TOP_LEVEL_KEYS, configPath, null);
 
   const config = emptyConfig();
@@ -100,8 +101,8 @@ export function parseConfig(value: unknown, configPath: string): AgentReferenceC
   for (const [name, entry] of recordEntries(object.packages, configPath, 'packages')) {
     config.packages.push(parsePackageEntry(name, entry, configPath));
   }
-  for (const [name, entry] of recordEntries(object.folders, configPath, 'folders')) {
-    config.folders.push(parseFolderEntry(name, entry, configPath));
+  for (const [name, entry] of recordEntries(object.paths, configPath, 'paths')) {
+    config.paths.push(parsePathEntry(name, entry, configPath));
   }
   for (const [name, entry] of recordEntries(object.git, configPath, 'git')) {
     config.git.push(parseGitEntry(name, entry, configPath));
@@ -128,6 +129,7 @@ function parseSets(value: unknown, configPath: string, config: AgentReferenceCon
   for (const [index, entry] of value.entries()) {
     const field = `sets[${index}]`;
     const object = expectObject(entry, configPath, field);
+    assertRenamedKeys(object, configPath, field);
     assertKnownKeys(object, SET_KEYS, configPath, field);
     if (object.description === undefined) {
       fail(configPath, `${field}.description is required: it is the heading that says what this set is for.`);
@@ -143,8 +145,8 @@ function parseSets(value: unknown, configPath: string, config: AgentReferenceCon
     const label = setLabel(set);
     config.sets.push(set);
 
-    for (const [itemIndex, item] of memberEntries(object.folders, configPath, `${field}.folders`)) {
-      config.folders.push(parseSetFolder(item, configPath, `${field}.folders[${itemIndex}]`, label));
+    for (const [itemIndex, item] of memberEntries(object.paths, configPath, `${field}.paths`)) {
+      config.paths.push(parseSetPath(item, configPath, `${field}.paths[${itemIndex}]`, label));
     }
     for (const [itemIndex, item] of memberEntries(object.git, configPath, `${field}.git`)) {
       config.git.push(parseSetGit(item, configPath, `${field}.git[${itemIndex}]`, label));
@@ -159,34 +161,34 @@ export function setLabel(set: ConfiguredSet): string {
   return set.name ?? set.description;
 }
 
-function parseSetFolder(
+function parseSetPath(
   item: unknown,
   configPath: string,
   field: string,
   label: string
-): ConfiguredFolderReference {
+): ConfiguredPathReference {
   if (typeof item === 'string') {
-    const folderPath = requireNonEmpty(item, configPath, field);
+    const declared = requireNonEmpty(item, configPath, field);
     return {
-      kind: 'folder',
-      name: basenameOf(folderPath),
+      kind: 'path',
+      name: basenameOf(declared),
       scope: 'shared',
-      path: folderPath,
+      path: declared,
       description: null,
       sets: [label]
     };
   }
 
   const object = expectObject(item, configPath, field, 'a path string or an object');
-  assertKnownKeys(object, SET_FOLDER_KEYS, configPath, field);
+  assertKnownKeys(object, SET_PATH_KEYS, configPath, field);
   if (object.path === undefined) fail(configPath, `${field}.path is required.`);
-  const folderPath = requireNonEmpty(expectString(object.path, configPath, `${field}.path`), configPath, `${field}.path`);
+  const declared = requireNonEmpty(expectString(object.path, configPath, `${field}.path`), configPath, `${field}.path`);
 
   return {
-    kind: 'folder',
-    name: optionalString(object.name, configPath, `${field}.name`) ?? basenameOf(folderPath),
+    kind: 'path',
+    name: optionalString(object.name, configPath, `${field}.name`) ?? basenameOf(declared),
     scope: 'shared',
-    path: folderPath,
+    path: declared,
     description: parseDescription(object.description, configPath, field),
     sets: [label]
   };
@@ -274,7 +276,7 @@ function mergeDuplicateReferences(config: AgentReferenceConfig, configPath: stri
   config.packages = mergeKind(config.packages, configPath, (entry) =>
     [entry.version, entry.ref, entry.repository, entry.directory].join('\u0000')
   );
-  config.folders = mergeKind(config.folders, configPath, (entry) => entry.path);
+  config.paths = mergeKind(config.paths, configPath, (entry) => entry.path);
   config.git = mergeKind(config.git, configPath, (entry) => [entry.spec, entry.directory].join('\u0000'));
 }
 
@@ -304,8 +306,8 @@ function mergeKind<T extends ConfiguredReference>(
   return [...byName.values()];
 }
 
-function basenameOf(folderPath: string): string {
-  const normalized = folderPath.replace(/\\/g, '/').replace(/\/+$/, '');
+function basenameOf(declaredPath: string): string {
+  const normalized = declaredPath.replace(/\\/g, '/').replace(/\/+$/, '');
   const base = path.posix.basename(normalized);
   return base && base !== '.' && base !== '~' ? base : normalized;
 }
@@ -348,20 +350,20 @@ function parsePackageEntry(name: string, entry: unknown, configPath: string): Co
   };
 }
 
-function parseFolderEntry(name: string, entry: unknown, configPath: string): ConfiguredFolderReference {
-  const field = `folders.${name}`;
+function parsePathEntry(name: string, entry: unknown, configPath: string): ConfiguredPathReference {
+  const field = `paths.${name}`;
   if (typeof entry === 'string') {
-    return { kind: 'folder', name, scope: 'shared', path: requireNonEmpty(entry, configPath, field), description: null, sets: [] };
+    return { kind: 'path', name, scope: 'shared', path: requireNonEmpty(entry, configPath, field), description: null, sets: [] };
   }
 
   const object = expectObject(entry, configPath, field, 'a path string or an object');
-  assertKnownKeys(object, FOLDER_KEYS, configPath, field);
+  assertKnownKeys(object, PATH_KEYS, configPath, field);
   if (object.path === undefined) {
     fail(configPath, `${field}.path is required.`);
   }
 
   return {
-    kind: 'folder',
+    kind: 'path',
     name,
     scope: 'shared',
     path: requireNonEmpty(expectString(object.path, configPath, `${field}.path`), configPath, `${field}.path`),
@@ -441,7 +443,7 @@ function mergeConfigs(base: AgentReferenceConfig, local: AgentReferenceConfig): 
 
   return {
     packages: mergeByName(base.packages, local.packages),
-    folders: mergeByName(base.folders, local.folders),
+    paths: mergeByName(base.paths, local.paths),
     git: mergeByName(base.git, local.git),
     sets,
     allImporters: local.allImporters ?? base.allImporters,
@@ -493,6 +495,26 @@ function expectBoolean(value: unknown, configPath: string, field: string): boole
 function requireNonEmpty(value: string, configPath: string, field: string): string {
   if (!value.trim()) fail(configPath, `${field} must not be empty.`);
   return value;
+}
+
+/**
+ * Keys renamed before launch. "unknown key folders" would be true and useless: the fix is a
+ * rename and the entries inside are untouched, so say that rather than leaving an agent to
+ * guess which of the valid keys replaced it.
+ */
+const RENAMED_KEYS: Record<string, string> = {
+  folders: 'paths'
+};
+
+function assertRenamedKeys(object: Record<string, unknown>, configPath: string, field: string | null): void {
+  for (const [previous, replacement] of Object.entries(RENAMED_KEYS)) {
+    if (object[previous] === undefined) continue;
+    const location = field ? `${field}.${previous}` : previous;
+    fail(
+      configPath,
+      `${location} was renamed to ${replacement}, which holds a folder or a file. Rename the key; every entry inside it is unchanged.`
+    );
+  }
 }
 
 function assertKnownKeys(

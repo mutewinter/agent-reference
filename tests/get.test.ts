@@ -86,12 +86,12 @@ test('resolves a configured folder reference to its absolute path', async () => 
   await fs.mkdir(folderPath, { recursive: true });
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ folders: { notes: './notes' } })
+    JSON.stringify({ paths: { notes: './notes' } })
   );
 
   const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['notes'], { storeDir });
 
-  assert.equal(result?.kind, 'folder');
+  assert.equal(result?.kind, 'path');
   assert.equal(result?.path, folderPath);
   assert.equal(result?.recorded, false);
 });
@@ -103,7 +103,7 @@ test('materializes configured references in a directory that is not a Node proje
   await fs.mkdir(folderPath, { recursive: true });
   const source = await createSourceRepo(tempDir, 'scratch-tool', '0.0.1');
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    folders: { notes: './notes' },
+    paths: { notes: './notes' },
     git: { tooling: `file:${path.relative(projectRoot, source.path)}#${source.commit}` }
   }, null, 2));
 
@@ -122,18 +122,18 @@ test('a name shared by two kinds must be qualified', async () => {
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      folders: { tooling: './tooling' },
+      paths: { tooling: './tooling' },
       git: { tooling: 'github:example/tooling' }
     })
   );
 
   await assert.rejects(
     getReferences(path.join(projectRoot, 'package.json'), ['tooling'], { storeDir }),
-    /Qualify it: folder:tooling or git:tooling/
+    /Qualify it: path:tooling or git:tooling/
   );
 
-  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['folder:tooling'], { storeDir });
-  assert.equal(result?.kind, 'folder');
+  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['path:tooling'], { storeDir });
+  assert.equal(result?.kind, 'path');
 });
 
 async function scenario(label: string): Promise<{ projectRoot: string; storeDir: string; tempDir: string }> {

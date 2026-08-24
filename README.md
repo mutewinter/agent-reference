@@ -1,7 +1,8 @@
 # agent-reference
 
 Gives a coding agent readable upstream source on demand: any dependency at its exact
-installed version, any git repository, and any local folder, all addressable by name.
+installed version, any git repository, and any file or folder already on this machine,
+all addressable by name.
 
 `node_modules` holds only what a package chose to publish. `agent-reference` checks out the
 package's repository at the exact published commit, which is the only way to read its
@@ -88,8 +89,9 @@ same format:
   "packages": {
     "prettier": "3.6.2"
   },
-  "folders": {
-    "design-notes": "./references/design-notes"
+  "paths": {
+    "design-notes": "./references/design-notes",
+    "release-checklist": "~/notes/release-checklist.md"
   },
   "git": {
     "typescript": "github:microsoft/TypeScript#main"
@@ -97,7 +99,7 @@ same format:
   "sets": [
     {
       "description": "Documentation sources to read before writing docs",
-      "folders": ["./references/style-guide"],
+      "paths": ["./references/style-guide"],
       "git": ["github:acme/design-system#v4"]
     }
   ]
@@ -118,7 +120,7 @@ pin that has fallen behind what the project installs instead of silently followi
 A set is a labeled list: a description saying what the collection is for, with members
 declared inline the way a human would paste them. Member names derive from the path or
 repository basename (override with `"name"` when two collide), the same reference may
-appear in several sets, and a set can mix folders, git repositories, and packages.
+appear in several sets, and a set can mix paths, git repositories, and packages.
 `status` renders each set as its own section under its description, and `--set` selects
 one by its short `name` or any unambiguous piece of its description, so "the
 documentation sources" works in chat and on the command line alike.
@@ -127,7 +129,7 @@ Other keys: `registry` for a private npm registry, `cacheDir` to move the store 
 inside the project keeps every checkout under a sandboxed agent's readable root).
 
 Any directory is a project: the nearest config (walking up) anchors it, and a Node
-lockfile is optional. In a Python repo, a Rust repo, or a plain folder, `folders` and
+lockfile is optional. In a Python repo, a Rust repo, or a plain folder, `paths` and
 `git` references work exactly the same; only package references need a lockfile.
 
 ## How versions resolve

@@ -133,8 +133,8 @@ export interface CloneReferencesResult {
     reason: string;
   }>;
   clonedGit: GitReferenceWorktreeResult[];
-  /** Names of selected folder references. They are already local, so nothing is cloned. */
-  folders: string[];
+  /** Names of selected path references. They are already local, so nothing is cloned. */
+  paths: string[];
   unresolved: UnresolvedManifestReference[];
   /** Same shape `status` reports, so a failure is explained where it happened. */
   problems: AgentReferenceProblem[];
@@ -157,7 +157,7 @@ export interface PackageDrift {
  */
 export type PackageVersionSource = 'explicit' | 'lockfile' | 'registry' | 'config';
 
-/** One materialized (or located, for folders) reference returned by `get`. */
+/** One materialized (or located, for a path reference) reference returned by `get`. */
 export interface GetReferenceResult {
   kind: AgentReferenceKind;
   name: string;
@@ -184,7 +184,7 @@ export interface GetReferenceResult {
   problem: AgentReferenceProblem | null;
 }
 
-export type AgentReferenceKind = 'package' | 'folder' | 'git';
+export type AgentReferenceKind = 'package' | 'path' | 'git';
 
 export interface PackageManifestReference {
   kind: 'package';
@@ -247,8 +247,8 @@ export interface AgentReferenceManifest {
 
 /**
  * `declared` is the normal resting state of a healthy config: the reference is named but
- * nothing has been fetched, because nothing needed it yet. Only folders can be `missing`,
- * since a folder cannot be materialized on demand.
+ * nothing has been fetched, because nothing needed it yet. Only path references can be
+ * `missing`, since something already on this machine cannot be materialized on demand.
  */
 export type AgentReferenceStatusState =
   | 'ready'
@@ -270,6 +270,11 @@ export interface AgentReferenceStatusEntry {
   currentVersion: string | null;
   clonedVersion: string | null;
   path: string | null;
+  /**
+   * What a `path` reference turned out to be on disk. Null for other kinds, and for a path
+   * reference that is missing, because nothing is there to look at.
+   */
+  pathType: 'file' | 'folder' | null;
   /** Repository checkout root. Differs from `path` for a package inside a monorepo. */
   repositoryPath: string | null;
   repositoryUrl: string | null;
@@ -344,8 +349,8 @@ export interface ConfiguredPackageReference {
   sets: string[];
 }
 
-export interface ConfiguredFolderReference {
-  kind: 'folder';
+export interface ConfiguredPathReference {
+  kind: 'path';
   name: string;
   scope: ConfigScope;
   path: string;
@@ -369,7 +374,7 @@ export interface ConfiguredGitReference {
 
 export type ConfiguredReference =
   | ConfiguredPackageReference
-  | ConfiguredFolderReference
+  | ConfiguredPathReference
   | ConfiguredGitReference;
 
 /**
@@ -395,7 +400,7 @@ export interface ReferenceSet {
 
 export interface AgentReferenceConfig {
   packages: ConfiguredPackageReference[];
-  folders: ConfiguredFolderReference[];
+  paths: ConfiguredPathReference[];
   git: ConfiguredGitReference[];
   sets: ConfiguredSet[];
   allImporters?: boolean;

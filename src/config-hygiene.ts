@@ -8,7 +8,7 @@ import type { AgentReferenceConfig, ProblemSeverity } from './types.ts';
  * and `status` reports them as problems with the two fields apart.
  */
 export interface CommittedPathLeak {
-  /** `folder:notes`, `git:internal`, or null for a top-level key. */
+  /** `path:notes`, `git:internal`, or null for a top-level key. */
   reference: string | null;
   severity: ProblemSeverity;
   summary: string;
@@ -24,35 +24,35 @@ const ESCAPE_FIX =
 
 /**
  * Every path-bearing field in the committed config, checked by what the value means rather
- * than by which key holds it: a repo-relative folder is shareable and belongs there, while
+ * than by which key holds it: a repo-relative path is shareable and belongs there, while
  * a home path is a leak whichever key it sits under. Pure string work over a config that is
  * already loaded, so both `validate` and `status` can run it without touching the disk.
  */
 export function committedPathLeaks(config: AgentReferenceConfig): CommittedPathLeak[] {
   const leaks: CommittedPathLeak[] = [];
 
-  for (const folder of config.folders) {
-    if (folder.scope === 'local') continue;
-    const verdict = classifyConfiguredPath(folder.path);
+  for (const reference of config.paths) {
+    if (reference.scope === 'local') continue;
+    const verdict = classifyConfiguredPath(reference.path);
     if (verdict === 'machine') {
       leaks.push({
-        reference: `folder:${folder.name}`,
+        reference: `path:${reference.name}`,
         severity: 'error',
-        summary: `folders.${folder.name} puts the machine path ${folder.path} in the committed config.`,
+        summary: `paths.${reference.name} puts the machine path ${reference.path} in the committed config.`,
         fix: MOVE_FIX
       });
     } else if (verdict === 'escapes') {
       leaks.push({
-        reference: `folder:${folder.name}`,
+        reference: `path:${reference.name}`,
         severity: 'warning',
-        summary: `folders.${folder.name} escapes the repo (${folder.path}).`,
+        summary: `paths.${reference.name} escapes the repo (${reference.path}).`,
         fix: ESCAPE_FIX
       });
     }
   }
 
   // A `file:` repository is a machine path wearing a git costume: it clones from disk, so
-  // it travels no better than a folder does.
+  // it travels no better than a path reference does.
   for (const reference of config.git) {
     if (reference.scope === 'local') continue;
     const local = localRepositoryPath(reference.repository);

@@ -57,15 +57,15 @@
         }
       ]
     },
-    "folders": {
+    "paths": {
       "type": "object",
-      "description": "Local folders that should show up as agent references, keyed by shorthand name.",
+      "description": "Files and folders already on this machine that should show up as agent references, keyed by shorthand name. Whether a path is a file or a folder is read from disk, not declared here.",
       "additionalProperties": {
         "oneOf": [
           {
             "type": "string",
             "minLength": 1,
-            "description": "Path to the folder. Relative paths resolve from the project root; ~/ resolves from the home directory."
+            "description": "Path to a file or folder. Relative paths resolve from the project root; ~/ resolves from the home directory."
           },
           {
             "type": "object",
@@ -91,6 +91,10 @@
           "api-docs": {
             "path": "../platform/docs",
             "description": "Source of truth for endpoint contracts"
+          },
+          "release-checklist": {
+            "path": "~/notes/release-checklist.md",
+            "description": "One file rather than a folder; both are paths"
           }
         }
       ]
@@ -177,14 +181,14 @@
             "minLength": 1,
             "description": "What this collection is for; doubles as the heading in status output."
           },
-          "folders": {
+          "paths": {
             "type": "array",
             "items": {
               "oneOf": [
                 {
                   "type": "string",
                   "minLength": 1,
-                  "description": "Path to the folder."
+                  "description": "Path to a file or folder."
                 },
                 {
                   "type": "object",
@@ -297,7 +301,7 @@
         [
           {
             "description": "Documentation sources to read before writing docs",
-            "folders": [
+            "paths": [
               "./references/design-notes",
               {
                 "path": "../platform/docs",

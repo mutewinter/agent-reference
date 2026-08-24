@@ -9,11 +9,11 @@ import type {
   ReferenceSetMember
 } from './types.ts';
 
-const KINDS: AgentReferenceKind[] = ['package', 'folder', 'git'];
+const KINDS: AgentReferenceKind[] = ['package', 'path', 'git'];
 
 export function configuredReferences(config: AgentReferenceConfig | undefined): ConfiguredReference[] {
   if (!config) return [];
-  return [...config.packages, ...config.folders, ...config.git];
+  return [...config.packages, ...config.paths, ...config.git];
 }
 
 /**

@@ -17,7 +17,7 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
         react: '18.2.0',
         zod: { version: '3.25.0', description: 'Schema shapes' }
       },
-      folders: {
+      paths: {
         notes: './notes',
         'api-docs': { path: '../platform/docs', description: 'Endpoint contracts' }
       },
@@ -41,7 +41,7 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
     sets: []
   });
   assert.equal(config.packages[1]?.description, 'Schema shapes');
-  assert.equal(config.folders[1]?.path, '../platform/docs');
+  assert.equal(config.paths[1]?.path, '../platform/docs');
   assert.deepEqual(
     config.git.map((entry) => [entry.repository, entry.ref, entry.spec]),
     [
@@ -65,16 +65,28 @@ test('rejects malformed config with a located, actionable message', () => {
     /packages\.react\.version is required/
   );
   assert.throws(
-    () => parseConfig({ folders: { notes: 42 } }, 'agent-reference.json'),
-    /folders\.notes must be a path string or an object/
+    () => parseConfig({ paths: { notes: 42 } }, 'agent-reference.json'),
+    /paths\.notes must be a path string or an object/
   );
   assert.throws(
     () => parseConfig({ git: { tooling: { repository: 'github:a/b#main', ref: 'v4' } } }, 'agent-reference.json'),
     /sets ref "v4" but repository already pins "#main"/
   );
   assert.throws(
-    () => parseConfig({ sets: [{ folders: ['./notes'] }] }, 'agent-reference.json'),
+    () => parseConfig({ sets: [{ paths: ['./notes'] }] }, 'agent-reference.json'),
     /sets\[0\]\.description is required/
+  );
+});
+
+test('the folders key names its replacement rather than reading as a typo', () => {
+  assert.throws(
+    () => parseConfig({ folders: { notes: './notes' } }, 'agent-reference.json'),
+    /folders was renamed to paths, which holds a folder or a file/
+  );
+
+  assert.throws(
+    () => parseConfig({ sets: [{ description: 'Notes', folders: ['./notes'] }] }, 'agent-reference.json'),
+    /sets\[0\]\.folders was renamed to paths/
   );
 });
 
@@ -84,7 +96,7 @@ test('a set is a labeled list: description first, members inline, names derived'
       sets: [
         {
           description: 'Documentation sources to read before writing docs',
-          folders: ['./docs/design-notes', { path: '../platform/docs', name: 'api-docs', description: 'Endpoint contracts' }],
+          paths: ['./docs/design-notes', { path: '../platform/docs', name: 'api-docs', description: 'Endpoint contracts' }],
           git: ['github:acme/design-system#v4'],
           packages: ['zod@3.25.0']
         }
@@ -98,8 +110,8 @@ test('a set is a labeled list: description first, members inline, names derived'
   assert.equal(sets[0]?.description, 'Documentation sources to read before writing docs');
   assert.deepEqual(sets[0]?.members.map((member) => `${member.kind}:${member.name}`), [
     'package:zod',
-    'folder:design-notes',
-    'folder:api-docs',
+    'path:design-notes',
+    'path:api-docs',
     'git:design-system'
   ]);
   assert.equal(config.git[0]?.ref, 'v4');
@@ -126,12 +138,12 @@ test('two declarations disagreeing about a name is a conflict, not repetition', 
     () =>
       parseConfig(
         {
-          folders: { notes: './notes' },
-          sets: [{ description: 'Other notes', folders: ['../elsewhere/notes'] }]
+          paths: { notes: './notes' },
+          sets: [{ description: 'Other notes', paths: ['../elsewhere/notes'] }]
         },
         'agent-reference.json'
       ),
-    /folder "notes" is declared more than once with different targets/
+    /path "notes" is declared more than once with different targets/
   );
 });
 
@@ -139,21 +151,21 @@ test('selects references by set name, description substring, and qualified name'
   const config = parseConfig(
     {
       packages: { react: '18.2.0' },
-      folders: { react: './react-notes' },
-      sets: [{ name: 'docs', description: 'Documentation sources', folders: ['./notes'] }]
+      paths: { react: './react-notes' },
+      sets: [{ name: 'docs', description: 'Documentation sources', paths: ['./notes'] }]
     },
     'agent-reference.json'
   );
 
   const byName = selectionFilter(config, { sets: ['docs'] });
-  assert.equal(byName?.('folder', 'notes'), true);
+  assert.equal(byName?.('path', 'notes'), true);
   assert.equal(byName?.('package', 'react'), false);
 
   const bySubstring = selectionFilter(config, { sets: ['documentation'] });
-  assert.equal(bySubstring?.('folder', 'notes'), true);
+  assert.equal(bySubstring?.('path', 'notes'), true);
 
-  const byQualifiedName = selectionFilter(config, { references: ['folder:react'] });
-  assert.equal(byQualifiedName?.('folder', 'react'), true);
+  const byQualifiedName = selectionFilter(config, { references: ['path:react'] });
+  assert.equal(byQualifiedName?.('path', 'react'), true);
   assert.equal(byQualifiedName?.('package', 'react'), false);
 
   assert.equal(selectionFilter(config, {}), null);
@@ -164,17 +176,17 @@ test('local config overrides shared entries by name', async () => {
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-config-test-'));
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ folders: { 'company-ui': './vendor/company-ui', notes: './notes' } })
+    JSON.stringify({ paths: { 'company-ui': './vendor/company-ui', notes: './notes' } })
   );
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.local.json'),
-    JSON.stringify({ folders: { 'company-ui': { path: '~/code/company-ui', description: 'Local checkout' } } })
+    JSON.stringify({ paths: { 'company-ui': { path: '~/code/company-ui', description: 'Local checkout' } } })
   );
 
   const loaded = await loadAgentReferenceConfig(projectRoot);
 
   assert.deepEqual(
-    loaded?.config.folders.map((folder) => [folder.name, folder.path, folder.description]),
+    loaded?.config.paths.map((entry) => [entry.name, entry.path, entry.description]),
     [
       ['company-ui', '~/code/company-ui', 'Local checkout'],
       ['notes', './notes', null]
@@ -186,14 +198,14 @@ test('validate reports errors and warnings without needing a lockfile', async ()
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-validate-test-'));
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ folders: { notes: './missing' }, sets: [{ description: 'nothing here yet' }] })
+    JSON.stringify({ paths: { notes: './missing' }, sets: [{ description: 'nothing here yet' }] })
   );
 
   const report = await validateConfig(projectRoot);
 
   assert.equal(report.valid, true);
   assert.equal(report.references.length, 1);
-  assert.match(report.warnings.join('\n'), /folders\.notes points at .*missing, which does not exist/);
+  assert.match(report.warnings.join('\n'), /paths\.notes points at .*missing, which does not exist/);
   assert.match(report.warnings.join('\n'), /Set "nothing here yet" has no members/);
 
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), '{ not json');

@@ -99,7 +99,7 @@ export async function getReferences(
 function findConfiguredReference(spec: string, context: LoadedReferenceContext): ConfiguredReference | null {
   const references = [
     ...(context.config?.packages ?? []),
-    ...(context.config?.folders ?? []),
+    ...(context.config?.paths ?? []),
     ...(context.config?.git ?? [])
   ];
 
@@ -129,15 +129,15 @@ async function getConfigured(
   recordedPackages: GitWorktreeResult[],
   recordedGit: GitReferenceWorktreeResult[]
 ): Promise<GetReferenceResult> {
-  if (reference.kind === 'folder') {
+  if (reference.kind === 'path') {
     const resolvedPath = resolveReferencePath(worktreeOptions.projectRoot, reference.path);
     if (!(await pathExists(resolvedPath))) {
       throw new Error(
-        `folders.${reference.name} points at ${resolvedPath}, which does not exist. Folder references cannot be materialized; create or correct that path.`
+        `paths.${reference.name} points at ${resolvedPath}, which does not exist. A path reference is already on this machine and cannot be materialized; create or correct that path.`
       );
     }
     return {
-      kind: 'folder',
+      kind: 'path',
       name: reference.name,
       requested: reference.path,
       version: null,

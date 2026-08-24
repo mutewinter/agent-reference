@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { pathExists, resolveConfigPath, resolveReferencePath } from './fs-utils.ts';
+import { pathExists, pathKind, resolveConfigPath, resolveReferencePath } from './fs-utils.ts';
 import { defaultStoreDir, manifestReferencePath, resolvePackagePath, resolveSubpath } from './git.ts';
 import {
   configuredReferences,
@@ -24,7 +24,7 @@ import type {
   AgentReferenceStatusReport,
   AgentReferenceStatusState,
   ConfigScope,
-  ConfiguredFolderReference,
+  ConfiguredPathReference,
   ConfiguredGitReference,
   ConfiguredPackageReference,
   GitManifestReference,
@@ -86,8 +86,8 @@ export async function getStatusReport(
     );
   }
 
-  for (const folder of config?.folders ?? []) {
-    entries.push(await buildFolderStatus(project.projectRoot, folder, annotations.get(`folder:${folder.name}`)));
+  for (const reference of config?.paths ?? []) {
+    entries.push(await buildPathStatus(project.projectRoot, reference, annotations.get(`path:${reference.name}`)));
   }
 
   for (const reference of config?.git ?? []) {
@@ -223,7 +223,7 @@ async function collectProblems(
   // references asked for, and a leak the caller filtered past is still a leak. Warnings
   // rather than the errors `validate` raises, because nothing here is unusable; the agent
   // maintaining this config is the one who can move the entry, and status is what it runs.
-  for (const leak of committedPathLeaks(config ?? { packages: [], folders: [], git: [], sets: [] })) {
+  for (const leak of committedPathLeaks(config ?? { packages: [], paths: [], git: [], sets: [] })) {
     problems.push({
       reference: leak.reference,
       about: 'config',
@@ -285,6 +285,7 @@ function statusEntry(input: StatusEntryInput): AgentReferenceStatusEntry {
     currentVersion: null,
     clonedVersion: null,
     path: null,
+    pathType: null,
     repositoryPath: null,
     repositoryUrl: null,
     checkoutSha: null,
@@ -333,24 +334,26 @@ async function buildPackageStatus(
   });
 }
 
-async function buildFolderStatus(
+async function buildPathStatus(
   projectRoot: string,
-  folder: ConfiguredFolderReference,
+  reference: ConfiguredPathReference,
   annotation: ReferenceAnnotation | undefined
 ): Promise<AgentReferenceStatusEntry> {
-  const resolvedPath = resolveReferencePath(projectRoot, folder.path);
-  const ready = await pathExists(resolvedPath);
+  const resolvedPath = resolveReferencePath(projectRoot, reference.path);
+  const found = await pathKind(resolvedPath);
+  const ready = found !== null;
 
   return statusEntry({
-    kind: 'folder',
-    name: folder.name,
-    description: folder.description,
-    scope: folder.scope,
+    kind: 'path',
+    name: reference.name,
+    description: reference.description,
+    scope: reference.scope,
     sets: annotation?.sets ?? [],
-    requested: folder.path,
+    pathType: found,
+    requested: reference.path,
     path: resolvedPath,
     status: ready ? 'ready' : 'missing',
-    action: ready ? READY_ACTION : 'Create or correct this folder reference path.'
+    action: ready ? READY_ACTION : 'Create or correct this reference path.'
   });
 }
 
