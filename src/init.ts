@@ -158,7 +158,9 @@ async function findInstructionFiles(projectRoot: string): Promise<InstructionFil
     found.push({
       file: candidate,
       linkTarget: stat.isSymbolicLink() ? path.relative(realRoot, real) : null,
-      mentionsAgentReference: await mentionsAgentReference(real)
+      mentionsAgentReference: await mentionsAgentReference(real, INSTRUCTION_SCAN_DEPTH, {
+        left: INSTRUCTION_SCAN_FILES
+      })
     });
   }
 
@@ -172,11 +174,13 @@ async function findInstructionFiles(projectRoot: string): Promise<InstructionFil
  */
 const INSTRUCTION_SCAN_DEPTH = 3;
 const INSTRUCTION_SCAN_FILES = 200;
+const SESSION_SCAN_FILES = 5000;
 
 async function mentionsAgentReference(
   target: string,
-  depth = INSTRUCTION_SCAN_DEPTH,
-  budget = { left: INSTRUCTION_SCAN_FILES }
+  depth: number,
+  /** One counter for the whole walk, decremented by every level below this one. */
+  budget: { left: number }
 ): Promise<boolean> {
   if (depth === 0 || budget.left <= 0) return false;
 
@@ -259,7 +263,7 @@ async function findTranscriptStores(projectRoot: string, home: string): Promise<
   for (const candidate of candidates) {
     const stat = await fs.stat(candidate.path).catch(() => null);
     if (!stat) continue;
-    const sessions = stat.isDirectory() ? await countFiles(candidate.path, 4) : 1;
+    const sessions = stat.isDirectory() ? await countFiles(candidate.path, 4, { left: SESSION_SCAN_FILES }) : 1;
     stores.push({ ...candidate, sessions });
   }
 
@@ -271,7 +275,7 @@ async function findTranscriptStores(projectRoot: string, home: string): Promise<
  * directory count reports "1" for a history of twenty conversations and reads as nothing to
  * mine. Bounded in both depth and total, since these trees grow without limit.
  */
-async function countFiles(dir: string, depth: number, budget = { left: 5000 }): Promise<number> {
+async function countFiles(dir: string, depth: number, budget: { left: number }): Promise<number> {
   if (depth === 0 || budget.left <= 0) return 0;
 
   const children = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);

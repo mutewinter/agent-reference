@@ -90,7 +90,7 @@ await fs.writeFile(path.join(runDir, 'result.json'), `${JSON.stringify(result, n
 await snapshot(projectRoot, path.join(runDir, 'after'));
 
 const transcript = result?.session_id
-  ? path.join(os.homedir(), '.claude', 'projects', projectRoot.replace(/[^A-Za-z0-9]/g, '-'), `${result.session_id}.jsonl`)
+  ? path.join(os.homedir(), '.claude', 'projects', projectRoot.replaceAll(/[^A-Za-z0-9]/g, '-'), `${result.session_id}.jsonl`)
   : null;
 await fs.writeFile(
   path.join(runDir, 'run.json'),
@@ -193,5 +193,5 @@ function parseArgs(argv) {
 }
 
 function stamp() {
-  return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, '');
+  return new Date().toISOString().replaceAll(/[-:]/g, '').replace(/\.\d+Z$/, '');
 }

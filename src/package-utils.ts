@@ -91,7 +91,7 @@ export function mergeDependencyEntries(entries: PackageReference[]): PackageRefe
     }
   }
 
-  return [...byKey.values()].sort((a, b) => {
+  return [...byKey.values()].toSorted((a, b) => {
     const byName = a.name.localeCompare(b.name);
     return byName || a.version.localeCompare(b.version);
   });

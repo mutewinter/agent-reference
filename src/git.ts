@@ -312,12 +312,12 @@ export async function runGit(
     }
 
     if (failed.code === 'ENOENT') {
-      throw new Error(GIT_MISSING_MESSAGE);
+      throw new Error(GIT_MISSING_MESSAGE, { cause: error });
     }
 
     const command = `git ${args.join(' ')}`;
     const detail = failed.stderr || failed.stdout || failed.message || 'unknown git failure';
-    throw new Error(`${command} failed: ${String(detail).trim()}`);
+    throw new Error(`${command} failed: ${String(detail).trim()}`, { cause: error });
   }
 }
 
@@ -345,8 +345,8 @@ async function runGitPreflight(): Promise<void> {
     output = (await execFileAsync('git', ['--version'], { encoding: 'utf8' })).stdout;
   } catch (error) {
     const failed = error as { code?: number | string; message?: string; stderr?: string };
-    if (failed.code === 'ENOENT') throw new Error(GIT_MISSING_MESSAGE);
-    throw new Error(`Could not run "git --version": ${failed.stderr || failed.message || 'unknown failure'}`);
+    if (failed.code === 'ENOENT') throw new Error(GIT_MISSING_MESSAGE, { cause: error });
+    throw new Error(`Could not run "git --version": ${failed.stderr || failed.message || 'unknown failure'}`, { cause: error });
   }
 
   const version = output.match(/(\d+)\.(\d+)(?:\.(\d+))?/);
@@ -565,7 +565,7 @@ function rankCandidateDirectories(listing: string, packageName: string): string[
   };
 
   return [...new Set(directories)]
-    .sort((a, b) => score(a) - score(b) || a.length - b.length || a.localeCompare(b))
+    .toSorted((a, b) => score(a) - score(b) || a.length - b.length || a.localeCompare(b))
     .slice(0, MAX_DIRECTORY_PROBES);
 }
 

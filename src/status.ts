@@ -100,7 +100,7 @@ export async function getStatusReport(
   // would read as "that reference has no problems".
   const missing = selection?.unmatched() ?? [];
   if (missing.length > 0) throw new Error(missingSelectionMessage(missing, config));
-  const problems = await collectProblems(
+  const problems = collectProblems(
     references,
     unresolvedByName,
     new Set((config?.packages ?? []).filter((entry) => entry.directory).map((entry) => entry.name)),
@@ -134,7 +134,7 @@ export async function getStatusReport(
  * Turns every unusable reference into an instruction the calling agent can act on without
  * reading this source, including the exact JSON to add to the config.
  */
-async function collectProblems(
+function collectProblems(
   entries: AgentReferenceStatusEntry[],
   unresolvedByName: Map<string, UnresolvedManifestReference>,
   /** Names whose package directory was chosen by hand, so an unconfirmed version is expected. */
@@ -142,7 +142,7 @@ async function collectProblems(
   drift: PackageDrift[],
   config: AgentReferenceConfig | undefined,
   storeDir: string
-): Promise<AgentReferenceProblem[]> {
+): AgentReferenceProblem[] {
   const problems: AgentReferenceProblem[] = [];
   const gitByName = new Map((config?.git ?? []).map((entry) => [entry.name, entry]));
   // A patch has to edit the entry that is there. Keying it by the bare name when the config

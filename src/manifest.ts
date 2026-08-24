@@ -27,8 +27,8 @@ export function stateFilePath(storeDir: string, projectRoot: string): string {
     path
       .basename(projectRoot)
       .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'project';
+      .replaceAll(/[^a-z0-9-]+/g, '-')
+      .replaceAll(/^-+|-+$/g, '') || 'project';
   return path.join(storeDir, STATE_DIR, `${slug}-${hash}.json`);
 }
 
@@ -77,7 +77,7 @@ async function writeManifestLocked(
   const manifest: AgentReferenceManifest = {
     schemaVersion: SCHEMA_VERSION,
     projectRoot,
-    references: [...byKey.values()].sort((a, b) => referenceKey(a).localeCompare(referenceKey(b)))
+    references: [...byKey.values()].toSorted((a, b) => referenceKey(a).localeCompare(referenceKey(b)))
   };
 
   const mergedUnresolved = mergeUnresolved(existing?.unresolved ?? [], unresolved, manifest.references);
@@ -111,7 +111,11 @@ async function acquireLock(target: string): Promise<() => Promise<void>> {
         .then((stats) => Date.now() - stats.mtimeMs)
         .catch(() => 0);
       if (age > LOCK_STALE_MS) await fs.rm(lockPath, { force: true });
-      else await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
+      else {
+        await new Promise((resolve) => {
+          setTimeout(resolve, LOCK_RETRY_MS);
+        });
+      }
     }
   }
 
@@ -194,5 +198,5 @@ function mergeUnresolved(
   return [
     ...existing.filter((entry) => !updatedNames.has(entry.name) && !resolvedNames.has(entry.name)),
     ...updates.filter((entry) => !resolvedNames.has(entry.name))
-  ].sort((a, b) => a.name.localeCompare(b.name));
+  ].toSorted((a, b) => a.name.localeCompare(b.name));
 }

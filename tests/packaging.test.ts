@@ -21,7 +21,7 @@ test('every file the CLI reads at runtime is one npm packs', async () => {
     // Anything resolved against the module's own location is read from the installed
     // package, so leaving it out of `files` breaks only for users and never in this repo.
     for (const match of contents.matchAll(/new URL\('\.\.\/([^'/]+)/g)) {
-      if (!packed.has(match[1]!)) missing.push(`${file} reads ../${match[1]}`);
+      if (!packed.has(match[1])) missing.push(`${file} reads ../${match[1]}`);
     }
   }
 
@@ -60,7 +60,7 @@ test('every shipped skill has frontmatter a real YAML parser accepts', async () 
     // what puts this failure in front of users rather than in front of this repo.
     let parsed: unknown;
     assert.doesNotThrow(() => {
-      parsed = load(frontmatter[1]!);
+      parsed = load(frontmatter[1]);
     }, `${skill}/SKILL.md frontmatter is not valid YAML`);
 
     const fields = parsed as Record<string, unknown>;

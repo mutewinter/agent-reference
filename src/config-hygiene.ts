@@ -103,7 +103,7 @@ function classifyConfiguredPath(value: string): PathVerdict {
   if (value.startsWith('~')) return 'machine';
   if (path.isAbsolute(value) || WINDOWS_ABSOLUTE.test(value)) return 'machine';
 
-  const normalized = value.replace(/\\/g, '/');
+  const normalized = value.replaceAll('\\', '/');
   if (normalized === '..' || normalized.startsWith('../')) return 'escapes';
   return 'portable';
 }

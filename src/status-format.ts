@@ -126,8 +126,7 @@ function scopeSection(
     const members = entries.filter((entry) => entry.sets.includes(label));
     if (members.length === 0) continue;
     if (lines.length > 1) lines.push('');
-    lines.push(`  ${set.description}`);
-    lines.push(...entryLines(members, 4, options));
+    lines.push(`  ${set.description}`, ...entryLines(members, 4, options));
   }
 
   return `${lines.join('\n')}\n`;

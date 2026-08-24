@@ -108,7 +108,7 @@ export function repositoryCacheParts(repoUrl: string): string[] {
 
 /** Short display name for a repository spec: the basename, minus any #ref and .git. */
 export function repositoryNameFromSpec(spec: string): string {
-  const withoutRef = stripHash(spec).replace(/\\/g, '/').replace(/\/+$/, '');
+  const withoutRef = stripHash(spec).replaceAll('\\', '/').replace(/\/+$/, '');
   const base = withoutRef.slice(withoutRef.lastIndexOf('/') + 1);
   return base.replace(/\.git$/, '') || withoutRef;
 }
@@ -123,5 +123,5 @@ function ensureGitSuffix(value: string): string {
 }
 
 function safePathPart(value: string): string {
-  return value.replace(/[^a-zA-Z0-9._-]/g, '_');
+  return value.replaceAll(/[^a-zA-Z0-9._-]/g, '_');
 }

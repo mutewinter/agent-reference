@@ -91,7 +91,7 @@ check(
 );
 
 section('commands the agent ran');
-for (const command of commands) console.log(`  ${command.replace(/\s+/g, ' ').slice(0, 160)}`);
+for (const command of commands) console.log(`  ${command.replaceAll(/\s+/g, ' ').slice(0, 160)}`);
 
 section('final message');
 console.log(indent(finalMessage || '(none)'));
@@ -154,7 +154,7 @@ async function readTranscript(file) {
 
 async function newestRun() {
   const entries = await fs.readdir(EVAL_ROOT).catch(() => []);
-  const runs = entries.filter((entry) => entry.startsWith('history-')).sort();
+  const runs = entries.filter((entry) => entry.startsWith('history-')).toSorted();
   if (runs.length === 0) throw new Error(`No runs under ${EVAL_ROOT}. Run evals/history/run.mjs first.`);
   return path.join(EVAL_ROOT, runs.at(-1));
 }

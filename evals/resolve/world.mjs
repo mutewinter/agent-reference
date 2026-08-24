@@ -115,14 +115,16 @@ export async function startRegistry(repos) {
     }
 
     const body = rawVersion
-      ? { name, version: rawVersion, ...(versions[rawVersion] ?? {}) }
+      ? { name, version: rawVersion, ...versions[rawVersion] }
       : { name, versions: Object.fromEntries(Object.keys(versions).map((v) => [v, {}])), 'dist-tags': { latest: Object.keys(versions)[0] } };
 
     response.writeHead(rawVersion && !versions[rawVersion] ? 404 : 200, { 'content-type': 'application/json' });
     response.end(JSON.stringify(body));
   });
 
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', resolve);
+  });
   return { server, url: `http://127.0.0.1:${server.address().port}` };
 }
 
@@ -219,7 +221,7 @@ async function plainRepo(parent, name, version) {
   const repoPath = await initRepo(parent, name);
   await writeFiles(repoPath, {
     'package.json': JSON.stringify({ name, version }),
-    'src/index.js': `export const ${name.replace(/\W/g, '')} = ${JSON.stringify(version)};\n`,
+    'src/index.js': `export const ${name.replaceAll(/\W/g, '')} = ${JSON.stringify(version)};\n`,
     'test/index.test.js': `// the tests that never ship to node_modules\n`
   });
   await commit(repoPath, `${name} ${version}`);

@@ -58,10 +58,10 @@ export async function readJsoncFile<T>(filePath: string): Promise<T> {
  */
 export function displayPath(
   value: string | null,
-  options: { tilde: boolean; home?: string } = { tilde: false }
+  { tilde = false, home }: { tilde?: boolean; home?: string } = {}
 ): string {
   if (!value) return '-';
-  const prefix = (options.home ?? os.homedir()) + path.sep;
-  if (!options.tilde || !value.startsWith(prefix)) return value;
+  const prefix = (home ?? os.homedir()) + path.sep;
+  if (!tilde || !value.startsWith(prefix)) return value;
   return `~${path.sep}${value.slice(prefix.length)}`;
 }

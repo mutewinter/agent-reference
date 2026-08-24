@@ -356,7 +356,7 @@ function bash(command, output) {
 
 /** Claude Code names a transcript directory after the project path, punctuation flattened. */
 function escapeProjectPath(projectRoot) {
-  return projectRoot.replace(/[^A-Za-z0-9]/g, '-');
+  return projectRoot.replaceAll(/[^A-Za-z0-9]/g, '-');
 }
 
 /** Stable per index, so a rerun of the same world produces the same session ids. */

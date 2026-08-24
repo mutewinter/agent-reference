@@ -403,7 +403,7 @@ test('one workspace package linked from two importers is one place, stated once'
   assert.equal(report.versions.length, 1);
   assert.equal(report.versions[0]?.workspace, true);
   assert.equal(report.versions[0]?.path, path.join(projectRoot, 'packages', 'shared'));
-  assert.deepEqual(report.versions[0]?.importers.sort(), ['apps/web', 'packages/tools']);
+  assert.deepEqual(report.versions[0]?.importers.toSorted(), ['apps/web', 'packages/tools']);
 
   const text = formatVersionsReport(report);
   assert.equal(text.match(/is a workspace package/g)?.length, 1);
@@ -457,8 +457,8 @@ async function linkedWorkspace(label: string): Promise<{ projectRoot: string; st
     ['packages/tools', '@mono/tools'],
     ['packages/shared', '@mono/shared']
   ]) {
-    await fs.mkdir(path.join(projectRoot, dir!), { recursive: true });
-    await fs.writeFile(path.join(projectRoot, dir!, 'package.json'), JSON.stringify({ name }));
+    await fs.mkdir(path.join(projectRoot, dir), { recursive: true });
+    await fs.writeFile(path.join(projectRoot, dir, 'package.json'), JSON.stringify({ name }));
   }
 
   await fs.writeFile(path.join(projectRoot, 'package.json'), JSON.stringify({ name: 'root', private: true }));
@@ -490,5 +490,5 @@ async function linkedWorkspace(label: string): Promise<{ projectRoot: string; st
 }
 
 function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

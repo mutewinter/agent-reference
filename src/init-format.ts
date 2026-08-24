@@ -114,13 +114,13 @@ function skillStep(survey: InitSurvey): string {
     'Nothing below this step matters without it: a config no skill points at is never opened.',
     'Ask the user which of these they want, then install it there:',
     `  every project on this machine:  ${machineWide ?? ''}`,
-    `  this project only, committed:   ${inProject[0] ?? ''}`
+    `  this project only, committed:   ${inProject[0] ?? ''}`,
+    // Installed rather than copied, wherever it can be: the installer records where the
+    // file came from, so a later `skills update` refreshes it. A copy has no such record,
+    // and the skill is the artifact that changes most.
+    'Install it with: npx skills add mutewinter/agent-reference'
   ];
 
-  // Installed rather than copied, wherever it can be: the installer records where the file
-  // came from, so a later `skills update` refreshes it. A copy has no such record, and the
-  // skill is the artifact that changes most.
-  lines.push('Install it with: npx skills add mutewinter/agent-reference');
   if (survey.skill.source) {
     lines.push(`With no network, copy ${survey.skill.source} into the directory instead.`);
   }

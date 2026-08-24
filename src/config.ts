@@ -122,7 +122,8 @@ async function readConfigJson(configPath: string): Promise<unknown> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `${configPath} is not valid JSON: ${message}. Comments and trailing commas are accepted here, so the problem is something else.`
+      `${configPath} is not valid JSON: ${message}. Comments and trailing commas are accepted here, so the problem is something else.`,
+      { cause: error }
     );
   }
 }
@@ -361,7 +362,7 @@ function mergeKind<T extends ConfiguredReference>(
 }
 
 function basenameOf(declaredPath: string): string {
-  const normalized = declaredPath.replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalized = declaredPath.replaceAll('\\', '/').replace(/\/+$/, '');
   const base = path.posix.basename(normalized);
   return base && base !== '.' && base !== '~' ? base : normalized;
 }

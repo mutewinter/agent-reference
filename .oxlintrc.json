@@ -1,0 +1,65 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "node", "promise"],
+  // `correctness` is the bug category and `perf` is nearly free. The louder
+  // categories are not on wholesale: `pedantic` and `style` between them report
+  // several thousand things here, most of which are house style someone would
+  // have to agree to rather than defects. The rules below are the ones from
+  // those categories worth the diff, named one at a time so that turning one on
+  // is a decision with a reason rather than a category flip.
+  "categories": {
+    "correctness": "error",
+    "perf": "error"
+  },
+  // The site is its own project with its own lockfile and its own config, which
+  // adds the React and Tailwind rules on top of these. `pnpm run lint` there.
+  "ignorePatterns": ["dist", "node_modules", "site", "fixtures"],
+  "overrides": [
+    {
+      // The eval harnesses are untyped ESM run under bare node, outside any
+      // tsconfig, so every expression in them reads as `any` and the type-aware
+      // rules report all of it. The syntactic rules still apply.
+      "files": ["evals/**/*.mjs", "scripts/*.mjs"],
+      "rules": {
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/restrict-template-expressions": "off"
+      }
+    }
+  ],
+  "rules": {
+    // Nearly every await here is sequential on purpose: the CLI clones one
+    // reference, prints where it landed, and moves to the next, and the tests
+    // build fixture trees in an order that matters. Parallelizing would reorder
+    // the output and open a dozen sockets at once to save nothing.
+    "no-await-in-loop": "off",
+
+    // Worth the diff, from the categories that are not on wholesale.
+    "preserve-caught-error": "error",
+    "no-promise-executor-return": "error",
+    "unicorn/explicit-length-check": "error",
+    "unicorn/no-array-sort": "error",
+    "unicorn/no-immediate-mutation": "error",
+    "unicorn/no-object-as-default-parameter": "error",
+    "unicorn/prefer-single-call": "error",
+    "unicorn/prefer-string-replace-all": "error",
+
+    // Type-aware, and the reason `--type-aware` is in the lint script. These are
+    // the rules that need the real type of an expression rather than its shape,
+    // and every one of them is a bug the tests would not necessarily catch.
+    "typescript/await-thenable": "error",
+    "typescript/no-base-to-string": "error",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-misused-promises": "error",
+    "typescript/only-throw-error": "error",
+    "typescript/restrict-plus-operands": "error",
+    "typescript/restrict-template-expressions": ["error", { "allowNumber": true }],
+    "typescript/return-await": ["error", "error-handling-correctness-only"],
+    "typescript/unbound-method": "error",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/no-confusing-void-expression": "error"
+  }
+}

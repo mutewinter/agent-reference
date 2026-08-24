@@ -7,12 +7,13 @@
  * control bytes already, so this guards the human formatter only.
  */
 export function sanitizeRelayed(value: string): string {
-  return value.replace(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
+  // oxlint-disable-next-line no-control-regex -- naming the control bytes is the point
+  return value.replaceAll(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g, '');
 }
 
 /** The same, flattened, for a field rendered inside one aligned line. */
 export function sanitizeRelayedLine(value: string): string {
-  return sanitizeRelayed(value).replace(/\s+/g, ' ').trim();
+  return sanitizeRelayed(value).replaceAll(/\s+/g, ' ').trim();
 }
 
 export function splitOutsideQuotes(value: string, separator: string): string[] {

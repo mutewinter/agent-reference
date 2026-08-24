@@ -88,7 +88,7 @@ const generated = {
 
 export function render(readme) {
   const seen = new Set();
-  const rendered = readme.replace(
+  const rendered = readme.replaceAll(
     /<!-- generated:(\S+) -->[\s\S]*?<!-- \/generated -->/g,
     (_match, id) => {
       if (!(id in generated)) throw new Error(`README marks a region '${id}' that nothing renders`);
@@ -98,7 +98,7 @@ export function render(readme) {
   );
 
   const missing = Object.keys(generated).filter((id) => !seen.has(id));
-  if (missing.length) throw new Error(`README has no region for: ${missing.join(', ')}`);
+  if (missing.length > 0) throw new Error(`README has no region for: ${missing.join(', ')}`);
   return rendered;
 }
 

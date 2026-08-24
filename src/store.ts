@@ -131,7 +131,7 @@ async function collectRepositories(storeDir: string, now: number): Promise<Store
     repository.checkouts.sort((a, b) => a.commit.localeCompare(b.commit));
   }
 
-  return repositories.sort((a, b) => b.totalBytes - a.totalBytes || a.name.localeCompare(b.name));
+  return repositories.toSorted((a, b) => b.totalBytes - a.totalBytes || a.name.localeCompare(b.name));
 }
 
 /**

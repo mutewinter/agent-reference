@@ -458,7 +458,7 @@ function normalizeGitShorthand(spec: string): string {
 
 function repoNameFromSpec(spec: string): string {
   const withoutRef = spec.replace(/#.*$/, '');
-  const base = path.posix.basename(withoutRef.replace(/\\/g, '/'));
+  const base = path.posix.basename(withoutRef.replaceAll('\\', '/'));
   return base.replace(/\.git$/, '') || withoutRef;
 }
 
