@@ -5,6 +5,7 @@ import cliReference from 'virtual:cli-reference'
 import {
   agents,
   cd,
+  copy,
   examples,
   install,
   prompt,
@@ -69,8 +70,8 @@ function Home() {
   return (
     <>
       <section className="pt-12">
-        <h1 className="text-2xl text-fg">agent-reference</h1>
-        <p className="mt-2 text-lg text-muted">Give your agents the source</p>
+        <h1 className="text-2xl text-fg">{copy.title}</h1>
+        <p className="mt-2 text-lg text-muted">{copy.tagline}</p>
 
         <div className="mt-10 grid gap-5 lg:grid-cols-2">
           <Panel label="agent-reference.json" copy={source('shared')}>
@@ -96,10 +97,8 @@ function Home() {
         ))}
       </Section>
 
-      <Section label="The commands">
-        <p className="mb-6 max-w-2xl text-muted">
-          You will not need these. Your agent runs them. They are here anyway.
-        </p>
+      <Section label={copy.commands.heading}>
+        <p className="mb-6 max-w-2xl text-muted">{copy.commands.note}</p>
         <div className="max-w-3xl space-y-4">
           {cliReference.map((entry) => (
             <Panel key={entry.command} tone="term">

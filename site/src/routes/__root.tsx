@@ -1,11 +1,9 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
 
+import { copy } from '../../code-samples.mjs'
 import appCss from '../styles.css?url'
 
-const TITLE = 'agent-reference'
-const TAGLINE = 'Give your agents the source'
-const DESCRIPTION =
-  'Give your agents the source. A CLI that resolves any dependency, git repository, file, or folder to a path on disk, at the exact version you install.'
+const { title: TITLE, tagline: TAGLINE, description: DESCRIPTION } = copy
 
 export const Route = createRootRoute({
   head: () => ({

@@ -269,6 +269,30 @@ export const examples = [
   },
 ]
 
+/**
+ * The page's own words, shared so the README says them too rather than keeping
+ * a second copy that drifts. `tagline` also names the browser tab, and
+ * `description` is both the meta description and the README's opening line.
+ */
+export const copy = {
+  title: 'agent-reference',
+  tagline: 'Give your agents the source',
+  description:
+    'Give your agents the source. A CLI that resolves any dependency, git repository, file, or folder to a path on disk, at the exact version you install.',
+  agent: {
+    heading: 'Let your agent do it',
+    note: 'Instructs your agent to install the skill and set up a config for the folders, repositories, and packages you often reference.',
+  },
+  install: {
+    heading: 'Install it yourself',
+  },
+  commands: {
+    heading: 'The commands',
+    note: 'You will not need these. Your agent runs them. They are here anyway.',
+  },
+}
+
+/** The one sentence a person hands their agent. The site and the README share it. */
 export const setupPrompt =
   'Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.'
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { copy as pageCopy } from '../../code-samples.mjs'
 import { CheckIcon, CopyIcon, IconCopy, useCopy } from './copy'
 
 function Heading({ children }: { children: React.ReactNode }) {
@@ -35,7 +36,7 @@ export function ForYourAgent({ text }: { text: string }) {
 
   return (
     <div>
-      <Heading>Let your agent do it</Heading>
+      <Heading>{pageCopy.agent.heading}</Heading>
       <button
         type="button"
         onClick={copy}
@@ -55,10 +56,7 @@ export function ForYourAgent({ text }: { text: string }) {
           <span className="inline-block w-11">{copied ? 'Copied' : 'Copy'}</span>
         </span>
       </button>
-      <p className="mt-3 text-[13px] text-muted">
-        Instructs your agent to install the skill and set up a config for the folders,
-        repositories, and packages you often reference.
-      </p>
+      <p className="mt-3 text-[13px] text-muted">{pageCopy.agent.note}</p>
     </div>
   )
 }
@@ -112,7 +110,7 @@ export function ForYou({
 }) {
   return (
     <div>
-      <Heading>Install it yourself</Heading>
+      <Heading>{pageCopy.install.heading}</Heading>
       <div className="group border border-line bg-term p-4 text-[13px]">
         <pre className="leading-[1.75]">
           {/* The button sits on the line it copies. In the corner it was
