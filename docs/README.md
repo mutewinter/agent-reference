@@ -10,6 +10,7 @@ not belong in a repository at all.
 | --- | --- | --- |
 | [architecture/](architecture/README.md) | How the system works today | Undated topic slugs, corrected in place |
 | [decisions/](decisions/README.md) | Why the design is the way it is | One file per decision, `YYYY-MM-DD-short-slug.md`, superseded rather than edited |
+| [positioning.md](positioning.md) | Why it exists and what it claims, in the words that become slides and site copy | One file, revised in place |
 | [plans/](plans/README.md) | Work not yet landed | One file per plan, `Status:` line first, moved to `completed/` when it lands |
 | visual-explanations/ | Single-use visuals an agent writes for a human to read now | Gitignored, not history |
 
