@@ -18,7 +18,7 @@ export const samples = {
     "effect-docs": {
       "repository": "github:Effect-TS/website",
       "directory": "apps/web/src/content/docs/v4",
-      "description": "Effect's documentation site"
+      "description": "Effect's v4 documentation"
     }
   }
 }`,
