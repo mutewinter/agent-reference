@@ -44,6 +44,26 @@ export function unresolvedProblem(
 }
 
 /**
+ * A git reference that could not be checked out. Recorded as a problem rather than thrown,
+ * so one unreachable remote leaves the references that did work materialized and recorded.
+ */
+export function gitUnresolvedProblem(
+  name: string,
+  spec: string,
+  detail: string,
+  configFile: string
+): AgentReferenceProblem {
+  return {
+    reference: `git:${name}`,
+    severity: 'error',
+    summary: `git.${name} (${spec}) could not be materialized. ${detail}`.trim(),
+    fix: `Check that git can read ${spec} directly; agent-reference clones with your own credentials. If the repository moved or the ref was renamed, correct git.${name} in ${configFile}, then run ${getCommand(name)}.`,
+    configPatch: null,
+    configFile
+  };
+}
+
+/**
  * Option A of the three: the checkout root is still handed back, because it is on disk and
  * readable, but never silently. An agent that asked for a subtree and got a whole monorepo
  * has to be told, or it reads the wrong scope believing it read the right one.

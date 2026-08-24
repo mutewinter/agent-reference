@@ -156,6 +156,29 @@ test('status reports a default-branch fallback as an error with a pin fix', asyn
   assert.match(problem?.fix ?? '', /tag --list '\*9\.9\.9\*'/);
 });
 
+test('one unreachable git reference does not discard the packages that cloned', async () => {
+  const { projectRoot, storeDir, tempDir } = await scenario('git-failure', {});
+  const source = await createPackageRepo(tempDir, 'tiny-invariant', '1.3.1');
+  await writeConfig(projectRoot, {
+    packages: { 'tiny-invariant': { version: '1.3.1', repository: `file:${source.path}`, ref: 'main' } },
+    git: { gone: `file:${path.join(tempDir, 'no-such-repo')}` }
+  });
+
+  const clone = await cloneReferences(projectRoot, { storeDir });
+
+  // The package is on disk, so it has to be in the state file: throwing past writeManifest
+  // left the work done and invisible, and the next status called it declared.
+  assert.equal(clone.cloned.length, 1);
+  assert.deepEqual((await readManifest(storeDir, projectRoot)).references.map((entry) => entry.name), [
+    'tiny-invariant'
+  ]);
+
+  assert.deepEqual(clone.skipped.map((entry) => entry.name), ['gone']);
+  const problem = clone.problems.find((candidate) => candidate.reference === 'git:gone');
+  assert.equal(problem?.severity, 'error');
+  assert.match(problem?.fix ?? '', /correct git\.gone in agent-reference\.json/);
+});
+
 async function scenario(
   label: string,
   config: Record<string, unknown>

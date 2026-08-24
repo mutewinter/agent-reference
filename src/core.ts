@@ -17,8 +17,8 @@ import {
   unknownCommandHint
 } from './sets.ts';
 import { writeManifest } from './manifest.ts';
-import { gitDirectoryProblem } from './get.ts';
-import { unresolvedProblem } from './problems.ts';
+import { configFileFor, gitDirectoryProblem } from './get.ts';
+import { gitUnresolvedProblem, unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import { resolvePackageMetadata } from './registry.ts';
 import { normalizeConfiguredRepository } from './repository.ts';
@@ -94,10 +94,20 @@ export async function cloneReferences(
   }
 
   const clonedGit: CloneReferencesResult['clonedGit'] = [];
+  const gitFailures: AgentReferenceProblem[] = [];
   for (const reference of gitReferences) {
-    clonedGit.push(
-      await ensureGitReferenceWorktree(reference.name, reference.spec, reference.directory, worktreeOptions)
-    );
+    // Same bargain the package loop makes: one unreachable remote must not discard the
+    // references that already worked, which throwing here would, manifest and all.
+    try {
+      clonedGit.push(
+        await ensureGitReferenceWorktree(reference.name, reference.spec, reference.directory, worktreeOptions)
+      );
+    } catch (error) {
+      // git's stderr on its way to a terminal, like the package path's detail.
+      const detail = sanitizeRelayed(error instanceof Error ? error.message : String(error));
+      gitFailures.push(gitUnresolvedProblem(reference.name, reference.spec, detail, configFileFor(reference.scope)));
+      skipped.push({ name: reference.name, version: null, reason: detail });
+    }
   }
 
   const manifestPath = await writeManifest(project.projectRoot, worktreeOptions.storeDir, cloned, clonedGit, unresolved);
@@ -112,6 +122,7 @@ export async function cloneReferences(
     // Reported here as well as in `status`: an agent acts on the output it just got back.
     problems: [
       ...unresolved.map((failure) => unresolvedProblem(failure, worktreeOptions.storeDir, configFile)),
+      ...gitFailures,
       ...gitReferences
         .map((reference) => {
           const result = clonedGit.find((entry) => entry.name === reference.name);
