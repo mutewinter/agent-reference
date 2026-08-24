@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
+import { getVersionsReport } from '../src/versions.ts';
 import { scanProject } from '../src/scanner.ts';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
@@ -63,4 +64,22 @@ test('a Bun lockfile survives comments and JSON-ish characters inside its string
     dependencies.map((dependency) => `${dependency.name}@${dependency.version}`),
     ['react@18.2.0']
   );
+});
+
+test('an npm workspace member stays visible instead of looking uninstalled', async () => {
+  const web = path.join(repoRoot, 'fixtures/npm-workspace/apps/web/package.json');
+  const dependencies = await scanProject(web);
+
+  // A link carries no version, so it used to be filtered out entirely. That made an in-repo
+  // package look like one nothing installs, and asking for it fetched an unrelated upstream.
+  assert.deepEqual(
+    dependencies.map((dependency) => `${dependency.name}@${dependency.version}`),
+    ['@mono/shared@link:../../packages/shared', 'react@18.2.0']
+  );
+
+  // The link is written relative to the importer that declared it, so it resolves to the
+  // directory on disk rather than to somewhere under apps/web.
+  const report = await getVersionsReport(web, '@mono/shared');
+  assert.equal(report.versions[0]?.workspace, true);
+  assert.equal(report.versions[0]?.path, path.join(repoRoot, 'fixtures/npm-workspace/packages/shared'));
 });

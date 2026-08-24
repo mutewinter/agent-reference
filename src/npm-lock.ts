@@ -7,7 +7,7 @@ import type { PackageReference, LockfileProjectContext } from './types.ts';
 
 interface NpmPackageLock {
   lockfileVersion?: number;
-  packages?: Record<string, { version?: string; link?: boolean }>;
+  packages?: Record<string, { version?: string; link?: boolean; resolved?: string }>;
   dependencies?: Record<string, { version?: string }>;
 }
 
@@ -17,11 +17,33 @@ export async function scanNpmDependencies(context: LockfileProjectContext): Prom
   return dependenciesFromPackageJsonDirectives(context, ({ name }) => {
     const localPackage = lockfile.packages?.[nodeModulesPackagePath(context.importer, name)];
     const rootPackage = lockfile.packages?.[nodeModulesPackagePath('.', name)];
+
+    // A workspace member is recorded as a link carrying no version. Dropping it made an
+    // in-repo package indistinguishable from one nothing installs, so asking for it went to
+    // the registry and came back with an unrelated upstream latest. pnpm keeps these; so
+    // does this, and the callers that fetch skip them the same way.
+    const linked = workspaceLink(localPackage ?? rootPackage, context.importer);
+    if (linked) return linked;
+
     const legacyPackage = lockfile.dependencies?.[name];
     const version = localPackage?.version ?? rootPackage?.version ?? legacyPackage?.version ?? null;
 
     return version && isExactRegistryVersion(version) ? version : null;
   });
+}
+
+/**
+ * package-lock.json writes a link relative to its own directory, while a link's meaning is
+ * relative to the importer that declared it, which is how every reader of these versions
+ * resolves one. Rewriting it here is what makes the npm form comparable with the pnpm form.
+ */
+function workspaceLink(
+  entry: { link?: boolean; resolved?: string } | undefined,
+  importer: string
+): string | null {
+  if (!entry?.link || !entry.resolved) return null;
+  const fromImporter = importer === '.' ? entry.resolved : path.posix.relative(importer, entry.resolved);
+  return `link:${fromImporter || '.'}`;
 }
 
 /**

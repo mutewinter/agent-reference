@@ -1,0 +1,5 @@
+{
+  "name": "fixture-npm-workspace",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"]
+}

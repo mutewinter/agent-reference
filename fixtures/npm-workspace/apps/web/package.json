@@ -1,0 +1,7 @@
+{
+  "name": "@mono/web",
+  "dependencies": {
+    "@mono/shared": "*",
+    "react": "^18.2.0"
+  }
+}
