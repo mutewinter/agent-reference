@@ -1,10 +1,9 @@
 import fs from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
 
 import { DEFAULT_LOCAL_CONFIG_FILE, loadAgentReferenceConfig } from './config.ts';
 import { committedPathLeaks } from './config-hygiene.ts';
-import { pathExists } from './fs-utils.ts';
+import { pathExists, resolveReferencePath } from './fs-utils.ts';
 import { runGit } from './git.ts';
 import { configuredReferences, resolveSets, setMemberKey } from './sets.ts';
 import { resolveProjectInput } from './scanner.ts';
@@ -101,7 +100,7 @@ export async function validateConfig(
   }
 
   for (const reference of loaded.config.paths) {
-    const resolved = resolveFolderPath(projectRoot, reference.path);
+    const resolved = resolveReferencePath(projectRoot, reference.path);
     if (!(await pathExists(resolved))) {
       report.warnings.push(`paths.${reference.name} points at ${resolved}, which does not exist.`);
     }
@@ -157,10 +156,4 @@ async function isLocalConfigTracked(projectRoot: string): Promise<boolean> {
     allowFailure: true
   });
   return result.exitCode === 0 && result.stdout.trim().length > 0;
-}
-
-function resolveFolderPath(projectRoot: string, requested: string): string {
-  if (requested.startsWith('~/')) return path.join(os.homedir(), requested.slice(2));
-  if (path.isAbsolute(requested)) return requested;
-  return path.resolve(projectRoot, requested);
 }
