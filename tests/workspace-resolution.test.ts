@@ -419,6 +419,27 @@ test('get sends an agent to a workspace package by a path it can open', async ()
   });
 });
 
+test('a workspace link does not hide the versions other importers install', () => {
+  // One workspace entry used to end the report, so a sibling importer still on the published
+  // package vanished behind a flat "there is nothing to fetch" that was simply untrue.
+  const text = formatVersionsReport({
+    name: 'shared',
+    projectRoot: '/repo',
+    lockfile: '/repo/pnpm-lock.yaml',
+    packageManager: 'pnpm',
+    importer: '.',
+    versions: [
+      { version: 'link:../shared', importers: ['apps/web'], dependencyTypes: [], workspace: true, path: '/repo/shared' },
+      { version: '1.2.3', importers: ['apps/legacy'], dependencyTypes: [], workspace: false, path: null }
+    ]
+  });
+
+  assert.match(text, /is a workspace package in this repository, at \/repo\/shared\./);
+  assert.match(text, /1\.2\.3\s+apps\/legacy/);
+  assert.match(text, /agent-reference get shared@1\.2\.3/);
+  assert.doesNotMatch(text, /nothing to fetch/);
+});
+
 test('a workspace range names the package as local without inventing a path', async () => {
   assert.equal(workspaceVersionDirectory('/repo', 'apps/web', 'workspace:*'), null);
   assert.equal(workspaceVersionDirectory('/repo', 'apps/web', 'workspace:^1.2.0'), null);

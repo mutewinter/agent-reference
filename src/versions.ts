@@ -124,29 +124,34 @@ export function formatVersionsReport(report: VersionsReport): string {
     ].join('\n');
   }
 
+  // Both halves, always. One workspace link used to end the report, hiding the versions
+  // other importers install from the registry behind a flat "there is nothing to fetch".
   const workspace = report.versions.filter((entry) => entry.workspace);
-  if (workspace.length > 0) {
-    const lines = workspace.map((entry) =>
-      entry.path
-        ? `${report.name} is a workspace package in this repository, at ${entry.path}.`
-        : `${report.name} is a workspace package in this repository. The lockfile records it as ${entry.version}, which does not say where.`
-    );
-    return `${[...lines, 'It is already on disk; there is nothing to fetch.', ''].join('\n')}`;
-  }
-
-  const width = Math.max(...report.versions.map((entry) => entry.version.length));
-  const lines = report.versions.map(
-    (entry) => `  ${entry.version.padEnd(width)}  ${entry.importers.join(', ')}`
+  const registry = report.versions.filter((entry) => !entry.workspace);
+  const lines = workspace.map((entry) =>
+    entry.path
+      ? `${report.name} is a workspace package in this repository, at ${entry.path}.`
+      : `${report.name} is a workspace package in this repository. The lockfile records it as ${entry.version}, which does not say where.`
   );
 
-  if (report.versions.length > 1) {
+  if (registry.length === 0) {
+    return `${[...lines, 'It is already on disk; there is nothing to fetch.', ''].join('\n')}`;
+  }
+  if (workspace.length > 0) {
+    lines.push(`Other importers install ${report.name} from the registry:`, '');
+  }
+
+  const width = Math.max(...registry.map((entry) => entry.version.length));
+  lines.push(...registry.map((entry) => `  ${entry.version.padEnd(width)}  ${entry.importers.join(', ')}`));
+
+  if (registry.length > 1) {
     lines.push(
       '',
-      `${report.versions.length} versions, so a bare name is ambiguous here. Ask for one:`,
-      `  agent-reference get ${report.name}@${report.versions[0]?.version}`
+      `${registry.length} versions, so a bare name is ambiguous here. Ask for one:`,
+      `  agent-reference get ${report.name}@${registry[0]?.version}`
     );
   } else {
-    lines.push('', `  agent-reference get ${report.name}@${report.versions[0]?.version}`);
+    lines.push('', `  agent-reference get ${report.name}@${registry[0]?.version}`);
   }
 
   return `${lines.join('\n')}\n`;
