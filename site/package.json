@@ -15,6 +15,7 @@
     "lint:fix": "oxlint --type-aware --fix",
     "preview": "pnpm run build && vite preview",
     "deploy": "pnpm run build && wrangler deploy",
+    "og": "node og.mjs",
     "generate-routes": "tsr generate",
     "cf-typegen": "wrangler types"
   },
@@ -37,6 +38,7 @@
     "oxlint-tailwindcss": "^1.10.0",
     "oxlint-tsgolint": "^7.0.2001",
     "shiki": "^4.4.3",
+    "takumi-js": "^2.12.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "wrangler": "^4.125.0"

@@ -3,8 +3,9 @@ import { useEffect, useState } from 'react'
 import { copy as pageCopy } from '../../code-samples.mjs'
 import { CheckIcon, CopyIcon, IconCopy, useCopy } from './copy'
 
+/** Both of these sit inside the Get started section, one level under its h2. */
 function Heading({ children }: { children: React.ReactNode }) {
-  return <h2 className="mb-3 text-fg">{children}</h2>
+  return <h3 className="mb-3 text-fg">{children}</h3>
 }
 
 /** Renders `backticked` spans as inline code, while the clipboard gets the raw text. */

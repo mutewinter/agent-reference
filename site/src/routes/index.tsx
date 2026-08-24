@@ -28,7 +28,10 @@ const terminalText: Record<string, string> = terminals
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <section className="mt-20">
-      <div className="rule mb-6">{label}</div>
+      {/* A real heading, not a styled label: it is the only thing between the
+          page's h1 and the h3 on every example, and a document with no outline
+          reads to a crawler as one undivided page. */}
+      <h2 className="rule mb-6">{label}</h2>
       {children}
     </section>
   )

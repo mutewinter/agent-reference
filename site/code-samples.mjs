@@ -281,14 +281,16 @@ export const examples = [
 
 /**
  * The page's own words, shared so the README says them too rather than keeping
- * a second copy that drifts. `tagline` also names the browser tab, and
- * `description` is both the meta description and the README's opening line.
+ * a second copy that drifts. `tagline` also names the browser tab and heads the
+ * link preview; `description` is the meta description, and the only line of
+ * prose a search result or a social card gets, so it says what the thing does
+ * rather than what shape it ships in.
  */
 export const copy = {
   title: 'agent-reference',
   tagline: 'Give your agents the source',
   description:
-    'Give your agents the source. A CLI that resolves any dependency, git repository, file, or folder to a path on disk, at the exact version you install.',
+    'Give your agents the source. Readable upstream code on disk, at the exact version your project installs.',
   agent: {
     heading: 'Let your agent do it',
     note: 'Instructs your agent to install the skill and set up a config for the folders, repositories, and packages you often reference.',
@@ -302,9 +304,14 @@ export const copy = {
   },
 }
 
+/**
+ * The one command that sets a project up. Short enough to retype off a link
+ * preview, which is the only place it appears without something to copy it.
+ */
+export const quickStart = 'npx agent-reference@latest init'
+
 /** The one sentence a person hands their agent. The site and the README share it. */
-export const setupPrompt =
-  'Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.'
+export const setupPrompt = `Set this project up for agent-reference: run \`${quickStart}\` and follow the brief it prints.`
 
 export const cd = 'cd ~/code/acme/web'
 export const install = 'npm install -g agent-reference'

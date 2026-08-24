@@ -7,7 +7,7 @@
     "type": "git",
     "url": "git+https://github.com/mutewinter/agent-reference.git"
   },
-  "homepage": "https://github.com/mutewinter/agent-reference#readme",
+  "homepage": "https://agent-reference.dev",
   "bugs": "https://github.com/mutewinter/agent-reference/issues",
   "bin": {
     "agent-reference": "./dist/cli.js"
