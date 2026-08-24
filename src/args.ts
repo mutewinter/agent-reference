@@ -59,12 +59,12 @@ export function parseArgv(argv: string[]): CliOptions {
     } else if (flag === '--prune') {
       options.prune = true;
     } else if (flag === '--days') {
-      const value = Number(inlineValue ?? readFlagValue(argv, index, flag));
+      const value = Number(flagValue(argv, index, flag, inlineValue));
       if (!Number.isFinite(value) || value < 0) throw new Error('--days requires a non-negative number');
       options.days = value;
       if (inlineValue === null) index += 1;
     } else if (flag === '--set') {
-      options.sets.push(inlineValue ?? readFlagValue(argv, index, flag));
+      options.sets.push(flagValue(argv, index, flag, inlineValue));
       if (inlineValue === null) index += 1;
     } else if (flag === '--non-interactive') {
       // Always true now. Accepted because agents type it by convention, and erroring on a
@@ -83,6 +83,17 @@ export function parseArgv(argv: string[]): CliOptions {
   }
 
   return options;
+}
+
+/**
+ * The value for a flag written either way. An empty `--days=` read as `Number('')`, which
+ * is 0 and finite, so a typo or an unset shell variable asked `store --prune` to delete
+ * every checkout in the store rather than failing.
+ */
+function flagValue(argv: string[], index: number, flag: string, inlineValue: string | null): string {
+  if (inlineValue === null) return readFlagValue(argv, index, flag);
+  if (!inlineValue.trim()) throw new Error(`${flag} requires a value`);
+  return inlineValue;
 }
 
 function readFlagValue(argv: string[], index: number, flag: string): string {
