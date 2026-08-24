@@ -10,7 +10,7 @@
 ```jsonc
 {
   "packages": {
-    "effect": "4.0.0-rc.111"
+    "npm:effect": "4.0.0-rc.111"
   },
   "git": {
     "pi": {
@@ -259,7 +259,7 @@ Every kind at once, and what your agent sees when it asks.
   },
   "packages": {
     "npm:ai": "7.0.78",
-    "electron": {
+    "npm:electron": {
       "version": "41.0.2",
       "description": "Pinned: we ship against this build's native module ABI"
     }
