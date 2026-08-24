@@ -4,30 +4,30 @@ import path from 'node:path';
 import process from 'node:process';
 
 import { parseArgv, type CliOptions } from './args.ts';
-import { displayPath as shortenPath } from './fs-utils.ts';
+import {
+  formatCloneResult,
+  formatGetResults,
+  formatStoreReport,
+  formatValidationReport
+} from './cli-format.ts';
 import { cloneReferences } from './core.ts';
 import { getReferences } from './get.ts';
 import { briefSteps, formatInitBrief } from './init-format.ts';
 import { surveyProject } from './init.ts';
-import {
-  dependencyKey,
-  formatCoordinate,
-  parsePackageCoordinate,
-  SUPPORTED_ECOSYSTEM,
-  unsupportedEcosystemMessage
-} from './package-utils.ts';
-import { KEEP_REFERENCE_NOTE } from './problems.ts';
+import { parsePackageCoordinate, SUPPORTED_ECOSYSTEM, unsupportedEcosystemMessage } from './package-utils.ts';
 import { resolveProjectStoreDir } from './reference-context.ts';
-import { formatProblem, formatStatusReport } from './status-format.ts';
-import { sanitizeRelayedLine } from './text-utils.ts';
+import { formatStatusReport } from './status-format.ts';
 import { getStatusReport } from './status.ts';
 import { formatVersionsReport, getVersionsReport } from './versions.ts';
-import { formatBytes, inspectStore, type StoreReport } from './store.ts';
-import { validateConfig, type ValidationReport } from './validate.ts';
-import type { CloneReferencesResult, GetReferenceResult } from './types.ts';
+import { inspectStore } from './store.ts';
+import { validateConfig } from './validate.ts';
 
 async function main(argv: string[]): Promise<void> {
   const options = parseArgv(argv);
+  // A human is watching only when stdout is a terminal. Piped output feeds an agent, which
+  // passes a path straight to a file API, and `~` is not a path there.
+  const humanOutput = Boolean(process.stdout.isTTY);
+  const format = { tilde: humanOutput };
 
   switch (options.command) {
     case 'help':
@@ -52,7 +52,6 @@ async function main(argv: string[]): Promise<void> {
     case 'status': {
       const { projectPath, references } = await splitPositionals(options);
       const report = await getStatusReport(projectPath, { references, sets: options.sets });
-      const humanOutput = Boolean(process.stdout.isTTY);
       write(options, report, (result) =>
         formatStatusReport(result, { color: humanOutput && !process.env.NO_COLOR, tilde: humanOutput })
       );
@@ -62,7 +61,7 @@ async function main(argv: string[]): Promise<void> {
       // Every positional is a spec: get runs against the current directory's project, and
       // specs like github:owner/repo would be misread as paths by splitPositionals.
       const results = await getReferences(null, options.positionals);
-      write(options, results, formatGetResults);
+      write(options, results, (result) => formatGetResults(result, format));
       return;
     }
     case 'versions': {
@@ -77,13 +76,12 @@ async function main(argv: string[]): Promise<void> {
     case 'clone': {
       const { projectPath, references } = await splitPositionals(options);
       const result = await cloneReferences(projectPath, { references, sets: options.sets });
-      write(options, result, formatCloneResult);
+      write(options, result, (value) => formatCloneResult(value, format));
       return;
     }
     case 'init': {
       const { projectPath } = await splitPositionals(options);
       const survey = await surveyProject(projectPath);
-      const humanOutput = Boolean(process.stdout.isTTY);
       write(options, { ...survey, brief: briefSteps(survey) }, () =>
         formatInitBrief(survey, { color: humanOutput && !process.env.NO_COLOR, tilde: humanOutput })
       );
@@ -92,7 +90,7 @@ async function main(argv: string[]): Promise<void> {
     case 'validate': {
       const { projectPath } = await splitPositionals(options);
       const report = await validateConfig(projectPath);
-      write(options, report, formatValidationReport);
+      write(options, report, (result) => formatValidationReport(result, format));
       if (!report.valid) process.exitCode = 1;
       return;
     }
@@ -100,7 +98,7 @@ async function main(argv: string[]): Promise<void> {
       const { projectPath } = await splitPositionals(options);
       const storeDir = await resolveProjectStoreDir(projectPath);
       const report = await inspectStore({ storeDir, prune: options.prune, days: options.days ?? undefined });
-      write(options, report, formatStoreReport);
+      write(options, report, (result) => formatStoreReport(result, format));
       return;
     }
   }
@@ -134,96 +132,6 @@ async function looksLikePath(value: string): Promise<boolean> {
 
 function write<T>(options: CliOptions, result: T, format: (result: T) => string): void {
   process.stdout.write(options.json ? `${JSON.stringify(result, null, 2)}\n` : format(result));
-}
-
-function displayPath(value: string | null): string {
-  return shortenPath(value, { tilde: Boolean(process.stdout.isTTY) });
-}
-
-function formatGetResults(results: GetReferenceResult[]): string {
-  const lines: string[] = [];
-
-  for (const result of results) {
-    if (result.kind === 'package') {
-      lines.push(
-        `${formatCoordinate(result.name, result.version)} -> ${displayPath(result.path)} (${result.confidence}, ${result.refSource} ${sanitizeRelayedLine(result.checkoutRef ?? '')})`
-      );
-    } else if (result.kind === 'git') {
-      lines.push(
-        `${sanitizeRelayedLine(result.requested)} -> ${displayPath(result.path)} (${sanitizeRelayedLine(result.checkoutRef ?? '')} @ ${result.checkoutSha?.slice(0, 12)})`
-      );
-    } else {
-      lines.push(`${result.name} -> ${displayPath(result.path)}`);
-    }
-
-    // The fix travels with the result that needs it, rather than waiting for `status`.
-    if (result.problem) lines.push(formatProblem(result.problem));
-  }
-
-  return `${lines.join('\n')}\n`;
-}
-
-function formatCloneResult(result: CloneReferencesResult): string {
-  const lines = [
-    ...result.cloned.map(
-      (clone) =>
-        `${dependencyKey(clone.dependency.name, clone.dependency.version)} -> ${displayPath(clone.packagePath)} (${clone.confidence}, ${clone.refSource} ${clone.checkoutRef})`
-    ),
-    ...result.skipped.map(
-      (skip) => `${skip.version ? dependencyKey(skip.name, skip.version) : skip.name} skipped: ${skip.reason}`
-    ),
-    ...result.clonedGit.map((clone) => `git:${clone.name} -> ${displayPath(clone.referencePath)}`),
-    ...result.paths.map((name) => `path:${name} is already local, nothing to clone`),
-    `state -> ${displayPath(result.manifestPath)}`,
-    ...(result.problems.length > 0
-      ? ['', `problems:\n${result.problems.map(formatProblem).join('\n')}`, `  ${KEEP_REFERENCE_NOTE}`]
-      : [])
-  ];
-  return `${lines.join('\n')}\n`;
-}
-
-function formatStoreReport(report: StoreReport): string {
-  const lines = [displayPath(report.storeDir), ''];
-
-  if (report.repositories.length === 0) {
-    lines.push('empty. agent-reference clone fills it.');
-    return `${lines.join('\n')}\n`;
-  }
-
-  const rows = report.repositories.map((repository) => [
-    repository.name,
-    formatBytes(repository.totalBytes),
-    `${repository.checkouts.length} checkout${repository.checkouts.length === 1 ? '' : 's'}`
-  ]);
-  const width = Math.max(...rows.map((row) => row[0]?.length ?? 0));
-  const size = Math.max(...rows.map((row) => row[1]?.length ?? 0));
-  for (const [name, bytes, checkouts] of rows) {
-    lines.push(`  ${(name ?? '').padEnd(width)}  ${(bytes ?? '').padStart(size)}  ${checkouts}`);
-  }
-
-  lines.push('', `total ${formatBytes(report.totalBytes)}`);
-  if (report.removed.length > 0) {
-    lines.push(`removed ${report.removed.length}, reclaiming ${formatBytes(report.reclaimedBytes)}`);
-  } else {
-    lines.push('Everything here is a cache: agent-reference store --prune trims it, and clone rebuilds.');
-  }
-
-  return `${lines.join('\n')}\n`;
-}
-
-function formatValidationReport(report: ValidationReport): string {
-  const lines = [
-    ...report.errors.map((error) => `error: ${error}`),
-    ...report.warnings.map((warning) => `warning: ${warning}`)
-  ];
-
-  if (report.valid) {
-    const references = report.references.length === 1 ? '1 reference' : `${report.references.length} references`;
-    const sets = report.sets.length === 1 ? '1 set' : `${report.sets.length} sets`;
-    lines.push(`ok: ${displayPath(report.configPath ?? report.localConfigPath)} defines ${references} in ${sets}.`);
-  }
-
-  return `${lines.join('\n')}\n`;
 }
 
 function helpText(): string {
