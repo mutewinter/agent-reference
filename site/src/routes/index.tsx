@@ -18,6 +18,13 @@ import { ForYou, ForYourAgent, Or } from '../components/start'
 
 export const Route = createFileRoute('/')({ component: Home })
 
+// An example names its tree and its terminal by key, and those keys arrive as
+// data. The maps themselves are object literals, so TypeScript knows their exact
+// keys and refuses a lookup by plain string; this is the widening that says the
+// lookup really is by name.
+const treeText: Record<string, string> = trees
+const terminalText: Record<string, string> = terminals
+
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <section className="mt-20">
@@ -42,7 +49,7 @@ function Example({
   file: string
   sample: string
 }) {
-  const paired = Boolean(tree || terminal)
+  const paired = Boolean(tree ?? terminal)
   return (
     <div className="mt-12 first:mt-0">
       <h3 className="text-fg">{title}</h3>
@@ -50,7 +57,7 @@ function Example({
       <div className={`mt-4 grid gap-5 ${paired ? 'lg:grid-cols-2' : 'max-w-3xl'}`}>
         {tree ? (
           <Panel>
-            <Tree text={trees[tree]} />
+            <Tree text={treeText[tree]} />
           </Panel>
         ) : null}
         <Panel label={file} copy={source(sample)}>
@@ -58,7 +65,7 @@ function Example({
         </Panel>
         {terminal ? (
           <Panel tone="term">
-            <Term text={terminals[terminal]} />
+            <Term text={terminalText[terminal]} />
           </Panel>
         ) : null}
       </div>

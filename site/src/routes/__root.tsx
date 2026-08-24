@@ -11,7 +11,7 @@ export const Route = createRootRoute({
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { name: 'color-scheme', content: 'dark' },
-      { title: `${TITLE} \u00b7 ${TAGLINE}` },
+      { title: `${TITLE} \u00B7 ${TAGLINE}` },
       { name: 'description', content: DESCRIPTION },
       { property: 'og:title', content: TITLE },
       { property: 'og:description', content: DESCRIPTION },
@@ -45,7 +45,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
 function Header() {
   return (
-    <header className="flex items-center justify-between border-b border-line py-4 text-[13px]">
+    <header className="flex items-center justify-between border-b border-line py-4 text-sm">
       <a href="/" className="text-fg hover:text-accent">
         agent-reference
       </a>

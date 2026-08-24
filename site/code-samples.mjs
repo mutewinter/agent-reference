@@ -151,18 +151,18 @@ export const samples = {
 
 export const trees = {
   siblings: `~/code/acme/
-\u251c\u2500\u2500 web/
+\u251C\u2500\u2500 web/
 \u2502   \u2514\u2500\u2500 agent-reference.local.json
-\u251c\u2500\u2500 api/
-\u251c\u2500\u2500 workers/
+\u251C\u2500\u2500 api/
+\u251C\u2500\u2500 workers/
 \u2514\u2500\u2500 shared/`,
 
   global: `~/
-\u251c\u2500\u2500 agent-reference.local.json
-\u251c\u2500\u2500 .dotfiles/
+\u251C\u2500\u2500 agent-reference.local.json
+\u251C\u2500\u2500 .dotfiles/
 \u2514\u2500\u2500 code/
-    \u251c\u2500\u2500 personal/
-    \u251c\u2500\u2500 work/
+    \u251C\u2500\u2500 personal/
+    \u251C\u2500\u2500 work/
     \u2514\u2500\u2500 forks/`,
 }
 
@@ -184,17 +184,17 @@ export const terminals = {
   session: `$ claude "Implement an edit tool like pi's, using Effect v4"
 
 * Skill(agent-reference)
-  \u23bf Launching skill: agent-reference
+  \u23BF Launching skill: agent-reference
 
 * Bash(agent-reference get pi)
-  \u23bf ~/.agent-reference/src/\u2026/earendil-works/pi/dcd46192
+  \u23BF ~/.agent-reference/src/\u2026/earendil-works/pi/dcd46192
 * Read(\u2026/packages/coding-agent/src/core/tools/edit.ts)
-  \u23bf Read 461 lines
+  \u23BF Read 461 lines
 
 * Bash(agent-reference get effect-docs)
-  \u23bf ~/.agent-reference/src/\u2026/website/6ee985b1/\u2026/docs/v4
+  \u23BF ~/.agent-reference/src/\u2026/website/6ee985b1/\u2026/docs/v4
 * Read(\u2026/docs/v4/platform/file-system.mdx)
-  \u23bf Read 115 lines`,
+  \u23BF Read 115 lines`,
 
   pinned: `# your agent runs this, not you
 agent-reference get ai
@@ -208,22 +208,22 @@ agent-reference get electron
   other coding harnesses do it"
 
 * Bash(agent-reference status --set "coding harnesses")
-  \u23bf codex  git \u00b7 ready \u00b7 ~/.agent-reference/src/\u2026/codex/a4f10b27
-    pi     git \u00b7 ready \u00b7 ~/.agent-reference/src/\u2026/pi/dcd46192
+  \u23BF codex  git \u00B7 ready \u00B7 ~/.agent-reference/src/\u2026/codex/a4f10b27
+    pi     git \u00B7 ready \u00B7 ~/.agent-reference/src/\u2026/pi/dcd46192
 
 * Read(\u2026/pi/packages/coding-agent/src/core/compaction.ts)`,
 
   complex: `# your agent runs this, not you
 agent-reference status
 agent-reference.json (shared)
-  ai         npm \u00b7 ready \u00b7 7.0.78 verified
-  electron   npm \u00b7 declared \u00b7 41.0.2
-  decisions  folder \u00b7 ready \u00b7 ./docs/decisions
-  style      file \u00b7 ready \u00b7 ./docs/style-guide.md
+  ai         npm \u00B7 ready \u00B7 7.0.78 verified
+  electron   npm \u00B7 declared \u00B7 41.0.2
+  decisions  folder \u00B7 ready \u00B7 ./docs/decisions
+  style      file \u00B7 ready \u00B7 ./docs/style-guide.md
 
   How other agents solve the same problems
-    pi     git \u00b7 ready \u00b7 ~/.agent-reference/src/\u2026/pi/dcd46192
-    codex  git \u00b7 declared \u00b7 github:openai/codex
+    pi     git \u00B7 ready \u00B7 ~/.agent-reference/src/\u2026/pi/dcd46192
+    codex  git \u00B7 declared \u00B7 github:openai/codex
 
 package versions read from pnpm-lock.yaml`,
 }

@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import { createHighlighter } from 'shiki'
+import type { ThemeRegistrationRaw } from 'shiki'
 import { defineConfig } from 'vite'
 
 import { renderCliReference } from './cli-reference.mjs'
@@ -12,16 +13,20 @@ import { samples } from './code-samples.mjs'
 
 // The site states the version of the CLI it documents, read from the package
 // at the repository root rather than restated here, so the two cannot disagree.
-const cliVersion = JSON.parse(
-  readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
+const cliVersion = (
+  JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
+    version: string
+  }
 ).version
 
 // Jellybeans+ by Simon Watts, MIT, vendored from siwatts/jellybeans-theme-vscode
 // because a build in CI cannot fetch it. The page palette in styles.css is
 // derived from the same file, so highlighted code and chrome agree.
+// `name` is not optional in the file, and the config reads it back to name the
+// theme in every `codeToHtml` call.
 const THEME = JSON.parse(
   readFileSync(new URL('./jellybeans-plus.json', import.meta.url), 'utf8'),
-)
+) as ThemeRegistrationRaw & { name: string }
 
 /**
  * Highlights every snippet once, in Node, and serves the HTML as a virtual
@@ -38,7 +43,7 @@ function highlightedSnippets() {
       return source === id ? resolved : undefined
     },
     async load(loaded: string) {
-      if (loaded !== resolved) return undefined
+      if (loaded !== resolved) return
       const highlighter = await createHighlighter({
         themes: [THEME],
         langs: [...new Set(Object.values(samples).map((s) => s.lang))],
@@ -74,7 +79,7 @@ function cliReference() {
       return source === id ? resolved : undefined
     },
     load(loaded: string) {
-      if (loaded !== resolved) return undefined
+      if (loaded !== resolved) return
       return `export default ${JSON.stringify(renderCliReference())}`
     },
   }

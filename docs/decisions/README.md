@@ -19,3 +19,4 @@ never rewritten; strike a superseded row here and link its replacement.
 | 2026-08-20 | [Commit history needs no affordance; the checkout is already a worktree](2026-08-20-history-needs-no-affordance.md) |
 | 2026-08-20 | [A local reference is a path, folder or file alike](2026-08-20-a-path-is-a-path.md) |
 | 2026-08-24 | [The ecosystem belongs to the coordinate; the package manager belongs to the output](2026-08-24-the-ecosystem-belongs-to-the-coordinate.md) |
+| 2026-08-24 | [The stylesheet is the design system, and the linter enforces it](2026-08-24-the-stylesheet-is-the-design-system.md) |

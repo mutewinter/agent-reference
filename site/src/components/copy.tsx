@@ -20,15 +20,21 @@ export function CheckIcon() {
 export function useCopy(text: string) {
   const [copied, setCopied] = useState(false)
 
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 1600)
-    } catch {
-      // A denied clipboard is not worth an error state. The text is on screen
-      // and selectable, which is the fallback either way.
-    }
+  // Not async: this is handed straight to `onClick`, and a handler that hands
+  // back a promise is a rejection nothing is waiting to catch.
+  function copy() {
+    void navigator.clipboard.writeText(text).then(
+      () => {
+        setCopied(true)
+        setTimeout(() => {
+          setCopied(false)
+        }, 1600)
+      },
+      () => {
+        // A denied clipboard is not worth an error state. The text is on screen
+        // and selectable, which is the fallback either way.
+      },
+    )
   }
 
   return { copied, copy }

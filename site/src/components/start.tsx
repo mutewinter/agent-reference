@@ -41,12 +41,12 @@ export function ForYourAgent({ text }: { text: string }) {
         type="button"
         onClick={copy}
         aria-label={copied ? 'Copied' : 'Copy this prompt'}
-        className="flex w-full cursor-pointer items-start gap-4 border border-accent/60 bg-accent/10 p-4 text-left shadow-[4px_4px_0_0_rgba(255,185,100,0.28)] transition-all hover:translate-x-[2px] hover:translate-y-[2px] hover:bg-accent/20 hover:shadow-[2px_2px_0_0_rgba(255,185,100,0.28)] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none">
-        <span className="flex-1 text-[13px] leading-relaxed text-fg">
+        className="flex w-full cursor-pointer items-start gap-4 border border-accent/60 bg-accent/10 p-4 text-left shadow-offset transition-all hover:translate-0.5 hover:bg-accent/20 hover:shadow-offset-sm active:translate-1 active:shadow-none">
+        <span className="flex-1 text-sm leading-relaxed text-fg">
           <WithCode text={text} />
         </span>
         <span
-          className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1 text-[12px] text-bg ${
+          className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1 text-xs text-bg ${
             copied ? 'bg-ok' : 'bg-accent'
           }`}
         >
@@ -56,7 +56,7 @@ export function ForYourAgent({ text }: { text: string }) {
           <span className="inline-block w-11">{copied ? 'Copied' : 'Copy'}</span>
         </span>
       </button>
-      <p className="mt-3 text-[13px] text-muted">{pageCopy.agent.note}</p>
+      <p className="mt-3 text-sm text-muted">{pageCopy.agent.note}</p>
     </div>
   )
 }
@@ -84,7 +84,9 @@ function CyclingCommand({ names, prompt }: { names: Array<string>; prompt: strin
       }, 300)
     }, 5000)
 
-    return () => clearInterval(cycle)
+    return () => {
+      clearInterval(cycle)
+    }
   }, [names])
 
   return (
@@ -111,22 +113,22 @@ export function ForYou({
   return (
     <div>
       <Heading>{pageCopy.install.heading}</Heading>
-      <div className="group border border-line bg-term p-4 text-[13px]">
-        <pre className="leading-[1.75]">
+      <div className="group border border-line bg-term p-4 text-sm">
+        <pre className="leading-code">
           {/* The button sits on the line it copies. In the corner it was
               ambiguous which of three commands it would take. */}
           <div className="flex items-center gap-3">
             <span>
               <span className="text-muted select-none">$ </span>
               <span className="text-accent">npm</span>
-              {install.replace(/^npm/, '')}
+              {install.replace(/^npm/u, '')}
             </span>
             <IconCopy text={install} reveal />
           </div>
           <div>
             <span className="text-muted select-none">$ </span>
             <span className="text-accent">cd</span>
-            {cd.replace(/^cd/, '')}
+            {cd.replace(/^cd/u, '')}
           </div>
           <CyclingCommand names={agents} prompt={prompt} />
         </pre>

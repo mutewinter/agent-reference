@@ -26,6 +26,30 @@
      reference is on disk. */
   --color-accent: #ffb964;
   --color-ok: #99ad6a;
+
+  /* The page is an editor, so the type scale is an editor's rather than the
+     web's: 14px of body text, 13px for chrome and code, and one step under
+     that for the copy pill. Tailwind's own steps are 12/14/16, which has no
+     room for the 13, so the three small names are redefined here rather than
+     a fourth one added beside them. Each carries the body leading, because a
+     named size that quietly retightens a block is worse than no name at all. */
+  --leading-body: 1.7;
+  /* Code sits looser than prose: the box-drawing in a tree and the columns in
+     `status` output both read by row, and rows need air between them. */
+  --leading-code: 1.75;
+
+  --text-xs: 0.75rem;
+  --text-xs--line-height: var(--leading-body);
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: var(--leading-body);
+  --text-base: 0.875rem;
+  --text-base--line-height: var(--leading-body);
+
+  /* The one thing on the page you click sits on a hard offset shadow in the
+     accent, and presses into the page under the cursor. Two depths and then
+     none, so the travel is visible rather than a color change. */
+  --shadow-offset: 4px 4px 0 0 --alpha(var(--color-accent) / 28%);
+  --shadow-offset-sm: 2px 2px 0 0 --alpha(var(--color-accent) / 28%);
 }
 
 html {
@@ -37,13 +61,13 @@ body {
   background: var(--color-bg);
   color: var(--color-fg);
   font-family: var(--font-mono);
-  font-size: 14px;
-  line-height: 1.7;
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: rgba(224, 164, 88, 0.25);
+  background: --alpha(var(--color-accent) / 25%);
 }
 
 a {
@@ -56,7 +80,7 @@ a {
   align-items: center;
   gap: 0.75rem;
   color: var(--color-muted);
-  font-size: 13px;
+  font-size: var(--text-sm);
 }
 
 .rule::after {

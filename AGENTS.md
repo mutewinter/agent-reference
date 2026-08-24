@@ -28,5 +28,20 @@ its users; the repo holds itself to it everywhere.
 
 ## Conventions
 
-- `npm test` and `npm run build` before handing work back.
+- `pnpm test`, `pnpm run build`, and `pnpm run lint` before handing work back. The site is
+  its own project: `pnpm --dir site run lint` and `pnpm --dir site run check-types`.
 - Commit subjects: `scope: description`, lowercase, imperative.
+
+## Linting
+
+Two oxlint configs, one per project. `.oxlintrc.json` at the root turns on `correctness`
+and `perf` and then names every other rule individually, because `pedantic` and `style`
+report thousands of things here and most of them are house style rather than a defect. A
+rule that is off has the reason next to it; add to that list rather than flipping a
+category. `--type-aware` is on, which is why the lint script needs a real install.
+
+`site/.oxlintrc.json` adds React and `oxlint-tailwindcss`, pointed at `src/styles.css`.
+That makes the stylesheet the design system: every class is resolved against the tokens
+declared in `@theme`, `no-arbitrary-value` rejects a size or a color written into a class
+instead, and a typo is an unknown class rather than a rule that silently does nothing. A
+new size belongs in `@theme` under a name.

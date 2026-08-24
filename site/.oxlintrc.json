@@ -1,0 +1,86 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "unicorn", "oxc", "import", "react", "react-perf", "jsx-a11y"],
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "pedantic": "error"
+  },
+  "jsPlugins": ["oxlint-tailwindcss"],
+  "settings": {
+    // Every class on the page is resolved against the design system this file
+    // declares, so a token added to @theme is immediately a legal class and a
+    // typo never is.
+    "tailwindcss": { "entryPoint": "src/styles.css" }
+  },
+  "ignorePatterns": ["src/routeTree.gen.ts"],
+  "overrides": [
+    {
+      // The build config reads two JSON files out of this repository and names
+      // their shape. `JSON.parse` hands back `any`, so every route out of it is
+      // either an assertion or a runtime guard, and a guard around a vendored
+      // theme file and our own package.json is ceremony around a build that
+      // already fails loudly if either is missing.
+      "files": ["vite.config.ts"],
+      "rules": { "typescript/no-unsafe-type-assertion": "off" }
+    },
+    {
+      // The `.mjs` modules are untyped ESM, shared with `scripts/sync-readme.mjs`
+      // at the repository root, which runs them under bare node. They are outside
+      // this project's tsconfig, so every expression in them reads as `any` and
+      // the type-aware rules report all of it. The syntactic rules still apply.
+      "files": ["*.mjs"],
+      "rules": {
+        "typescript/no-unsafe-argument": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unsafe-call": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/prefer-readonly-parameter-types": "off",
+        "typescript/strict-boolean-expressions": "off"
+      }
+    }
+  ],
+  "rules": {
+    // The site is dark only, deliberately: a second palette is a second thing
+    // to keep honest.
+    "tailwindcss/no-dark-without-light": "off",
+    "tailwindcss/no-unknown-classes": "error",
+    "tailwindcss/no-duplicate-classes": "error",
+    "tailwindcss/no-conflicting-classes": "error",
+    "tailwindcss/no-deprecated-classes": "error",
+    "tailwindcss/no-unnecessary-whitespace": "error",
+    "tailwindcss/no-unnecessary-arbitrary-value": "error",
+    "tailwindcss/no-hardcoded-colors": "error",
+    "tailwindcss/enforce-canonical": "error",
+    "tailwindcss/enforce-sort-order": "error",
+    "tailwindcss/enforce-shorthand": "error",
+    "tailwindcss/enforce-consistent-variable-syntax": "error",
+    "tailwindcss/consistent-variant-order": "error",
+    // The strict one, and the reason @theme carries a type scale at all: a size
+    // or a color written into a class is a value that lives in one file and
+    // agrees with nothing. A grid track list is the exception, because
+    // `1fr auto 1fr` is a layout rather than a token.
+    "tailwindcss/no-arbitrary-value": ["error", { "allow": ["grid-cols-"] }],
+
+    // React props are conventionally plain object types; this rule is aimed at
+    // library signatures and would put `readonly` on every component here.
+    "typescript/prefer-readonly-parameter-types": "off",
+    // `{label ? <div/> : null}` is how this page renders its optional parts,
+    // and the rule fights that idiom on every optional string prop.
+    "typescript/strict-boolean-expressions": "off",
+    // A Rollup `load` hook returns undefined for ids it does not own and a
+    // string for the ones it does. That is the contract, not an inconsistency.
+    "typescript/consistent-return": "off",
+
+    // The automatic JSX runtime is on, so React is never in scope and never
+    // needs to be.
+    "react/react-in-jsx-scope": "off",
+    // `__CLI_VERSION__` is Vite's `define` convention, not a private field.
+    "no-underscore-dangle": "off",
+    // A line count is not a design review. The components here are long because
+    // terminal output has many shapes, not because they are tangled.
+    "max-lines": "off",
+    "max-lines-per-function": "off"
+  }
+}

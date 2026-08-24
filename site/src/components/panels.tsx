@@ -28,7 +28,7 @@ export function Panel({
     >
       {label ? (
         <div
-          className={`flex items-center justify-between gap-3 border-b border-line px-4 py-2 text-[13px] ${
+          className={`flex items-center justify-between gap-3 border-b border-line px-4 py-2 text-sm ${
             dim ? 'text-dim' : 'text-muted'
           }`}
         >
@@ -39,7 +39,7 @@ export function Panel({
           {copy ? <IconCopy text={copy} reveal /> : null}
         </div>
       ) : null}
-      <div className="flex-1 overflow-x-auto p-4 text-[13px] leading-[1.75]">{children}</div>
+      <div className="flex-1 overflow-x-auto p-4 text-sm leading-code">{children}</div>
     </div>
   )
 }
@@ -51,9 +51,9 @@ export function Panel({
  */
 export function Tree({ text }: { text: string }) {
   return (
-    <pre className="leading-[1.75]">
+    <pre className="leading-code">
       {text.split('\n').map((line, i) => {
-        const match = line.match(/^([\u2500-\u257F ]*)(.*)$/)
+        const match = line.match(/^([\u2500-\u257F ]*)(.*)$/u)
         const branch = match ? match[1] : ''
         const name = match ? match[2] : line
         return (
@@ -125,7 +125,7 @@ function Line({ text, inline = false }: { text: string; inline?: boolean }) {
     )
   }
 
-  const scope = text.match(/^(\S+) (\(.+\))$/)
+  const scope = text.match(/^(\S+) (\(.+\))$/u)
   if (scope) {
     return (
       <div>
@@ -134,7 +134,7 @@ function Line({ text, inline = false }: { text: string; inline?: boolean }) {
     )
   }
 
-  const row = text.match(/^(\s*)(\S+)(\s+)(.*·.*)$/)
+  const row = text.match(/^(\s*)(\S+)(\s+)(.*·.*)$/u)
   if (row) {
     const [, indent, name, gap, facts] = row
     return (
@@ -162,7 +162,7 @@ function Line({ text, inline = false }: { text: string; inline?: boolean }) {
  */
 export function Session({ text }: { text: string }) {
   return (
-    <pre className="leading-[1.75]">
+    <pre className="leading-code">
       {text.split('\n').map((line, i) => {
         if (line === '') return <div key={i}>&nbsp;</div>
 
@@ -180,7 +180,7 @@ export function Session({ text }: { text: string }) {
           const open = call.indexOf('(')
           return (
             <div key={i}>
-              <span className="text-ok select-none">{'\u23fa '}</span>
+              <span className="text-ok select-none">{'\u23FA '}</span>
               {open === -1 ? (
                 call
               ) : (
@@ -193,13 +193,13 @@ export function Session({ text }: { text: string }) {
           )
         }
 
-        const result = line.match(/^(\s+)(\u23bf )?(.*)$/)
+        const result = line.match(/^(\s+)(\u23BF )?(.*)$/u)
         if (result) {
           const [, indent, elbow, rest] = result
           return (
             <div key={i}>
               {indent}
-              <span className="text-line select-none">{elbow ? '\u23bf ' : ''}</span>
+              <span className="text-line select-none">{elbow ? '\u23BF ' : ''}</span>
               <Line text={rest} inline />
             </div>
           )
@@ -213,7 +213,7 @@ export function Session({ text }: { text: string }) {
 
 export function Term({ text }: { text: string }) {
   return (
-    <pre className="leading-[1.75]">
+    <pre className="leading-code">
       {text.split('\n').map((line, i) => (
         <Line key={`${i}-${line}`} text={line} />
       ))}
