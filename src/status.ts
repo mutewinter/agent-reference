@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { pathExists, pathKind, resolveReferencePath } from './fs-utils.ts';
 import { manifestReferencePath, resolvePackagePath, resolveSubpath, resolveStoreDir } from './git.ts';
 import {
@@ -118,8 +116,7 @@ export async function getStatusReport(
     new Set((config?.packages ?? []).filter((entry) => entry.directory).map((entry) => entry.name)),
     configPackages.drift,
     config,
-    storeDir,
-    loadedConfig?.path ?? null
+    storeDir
   );
 
   return {
@@ -152,15 +149,16 @@ async function collectProblems(
   directoryPinned: Set<string>,
   drift: PackageDrift[],
   config: AgentReferenceConfig | undefined,
-  storeDir: string,
-  configPath: string | null
+  storeDir: string
 ): Promise<AgentReferenceProblem[]> {
   const problems: AgentReferenceProblem[] = [];
-  const configFile = configPath ? path.basename(configPath) : 'agent-reference.json';
   const gitByName = new Map((config?.git ?? []).map((entry) => [entry.name, entry]));
 
   for (const entry of entries) {
     const reference = `${entry.kind}:${entry.name}`;
+    // The edit belongs in the file this entry was declared in, which is not always the
+    // committed one; a local entry wins by name, so an edit to the wrong file changes nothing.
+    const configFile = configFileFor(entry.scope ?? 'shared');
 
     if (entry.directoryMissing) {
       const configured = gitByName.get(entry.name);
@@ -190,7 +188,8 @@ async function collectProblems(
         severity: 'warning',
         summary: `${entry.name} is pinned to ${drifted.pinned}, but this project installs ${drifted.installed.join(' and ')} (${drifted.importers.join(', ')}).`,
         fix: `If the pin is deliberate, say so in packages.${entry.name}.description. Otherwise set packages.${entry.name} in ${configFile} to ${drifted.installed[0]} and run ${getCommand(entry.name)}.`,
-        configPatch: { packages: { [entry.name]: drifted.installed[0] } }
+        configPatch: { packages: { [entry.name]: drifted.installed[0] } },
+        configFile
       });
     }
 
@@ -200,7 +199,8 @@ async function collectProblems(
         severity: 'error',
         summary: `${entry.name}@${entry.currentVersion} has no matching release commit, so the default branch was checked out. The source at this path is NOT version ${entry.currentVersion}.`,
         fix: pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile),
-        configPatch: pinPatch(entry)
+        configPatch: pinPatch(entry),
+        configFile
       });
       continue;
     }
@@ -211,7 +211,8 @@ async function collectProblems(
         severity: 'warning',
         summary: `${entry.name}@${entry.currentVersion} was checked out from a plausible ref, but no package.json confirmed the version.`,
         fix: `Spot-check ${entry.path}/package.json. If it is wrong, ${pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile)}`,
-        configPatch: pinPatch(entry)
+        configPatch: pinPatch(entry),
+        configFile
       });
     }
   }

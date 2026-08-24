@@ -39,7 +39,8 @@ export function unresolvedProblem(
     severity: 'error',
     summary: `${failure.name}@${failure.version} could not be materialized. ${failure.detail}`.trim(),
     fix: unresolvedFix(failure, storeDir, configFile),
-    configPatch: unresolvedPatch(failure)
+    configPatch: unresolvedPatch(failure),
+    configFile
   };
 }
 

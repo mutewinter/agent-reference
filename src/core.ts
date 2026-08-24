@@ -1,5 +1,3 @@
-import path from 'node:path';
-
 import { DEFAULT_CONFIG_FILE } from './config.ts';
 import {
   ensureDependencyWorktree,
@@ -109,7 +107,6 @@ export async function cloneReferences(
   }
 
   const manifestPath = await writeManifest(project.projectRoot, worktreeOptions.storeDir, cloned, clonedGit, unresolved);
-  const configFile = path.basename(loadedConfig?.path ?? DEFAULT_CONFIG_FILE);
 
   return {
     cloned,
@@ -119,7 +116,10 @@ export async function cloneReferences(
     unresolved,
     // Reported here as well as in `status`: an agent acts on the output it just got back.
     problems: [
-      ...unresolved.map((failure) => unresolvedProblem(failure, worktreeOptions.storeDir, configFile)),
+      ...unresolved.map((failure) =>
+        // The file this package was declared in, not always the committed one.
+        unresolvedProblem(failure, worktreeOptions.storeDir, configFileFor(overrides.get(failure.name)?.scope ?? 'shared'))
+      ),
       ...gitFailures,
       ...gitReferences
         .map((reference) => {

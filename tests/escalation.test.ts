@@ -156,6 +156,31 @@ test('status reports a default-branch fallback as an error with a pin fix', asyn
   assert.match(problem?.fix ?? '', /tag --list '\*9\.9\.9\*'/);
 });
 
+test('a fix names the file the reference was actually declared in', async () => {
+  const { projectRoot, storeDir } = await scenario('local-scope', {});
+  await fs.rm(path.join(projectRoot, 'agent-reference.json'));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.local.json'),
+    JSON.stringify({ packages: { orphan: '1.0.0' } })
+  );
+
+  const clone = await cloneReferences(projectRoot, {
+    metadataMap: { 'orphan@1.0.0': { name: 'orphan', version: '1.0.0' } },
+    storeDir
+  });
+
+  // Sending the agent to the committed file is a leak and a no-op both: the local entry wins
+  // by name, so the edit changes nothing and the problem returns on the next run.
+  const problem = clone.problems.find((candidate) => candidate.reference === 'package:orphan');
+  assert.match(problem?.fix ?? '', /agent-reference\.local\.json/);
+  assert.doesNotMatch(problem?.fix ?? '', /in agent-reference\.json/);
+
+  const report = await getStatusReport(projectRoot, { storeDir });
+  const reported = report.problems.find((candidate) => candidate.reference === 'package:orphan');
+  assert.match(reported?.fix ?? '', /agent-reference\.local\.json/);
+  assert.equal(reported?.configFile, 'agent-reference.local.json');
+});
+
 test('one unreachable git reference does not discard the packages that cloned', async () => {
   const { projectRoot, storeDir, tempDir } = await scenario('git-failure', {});
   const source = await createPackageRepo(tempDir, 'tiny-invariant', '1.3.1');

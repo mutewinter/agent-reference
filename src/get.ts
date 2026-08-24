@@ -293,9 +293,13 @@ async function materializeToResult(
     versionSource: PackageVersionSource;
   }
 ): Promise<GetReferenceResult> {
+  // An edit has to be made in the file this entry is in. A package declared in the local
+  // config sent the agent to the committed one, where the edit is both a leak and a no-op:
+  // the local entry wins by name, so the same problem comes back on the next run.
+  const configFile = configFileFor(options.override?.scope ?? 'shared');
   const outcome = await materializePackage(dependency, options.override, registryOptions, worktreeOptions);
   if ('failure' in outcome) {
-    const problem = unresolvedProblem(outcome.failure, worktreeOptions.storeDir, 'agent-reference.json');
+    const problem = unresolvedProblem(outcome.failure, worktreeOptions.storeDir, configFile);
     throw new Error(`${problem.summary}\nfix: ${problem.fix}`);
   }
 
@@ -326,7 +330,8 @@ async function materializeToResult(
       outcome.result,
       options.versionSource,
       worktreeOptions.storeDir,
-      Boolean(options.override?.directory)
+      Boolean(options.override?.directory),
+      configFile
     )
   };
 }
@@ -343,15 +348,17 @@ function resultProblem(
   result: GitWorktreeResult,
   versionSource: PackageVersionSource,
   storeDir: string,
-  directoryPinned: boolean
+  directoryPinned: boolean,
+  configFile: string
 ): AgentReferenceProblem | null {
   if (result.confidence === 'fallback') {
     return {
       reference: `package:${name}`,
       severity: 'error',
       summary: `No release commit matched ${name}@${version}, so the default branch was checked out. The source at this path is NOT version ${version}.`,
-      fix: pinFix(name, version, result.metadata.repositoryUrl, storeDir, 'agent-reference.json'),
-      configPatch: { packages: { [name]: { version, ref: '<commit-or-tag>' } } }
+      fix: pinFix(name, version, result.metadata.repositoryUrl, storeDir, configFile),
+      configPatch: { packages: { [name]: { version, ref: '<commit-or-tag>' } } },
+      configFile
     };
   }
 
@@ -370,8 +377,9 @@ function resultProblem(
       reference: `package:${name}`,
       severity: 'warning',
       summary: `The ref for ${name}@${version} looks right, but no package.json confirmed the version. The path is ${wherePath}.`,
-      fix: `Spot-check the source before trusting it as ${version}. If it is wrong, ${pinFix(name, version, result.metadata.repositoryUrl, storeDir, 'agent-reference.json')}`,
-      configPatch: null
+      fix: `Spot-check the source before trusting it as ${version}. If it is wrong, ${pinFix(name, version, result.metadata.repositoryUrl, storeDir, configFile)}`,
+      configPatch: null,
+      configFile
     };
   }
 
