@@ -60,8 +60,10 @@ export const samples = {
     lang: 'jsonc',
     code: `{
   "packages": {
-    "ai": "7.0.78",
-    "electron": "41.0.2"
+    "npm:ai": {
+      "version": "7.0.78",
+      "description": "Read its docs/ and changelog before writing v7; v6 examples still dominate search results"
+    }
   }
 }`,
   },
@@ -114,16 +116,14 @@ export const samples = {
     lang: 'jsonc',
     code: `{
   "git": {
-    "pi": "github:earendil-works/pi",
-    "codex": {
-      "repository": "github:openai/codex",
-      "ref": "v0.20.0",
-      "description": "Pinned: we match this version's tool schema"
-    }
+    "pi": "github:earendil-works/pi"
   },
   "packages": {
-    "ai": "7.0.78",
-    "electron": "41.0.2"
+    "npm:ai": "7.0.78",
+    "electron": {
+      "version": "41.0.2",
+      "description": "Pinned: we ship against this build's native module ABI"
+    }
   },
   // Relative, and inside this repo. A machine path belongs in
   // agent-reference.local.json, which merges over this file.
@@ -135,7 +135,14 @@ export const samples = {
     {
       "name": "coding harnesses",
       "description": "How other agents solve the same problems",
-      "git": ["github:earendil-works/pi", "github:openai/codex"]
+      "git": [
+        "github:earendil-works/pi",
+        {
+          "repository": "github:openai/codex",
+          "ref": "v0.20.0",
+          "description": "Pinned: we match this version's tool schema"
+        }
+      ]
     }
   ]
 }`,
@@ -190,11 +197,12 @@ export const terminals = {
   \u23bf Read 115 lines`,
 
   pinned: `# your agent runs this, not you
-agent-reference get electron
-~/.agent-reference/src/\u2026/electron/electron/22bbbc9f
-
 agent-reference get ai
-~/.agent-reference/src/\u2026/vercel/ai/5b64c390/packages/ai`,
+~/.agent-reference/src/\u2026/vercel/ai/5b64c390/packages/ai
+
+# nothing declares electron; the lockfile is the whole answer
+agent-reference get electron
+~/.agent-reference/src/\u2026/electron/electron/22bbbc9f`,
 
   set: `$ codex "Implement context compaction based on how
   other coding harnesses do it"
@@ -208,14 +216,16 @@ agent-reference get ai
   complex: `# your agent runs this, not you
 agent-reference status
 agent-reference.json (shared)
-  ai         package \u00b7 ready \u00b7 7.0.78 verified
-  electron   package \u00b7 declared \u00b7 41.0.2
+  ai         npm \u00b7 ready \u00b7 7.0.78 verified
+  electron   npm \u00b7 declared \u00b7 41.0.2
   decisions  folder \u00b7 ready \u00b7 ./docs/decisions
   style      file \u00b7 ready \u00b7 ./docs/style-guide.md
 
   How other agents solve the same problems
     pi     git \u00b7 ready \u00b7 ~/.agent-reference/src/\u2026/pi/dcd46192
-    codex  git \u00b7 declared \u00b7 github:openai/codex`,
+    codex  git \u00b7 declared \u00b7 github:openai/codex
+
+package versions read from pnpm-lock.yaml`,
 }
 
 /** The examples section, in the order somebody meets these problems. */
@@ -234,8 +244,8 @@ export const examples = [
     sample: 'upstream',
   },
   {
-    title: 'Exact dependency versions',
-    note: 'Your agent reads the version this project installs, from the repository rather than from build output.',
+    title: 'Dependencies, at the version you install',
+    note: 'Your agent reads the version this project installs, from the repository rather than from build output. No entry is needed for that. Declare one when there is something about a dependency worth remembering.',
     file: 'agent-reference.json',
     sample: 'pinned',
     terminal: 'pinned',

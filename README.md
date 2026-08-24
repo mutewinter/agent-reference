@@ -135,29 +135,33 @@ or any git remote.
 }
 ```
 
-### Exact dependency versions
+### Dependencies, at the version you install
 
 Your agent reads the version this project installs, from the repository rather than from
-build output.
+build output. No entry is needed for that. Declare one when there is something about a
+dependency worth remembering.
 
 `agent-reference.json`
 
 ```jsonc
 {
   "packages": {
-    "ai": "7.0.78",
-    "electron": "41.0.2"
+    "npm:ai": {
+      "version": "7.0.78",
+      "description": "Read its docs/ and changelog before writing v7; v6 examples still dominate search results"
+    }
   }
 }
 ```
 
 ```text
 # your agent runs this, not you
-agent-reference get electron
-~/.agent-reference/src/…/electron/electron/22bbbc9f
-
 agent-reference get ai
 ~/.agent-reference/src/…/vercel/ai/5b64c390/packages/ai
+
+# nothing declares electron; the lockfile is the whole answer
+agent-reference get electron
+~/.agent-reference/src/…/electron/electron/22bbbc9f
 ```
 
 ### Skills from another project
@@ -251,16 +255,14 @@ Every kind at once, and what your agent sees when it asks.
 ```jsonc
 {
   "git": {
-    "pi": "github:earendil-works/pi",
-    "codex": {
-      "repository": "github:openai/codex",
-      "ref": "v0.20.0",
-      "description": "Pinned: we match this version's tool schema"
-    }
+    "pi": "github:earendil-works/pi"
   },
   "packages": {
-    "ai": "7.0.78",
-    "electron": "41.0.2"
+    "npm:ai": "7.0.78",
+    "electron": {
+      "version": "41.0.2",
+      "description": "Pinned: we ship against this build's native module ABI"
+    }
   },
   // Relative, and inside this repo. A machine path belongs in
   // agent-reference.local.json, which merges over this file.
@@ -272,7 +274,14 @@ Every kind at once, and what your agent sees when it asks.
     {
       "name": "coding harnesses",
       "description": "How other agents solve the same problems",
-      "git": ["github:earendil-works/pi", "github:openai/codex"]
+      "git": [
+        "github:earendil-works/pi",
+        {
+          "repository": "github:openai/codex",
+          "ref": "v0.20.0",
+          "description": "Pinned: we match this version's tool schema"
+        }
+      ]
     }
   ]
 }
@@ -282,14 +291,16 @@ Every kind at once, and what your agent sees when it asks.
 # your agent runs this, not you
 agent-reference status
 agent-reference.json (shared)
-  ai         package · ready · 7.0.78 verified
-  electron   package · declared · 41.0.2
+  ai         npm · ready · 7.0.78 verified
+  electron   npm · declared · 41.0.2
   decisions  folder · ready · ./docs/decisions
   style      file · ready · ./docs/style-guide.md
 
   How other agents solve the same problems
     pi     git · ready · ~/.agent-reference/src/…/pi/dcd46192
     codex  git · declared · github:openai/codex
+
+package versions read from pnpm-lock.yaml
 ```
 <!-- /generated -->
 
@@ -324,12 +335,13 @@ Commands:
   get       Materialize one reference and print its path. A spec is a configured
             reference name, a dependency name (version from the lockfile), a
             name@version, github:owner/repo, owner/repo, a git URL, or file:../repo.
-            A package may carry an ecosystem prefix (npm:zod@3.22.0); npm is
-            the default and the only one resolved today. Works with no config
-            and no project at all.
-  versions  Report every version of a package this project installs, and which
-            workspace package installs it. Reads only; never fetches, and an
-            unknown ecosystem or an absent package is an answer, not an error.
+            A package may carry an ecosystem prefix (npm:zod@3.22.0), in a spec
+            here and as a key in the config alike; npm is the default and the
+            only one resolved today. Works with no config and no project at all.
+  versions  Report every version of a package this project installs, which
+            workspace package installs it, and the lockfile the numbers came out
+            of. Reads only; never fetches, and an unknown ecosystem or an absent
+            package is an answer, not an error.
   status    Report every configured reference: scope, state, and absolute path.
             Declared-but-not-fetched is the normal state, not a problem.
   clone     Bulk prefetch every configured reference, for CI or a long flight.
@@ -451,6 +463,13 @@ resolver could not find, a description, or a place in a set, and it always carri
 version. Ranges, dist-tags, and a "follow the lockfile" mode are all rejected, because a
 config entry has to mean the same thing on every machine and next month; `status` reports a
 pin that has fallen behind what the project installs instead of silently following it.
+
+A `packages` key is the coordinate `get` prints, with the version left out because the value
+holds it: `"zod"` and `"npm:zod"` are the same entry. The prefix names the registry the
+package name lives in, not the tool that installs it, so a pnpm, Yarn, or Bun project writes
+`npm:` like everyone else. Which package manager this project actually uses is read from the
+lockfile rather than declared, and `status` names that lockfile once at the end of its
+output, because a version means nothing without the file it was checked against.
 
 A set is a labeled list: a description saying what the collection is for, with members
 declared inline the way a human would paste them. Member names derive from the path or
