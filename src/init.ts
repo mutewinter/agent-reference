@@ -165,18 +165,34 @@ async function findInstructionFiles(projectRoot: string): Promise<InstructionFil
   return found;
 }
 
-async function mentionsAgentReference(target: string): Promise<boolean> {
+/**
+ * Bounded the way the transcript count is, and for the same reason: `.cursor/rules` is a
+ * directory, a symlink inside one points anywhere, and `init` describes a project rather
+ * than searching a machine. A rule that names the tool is near the top or it does not count.
+ */
+const INSTRUCTION_SCAN_DEPTH = 3;
+const INSTRUCTION_SCAN_FILES = 200;
+
+async function mentionsAgentReference(
+  target: string,
+  depth = INSTRUCTION_SCAN_DEPTH,
+  budget = { left: INSTRUCTION_SCAN_FILES }
+): Promise<boolean> {
+  if (depth === 0 || budget.left <= 0) return false;
+
   const stat = await fs.stat(target).catch(() => null);
   if (!stat) return false;
 
   if (stat.isDirectory()) {
     const children = await fs.readdir(target).catch(() => []);
     for (const child of children) {
-      if (await mentionsAgentReference(path.join(target, child))) return true;
+      if (budget.left <= 0) break;
+      if (await mentionsAgentReference(path.join(target, child), depth - 1, budget)) return true;
     }
     return false;
   }
 
+  budget.left -= 1;
   const contents = await fs.readFile(target, 'utf8').catch(() => '');
   return contents.includes('agent-reference');
 }

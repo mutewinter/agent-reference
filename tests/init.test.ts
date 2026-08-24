@@ -66,6 +66,25 @@ test('an instruction file that already names the tool is left alone', async () =
   assert.match(formatInitBrief(survey, PLAIN), /AGENTS\.md already mentions agent-reference\. Leave it alone\./);
 });
 
+test('a rules directory is read to a bound, not walked wherever it points', async () => {
+  const { projectRoot, home } = await workspace('rules-dir');
+  const rules = path.join(projectRoot, '.cursor', 'rules');
+  await fs.mkdir(rules, { recursive: true });
+  await fs.writeFile(path.join(rules, 'style.md'), 'Prefer small functions.\n');
+  // A symlink out of the project is the shape that turned a survey into a filesystem walk.
+  await fs.symlink(home, path.join(rules, 'escape'));
+
+  const survey = await survey_(projectRoot, home);
+  const found = survey.instructionFiles.find((file) => file.file === '.cursor/rules');
+
+  assert.equal(found?.mentionsAgentReference, false);
+
+  // A rule near the top still counts, so the bound costs nothing a project would notice.
+  await fs.writeFile(path.join(rules, 'refs.md'), 'Use agent-reference get for upstream source.\n');
+  const again = await survey_(projectRoot, home);
+  assert.equal(again.instructionFiles.find((file) => file.file === '.cursor/rules')?.mentionsAgentReference, true);
+});
+
 test('the gitignore step appears only while the local config is still committable', async () => {
   const { projectRoot, home } = await workspace('gitignore');
   await runGit(['init', '-q', projectRoot]);
