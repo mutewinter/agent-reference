@@ -91,9 +91,17 @@ export function committedPathLeaks(config: AgentReferenceConfig): CommittedPathL
 
 type PathVerdict = 'machine' | 'escapes' | 'portable';
 
+/**
+ * `C:\...` and `\\server\share` are absolute on Windows and nowhere else, so
+ * `path.isAbsolute` calls them relative on the Linux host running CI. Spelled out here
+ * because the check has to reach the same verdict wherever `validate` runs, or a machine
+ * path committed from Windows passes the gate that exists to catch it.
+ */
+const WINDOWS_ABSOLUTE = /^(?:[A-Za-z]:[\\/]|\\\\)/;
+
 function classifyConfiguredPath(value: string): PathVerdict {
   if (value.startsWith('~')) return 'machine';
-  if (path.isAbsolute(value)) return 'machine';
+  if (path.isAbsolute(value) || WINDOWS_ABSOLUTE.test(value)) return 'machine';
 
   const normalized = value.replace(/\\/g, '/');
   if (normalized === '..' || normalized.startsWith('../')) return 'escapes';

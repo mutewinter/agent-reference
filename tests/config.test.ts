@@ -249,6 +249,26 @@ test('a local repository in the committed config leaks a machine path the same w
   assert.doesNotMatch([...report.errors, ...report.warnings].join('\n'), /git\.upstream/);
 });
 
+test('a windows machine path is a leak wherever validate runs', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-windows-leak-test-'));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({
+      paths: { ui: 'C:\\Users\\somebody\\code\\company-ui', share: '\\\\fileserver\\team\\docs' },
+      git: { vendored: 'file:D:/checkouts/vendor' }
+    })
+  );
+
+  // path.isAbsolute calls all three relative on POSIX, so a path committed from Windows
+  // sailed through the Linux CI run that exists to catch exactly this.
+  const report = await validateConfig(projectRoot);
+
+  assert.equal(report.valid, false);
+  assert.match(report.errors.join('\n'), /paths\.ui puts the machine path C:/);
+  assert.match(report.errors.join('\n'), /paths\.share puts the machine path/);
+  assert.match(report.errors.join('\n'), /git\.vendored points at the machine path/);
+});
+
 test('cacheDir is a leak in the committed file and unremarkable in the local one', async () => {
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-cachedir-test-'));
   const committed = path.join(projectRoot, 'agent-reference.json');
