@@ -8,8 +8,8 @@
     "#/*": "./src/*"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
-    "build": "vite build",
+    "dev": "node ./cli-deps.mjs && vite dev --port 3000",
+    "build": "node ./cli-deps.mjs && vite build",
     "preview": "pnpm run build && vite preview",
     "deploy": "pnpm run build && wrangler deploy",
     "generate-routes": "tsr generate",
