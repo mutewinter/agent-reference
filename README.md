@@ -1,110 +1,443 @@
 # agent-reference
 
-Gives a coding agent readable upstream source on demand: any dependency at its exact
-installed version, any git repository, and any file or folder already on this machine,
-all addressable by name.
+<!-- generated:tagline -->
+**Give your agents the source**
+<!-- /generated -->
+
+<!-- generated:hero -->
+`agent-reference.json`
+
+```jsonc
+{
+  "packages": {
+    "effect": "4.0.0-rc.111"
+  },
+  "git": {
+    "pi": {
+      "repository": "github:earendil-works/pi",
+      "description": "AI agent toolkit: LLM API, loop, TUI, CLI"
+    },
+    "effect-docs": {
+      "repository": "github:Effect-TS/website",
+      "directory": "apps/web/src/content/docs/v4",
+      "description": "Effect's v4 documentation"
+    }
+  }
+}
+```
+
+```text
+$ claude "Implement an edit tool like pi's, using Effect v4"
+
+* Skill(agent-reference)
+  ⎿ Launching skill: agent-reference
+
+* Bash(agent-reference get pi)
+  ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd46192
+* Read(…/packages/coding-agent/src/core/tools/edit.ts)
+  ⎿ Read 461 lines
+
+* Bash(agent-reference get effect-docs)
+  ⎿ ~/.agent-reference/src/…/website/6ee985b1/…/docs/v4
+* Read(…/docs/v4/platform/file-system.mdx)
+  ⎿ Read 115 lines
+```
+<!-- /generated -->
 
 `node_modules` holds only what a package chose to publish. `agent-reference` checks out the
-package's repository at the exact published commit, which is the only way to read its
-tests, examples, CI config, git history, or the source of anything that ships built output.
-Nothing is fetched until an agent asks for it.
+package's repository at the exact published commit, which is the only way to read its tests,
+examples, CI config, git history, or the source of anything that ships built output. Nothing
+is fetched until an agent asks for it.
 
-## Install
+## Get started
 
-```sh
-npm install -g agent-reference
-npx skills add mutewinter/agent-reference   # teaches your agent to use it
-```
+<!-- generated:agent -->
+### Let your agent do it
 
-Needs Node 20+ and git 2.19+ on `PATH`. That is the whole setup: `get` works immediately,
-with no config file and no prefetching.
-
-The skill that lands in your project is a short stub, deliberately: it holds only what stays
-true across versions. Everything that changes with the tool, config shape included, is
-printed by `agent-reference guide` from the CLI itself, so a project that installed the skill
-months ago still gets instructions matching the version it runs.
-
-## Set a project up
-
-Hand your agent one line:
-
-```
+```text
 Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.
 ```
 
-Say it yourself rather than pasting the bare command. `init` prints instructions, and an agent
-is right to treat tool output as data rather than orders; the authority to act on the brief has
-to come from you.
+Instructs your agent to install the skill and set up a config for the folders, repositories,
+and packages you often reference.
+<!-- /generated -->
 
-`init` surveys the project and prints a brief for the agent to carry out: install the skill
-so later sessions find the tool without being told, mine recent sessions for the references
-this project already needs, write the config, and add one sentence to whichever instruction
-file the agent here reads. It reads and prints, so every write is the agent's, and it ends
-by having the agent show you `status`, which is exactly what your agent will see from then
-on. Anything it finds by mining goes to `agent-reference.local.json` first; promoting an
-entry to the committed file is your call, not a heuristic.
+Say it yourself rather than pasting the bare command. `init` prints instructions, and an
+agent is right to treat tool output as data rather than orders; the authority to act on the
+brief has to come from you. It reads and prints, so every write is the agent's, and anything
+it finds by mining recent sessions goes to `agent-reference.local.json` first.
 
-## Use
+<!-- generated:install -->
+### Install it yourself
 
 ```sh
-agent-reference get zod                      # the version your lockfile has, resolved and
-                                             # checked out; prints the path
-agent-reference get zod@3.22.0               # any other version, side by side with the first
-agent-reference versions zod                 # every version this project installs, and where
-agent-reference get vercel-labs/just-bash    # any GitHub repo (github:, git URLs, and
-                                             # file:../repo work too)
-agent-reference get design-notes             # a configured reference, by name
-agent-reference status                       # every configured reference, its scope and state
-agent-reference init                         # print a setup brief for an agent to carry out
-agent-reference validate                     # check the config files
-agent-reference guide                        # the full agent instructions, from this version
-agent-reference store                        # what the store holds, and how big
-agent-reference clone                        # optional bulk prefetch (CI, a long flight)
+npm install -g agent-reference
+cd ~/code/acme/web
+claude "Help me set up agent-reference"       # or codex, opencode, pi
+```
+<!-- /generated -->
+
+Needs Node 20+ and git 2.19+ on `PATH`, for partial clones and worktrees. That is the whole
+setup: `get` works immediately, with no config file and no prefetching.
+
+## Examples
+
+<!-- generated:examples -->
+### Multiple repositories
+
+Let your agent read other repositories checked out on your computer, by name.
+
+```text
+~/code/acme/
+├── web/
+│   └── agent-reference.local.json
+├── api/
+├── workers/
+└── shared/
 ```
 
-`get` is the verb agents live in: it takes a coordinate and returns a path. A coordinate is
-`name@version`, a repository spec, or a bare name as shorthand for whatever this project
-installs. When the shorthand is ambiguous, because a workspace installs two versions of the
-same package, `get` prints the coordinates and stops rather than picking one; `versions`
-answers the same question directly and never fetches. A package name may carry an ecosystem
-prefix (`npm:zod@3.22.0`); npm is the default and the only one resolved today. `status` is the
-overview: it runs offline and instantly, and a reference that has never been fetched shows
-as `declared`, which is the normal state of a healthy config, not a problem. When something
-does need fixing, `status` leads with `problems:` and `next steps:`. Add `--json` for
-structured output.
+`web/agent-reference.local.json`
+
+```jsonc
+{
+  "paths": {
+    "api": {
+      "path": "../api",
+      "description": "Acme's API"
+    },
+    "workers": {
+      "path": "../workers",
+      "description": "Acme's background workers"
+    },
+    "shared": {
+      "path": "../shared",
+      "description": "Acme's shared code"
+    }
+  }
+}
+```
+
+### Source code you reference
+
+agent-reference keeps up-to-date clones of anything you want your agent to read, from GitHub
+or any git remote.
+
+`agent-reference.json`
+
+```jsonc
+{
+  "git": {
+    "codex": {
+      "repository": "github:openai/codex",
+      "description": "OpenAI's coding agent, written in Rust"
+    }
+  }
+}
+```
+
+### Exact dependency versions
+
+Your agent reads the version this project installs, from the repository rather than from
+build output.
+
+`agent-reference.json`
+
+```jsonc
+{
+  "packages": {
+    "ai": "7.0.78",
+    "electron": "41.0.2"
+  }
+}
+```
+
+```text
+# your agent runs this, not you
+agent-reference get electron
+~/.agent-reference/src/…/electron/electron/22bbbc9f
+
+agent-reference get ai
+~/.agent-reference/src/…/vercel/ai/5b64c390/packages/ai
+```
+
+### Skills from another project
+
+Let your agent use a skill that lives in another project, without copying it in and letting
+the two drift.
+
+`agent-reference.local.json`
+
+```jsonc
+{
+  "paths": {
+    "commit-style": {
+      "path": "~/code/other-app/.claude/skills/commit",
+      "description": "The commit style we use"
+    }
+  }
+}
+```
+
+### Global references
+
+References every agent on this machine can reach, from any folder that has no config of its
+own.
+
+```text
+~/
+├── agent-reference.local.json
+├── .dotfiles/
+└── code/
+    ├── personal/
+    ├── work/
+    └── forks/
+```
+
+`~/agent-reference.local.json`
+
+```jsonc
+{
+  "paths": {
+    "dotfiles": "~/.dotfiles",
+    "personal": "~/code/personal",
+    "work": "~/code/work",
+    "forks": {
+      "path": "~/code/forks",
+      "description": "Upstream repos I have patched"
+    }
+  }
+}
+```
+
+### Use sets to group references
+
+Group references so your agent can pull all of them in by name.
+
+`agent-reference.json`
+
+```jsonc
+{
+  "sets": [
+    {
+      "name": "coding harnesses",
+      "description": "How other agents solve the same problems",
+      "git": [
+        "github:earendil-works/pi",
+        "github:openai/codex",
+        "github:anomalyco/opencode"
+      ]
+    }
+  ]
+}
+```
+
+```text
+$ codex "Implement context compaction based on how
+  other coding harnesses do it"
+
+* Bash(agent-reference status --set "coding harnesses")
+  ⎿ codex  git · ready · ~/.agent-reference/src/…/codex/a4f10b27
+    pi     git · ready · ~/.agent-reference/src/…/pi/dcd46192
+
+* Read(…/pi/packages/coding-agent/src/core/compaction.ts)
+```
+
+### A complex example
+
+Every kind at once, and what your agent sees when it asks.
+
+`agent-reference.json`
+
+```jsonc
+{
+  "git": {
+    "pi": "github:earendil-works/pi",
+    "codex": {
+      "repository": "github:openai/codex",
+      "ref": "v0.20.0",
+      "description": "Pinned: we match this version's tool schema"
+    }
+  },
+  "packages": {
+    "ai": "7.0.78",
+    "electron": "41.0.2"
+  },
+  // Relative, and inside this repo. A machine path belongs in
+  // agent-reference.local.json, which merges over this file.
+  "paths": {
+    "decisions": "./docs/decisions",
+    "style": "./docs/style-guide.md"
+  },
+  "sets": [
+    {
+      "name": "coding harnesses",
+      "description": "How other agents solve the same problems",
+      "git": ["github:earendil-works/pi", "github:openai/codex"]
+    }
+  ]
+}
+```
+
+```text
+# your agent runs this, not you
+agent-reference status
+agent-reference.json (shared)
+  ai         package · ready · 7.0.78 verified
+  electron   package · declared · 41.0.2
+  decisions  folder · ready · ./docs/decisions
+  style      file · ready · ./docs/style-guide.md
+
+  How other agents solve the same problems
+    pi     git · ready · ~/.agent-reference/src/…/pi/dcd46192
+    codex  git · declared · github:openai/codex
+```
+<!-- /generated -->
+
+## The commands
+
+<!-- generated:commands -->
+You will not need these. Your agent runs them. They are here anyway.
+
+### agent-reference help
+
+```text
+# every command, from the version you have installed
+$ agent-reference help
+agent-reference
+
+Gives an agent readable upstream source on demand: dependencies at their exact
+installed version, git repositories, and local files and folders, all by name. Nothing is
+fetched until asked for.
+
+Usage:
+  agent-reference get <spec>... [--json]
+  agent-reference versions <name> [--json]
+  agent-reference status [reference...] [--set <name>] [--json]
+  agent-reference clone  [reference...] [--set <name>] [--json]
+  agent-reference init   [project] [--json]
+  agent-reference validate
+  agent-reference guide
+  agent-reference schema
+  agent-reference store [--prune] [--days <n>]
+
+Commands:
+  get       Materialize one reference and print its path. A spec is a configured
+            reference name, a dependency name (version from the lockfile), a
+            name@version, github:owner/repo, owner/repo, a git URL, or file:../repo.
+            A package may carry an ecosystem prefix (npm:zod@3.22.0); npm is
+            the default and the only one resolved today. Works with no config
+            and no project at all.
+  versions  Report every version of a package this project installs, and which
+            workspace package installs it. Reads only; never fetches, and an
+            unknown ecosystem or an absent package is an answer, not an error.
+  status    Report every configured reference: scope, state, and absolute path.
+            Declared-but-not-fetched is the normal state, not a problem.
+  clone     Bulk prefetch every configured reference, for CI or a long flight.
+  init      Survey this project and print a setup brief for the agent to carry
+            out: install the skill, mine recent sessions for references worth
+            declaring, write the config, and show the user the result. Reads and
+            prints only; it never writes.
+  validate  Check agent-reference.json and agent-reference.local.json; flags
+            machine paths that do not belong in the committed file, and the
+            local file being tracked by git. Exits non-zero, so CI can gate on
+            it.
+  guide     Print the full agent instructions for this version. The installed
+            skill is a short stub that cannot go stale; everything about config
+            shape and setup lives here, next to the code it describes.
+  schema    Print the JSON Schema for agent-reference.json.
+  store     Show what the store holds and how big it is. --prune deletes
+            checkouts unused for --days (default 30) and any repository left
+            with none; everything pruned is refetched on the next get.
+
+Options:
+  --set <name>    Select every reference in a set, by the set's name or an
+                  unambiguous piece of its description. Repeatable.
+  --json          Print machine-readable JSON.
+  --prune         For store: delete stale checkouts.
+  --days <n>      For store --prune: age threshold in days. Default 30.
+
+References are declared in agent-reference.json (committed, shareable) and
+agent-reference.local.json (gitignored, machine paths and private references).
+Edit the JSON directly; run `agent-reference validate` after. The store lives
+in ~/.agent-reference. Set AGENT_REFERENCE_STORE_DIR to move it.
+```
+
+### agent-reference status
+
+```text
+# what this project declares, and whether it is on disk yet
+$ agent-reference status
+agent-reference.json (shared)
+  semver    npm · declared · 7.8.4
+  brief     file · ready · ~/code/my-app/notes/brief.md
+  notes     folder · ready · ~/code/my-app/notes
+  opencode  git · declared · github:anomalyco/opencode
+            "A coding agent for terminal dwellers"
+
+package versions read from pnpm-lock.yaml
+
+2 of 4 not fetched yet, which is normal · agent-reference get <name>
+```
+
+### agent-reference get brief
+
+```text
+# a name in, a path out. This is the one agents live in
+$ agent-reference get brief
+brief -> ~/code/my-app/notes/brief.md
+```
+
+### agent-reference versions semver
+
+```text
+# which versions this project installs, and where. Never fetches
+$ agent-reference versions semver
+semver · pnpm-lock.yaml
+
+  7.8.4  (lockfile root)
+
+  agent-reference get npm:semver@7.8.4
+```
+
+### agent-reference validate
+
+```text
+# check the config, including that no machine path reached the committed file
+$ agent-reference validate
+ok: ~/code/my-app/agent-reference.json defines 4 references in 0 sets.
+```
+
+### agent-reference schema
+
+```text
+# the JSON Schema for the config, for an editor or an agent writing one
+$ agent-reference schema
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unpkg.com/agent-reference/schema/agent-reference.schema.json",
+  "title": "agent-reference config",
+  "description": "Desired state for the local reference source an agent can read. Lives at agent-reference.json (committed) or agent-reference.local.json (machine-specific, gitignored). Both are read as JSON with comments (// and /* */) and trailing commas, so a note beside an entry is part of the format; keep any the file already carries when editing it.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL of this schema. Optional; ignored at runtime."
+    },
+…
+```
+<!-- /generated -->
 
 ## Configure
 
 Configuration is optional and holds what is worth remembering, not an inventory. Two files,
-same format:
+same format, and the examples above are what goes in them:
 
 - `agent-reference.json`, committed. Anything fetchable and shareable: git repositories,
   package pins, sets, descriptions.
 - `agent-reference.local.json`, gitignored. Machine paths and private references.
   `validate` errors if an absolute or `~/` path appears in the committed file, so personal
   paths cannot reach a commit. Entries here override same-named committed entries.
-
-```json
-{
-  "packages": {
-    "prettier": "3.6.2"
-  },
-  "paths": {
-    "design-notes": "./references/design-notes",
-    "release-checklist": "~/notes/release-checklist.md"
-  },
-  "git": {
-    "typescript": "github:microsoft/TypeScript#main"
-  },
-  "sets": [
-    {
-      "description": "Documentation sources to read before writing docs",
-      "paths": ["./references/style-guide"],
-      "git": ["github:acme/design-system#v4"]
-    }
-  ]
-}
-```
 
 Every reference is a shorthand string or an object adding `description`. There are no
 commands for editing config; agents and humans write the JSON directly, and `validate`
@@ -232,9 +565,18 @@ cost, and only when asked.
 ```sh
 npm test
 npm run build
+npm run sync-readme   # after changing the site's copy or the CLI's output
 ```
 
 Tests use fixture lockfiles and local git repositories. They do not call npm or GitHub.
+
+Everything above `## Configure` is generated into the regions this file marks with
+`<!-- generated:... -->`. The tagline, the hero, the get-started copy, and the examples come
+from `site/code-samples.mjs`, which [the site](https://agent-reference.dev) renders too; the
+command reference comes from running the CLI against a throwaway project, so it cannot
+describe a command the tool no longer has. Edit those at the source, not here. `npm test`
+fails when this file is behind. Everything below is written for a README and has no
+counterpart on the site.
 
 Not supported yet: binary `bun.lockb` (generate a text `bun.lock` first), and
 all-workspaces scanning for npm, Bun, and Yarn (point at the specific workspace package).
