@@ -14,6 +14,10 @@ export const samples = {
     "pi": {
       "repository": "github:earendil-works/pi",
       "description": "AI agent toolkit: LLM API, loop, TUI, CLI"
+    },
+    "effect-docs": {
+      "repository": "github:Effect-TS/website",
+      "description": "Effect's docs, which npm never ships"
     }
   }
 }`,
@@ -163,8 +167,9 @@ export const trees = {
  * coordinates, both commits, both file paths and both line counts are what
  * agent-reference hands back today. The two references are deliberately
  * different kinds: a repository you read but never install, and a dependency
- * you do install, whose 14,815-line API surface is the argument for reading
- * the version on disk rather than recalling it.
+ * you do. The docs it reads are the v3 pages, matching the pinned 3.22.1,
+ * while the published docs site defaults to v4. That mismatch is the argument
+ * for reading the version on disk, and npm ships neither set.
  */
 export const terminals = {
   session: `$ claude "Implement an edit tool like pi's, using Effect"
@@ -177,10 +182,10 @@ export const terminals = {
 * Read(\u2026/packages/coding-agent/src/core/tools/edit.ts)
   \u23bf Read 461 lines
 
-* Bash(agent-reference get effect)
-  \u23bf ~/.agent-reference/src/\u2026/Effect-TS/effect/417e0faa/packages/effect
-* Read(\u2026/packages/effect/src/Effect.ts)
-  \u23bf Read 14815 lines`,
+* Bash(agent-reference get effect-docs)
+  \u23bf ~/.agent-reference/src/\u2026/Effect-TS/website/6ee985b1
+* Read(\u2026/content/docs/v3/platform/file-system.mdx)
+  \u23bf Read 119 lines`,
 
   pinned: `# your agent runs this, not you
 agent-reference get electron
