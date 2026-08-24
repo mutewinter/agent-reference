@@ -8,7 +8,7 @@ export const samples = {
     lang: 'jsonc',
     code: `{
   "packages": {
-    "effect": "3.22.1"
+    "effect": "4.0.0-rc.111"
   },
   "git": {
     "pi": {
@@ -17,7 +17,8 @@ export const samples = {
     },
     "effect-docs": {
       "repository": "github:Effect-TS/website",
-      "description": "Effect's documentation site, v3 and v4"
+      "directory": "apps/web/src/content/docs/v4",
+      "description": "Effect's documentation site"
     }
   }
 }`,
@@ -167,12 +168,13 @@ export const trees = {
  * coordinates, both commits, both file paths and both line counts are what
  * agent-reference hands back today. The two references are deliberately
  * different kinds: a repository you read but never install, and a dependency
- * you do. The docs it reads are the v3 pages, matching the pinned 3.22.1,
- * while the published docs site defaults to v4. That mismatch is the argument
- * for reading the version on disk, and npm ships neither set.
+ * you do. The docs reference carries a `directory`, so it resolves straight
+ * into the v4 pages that match the pinned 4.0.0-rc.111 rather than into the
+ * repository root: a prerelease whose documentation npm does not distribute
+ * and whose published site is not the default view.
  */
 export const terminals = {
-  session: `$ claude "Implement an edit tool like pi's, using Effect"
+  session: `$ claude "Implement an edit tool like pi's, using Effect v4"
 
 * Skill(agent-reference)
   \u23bf Launching skill: agent-reference
@@ -183,9 +185,9 @@ export const terminals = {
   \u23bf Read 461 lines
 
 * Bash(agent-reference get effect-docs)
-  \u23bf ~/.agent-reference/src/\u2026/Effect-TS/website/6ee985b1
-* Read(\u2026/content/docs/v3/platform/file-system.mdx)
-  \u23bf Read 119 lines`,
+  \u23bf ~/.agent-reference/src/\u2026/website/6ee985b1/\u2026/docs/v4
+* Read(\u2026/docs/v4/platform/file-system.mdx)
+  \u23bf Read 115 lines`,
 
   pinned: `# your agent runs this, not you
 agent-reference get electron
