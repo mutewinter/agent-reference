@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- The arrow the CLI prints between a coordinate and the path it resolves to. -->
+  <rect width="32" height="32" rx="6" fill="#0b0b0c"/>
+  <path d="M6 16h14M18 10l6 6-6 6" fill="none" stroke="#e0a458" stroke-width="3"
+        stroke-linecap="square" stroke-linejoin="miter"/>
+</svg>
