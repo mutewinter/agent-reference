@@ -45,6 +45,14 @@ const GIT_SAFETY_CONFIG = [
   'protocol.file.allow=user'
 ];
 
+/**
+ * The only argv any git invocation is built from. Every path that reaches git goes through
+ * here, so the transport policy cannot be lost by one caller spawning git its own way.
+ */
+export function gitArgv(args: string[]): string[] {
+  return [...GIT_SAFETY_CONFIG, ...args];
+}
+
 const ALLOWED_GIT_PROTOCOLS = new Set(['https:', 'http:', 'ssh:', 'git:', 'file:']);
 
 /**
@@ -260,7 +268,7 @@ export async function runGit(
   options: { allowFailure?: boolean } = {}
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   try {
-    const result = await execFileAsync('git', [...GIT_SAFETY_CONFIG, ...args], {
+    const result = await execFileAsync('git', gitArgv(args), {
       encoding: 'utf8',
       maxBuffer: 1024 * 1024 * 64
     });
@@ -384,7 +392,11 @@ async function reportProgress(
   }
 
   await new Promise<void>((resolve, reject) => {
-    const child = spawn('git', [...args, '--progress'], { stdio: ['ignore', 'ignore', 'inherit'] });
+    // The same policy runGit applies. Drawing progress is a display choice, and a display
+    // choice must not decide which transports git will speak.
+    const child = spawn('git', gitArgv([...args, '--progress']), {
+      stdio: ['ignore', 'ignore', 'inherit']
+    });
     child.on('error', (error: NodeJS.ErrnoException) => {
       reject(error.code === 'ENOENT' ? new Error(GIT_MISSING_MESSAGE) : error);
     });

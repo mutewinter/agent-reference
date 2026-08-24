@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 
 import { getReferences } from '../src/get.ts';
 import { parseConfig } from '../src/config.ts';
+import { gitArgv } from '../src/git.ts';
 import { getStatusReport } from '../src/status.ts';
 import { formatVersionsReport, getVersionsReport } from '../src/versions.ts';
 import { workspaceVersionDirectory } from '../src/pnpm-lock.ts';
@@ -337,6 +338,20 @@ test('a transport git should not be asked to speak is refused', async () => {
     assert.match(error.message, /ext: transport/);
     return true;
   });
+});
+
+test('the transport policy rides on the argv, not on how git is started', async () => {
+  // A clone with a human watching is spawned rather than exec'd so git can draw its own
+  // progress. That is a display choice, and it once silently dropped the policy below.
+  const argv = gitArgv(['clone', '--bare', 'https://example.invalid/repo.git']);
+
+  assert.deepEqual(argv.slice(0, 4), [
+    '-c',
+    'protocol.ext.allow=never',
+    '-c',
+    'protocol.file.allow=user'
+  ]);
+  assert.deepEqual(argv.slice(4), ['clone', '--bare', 'https://example.invalid/repo.git']);
 });
 
 test('a package directory cannot climb out of the checkout', async () => {
