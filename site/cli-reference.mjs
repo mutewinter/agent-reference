@@ -50,7 +50,13 @@ export const commands = [
   { argv: ['get', 'brief'], note: 'a name in, a path out. This is the one agents live in' },
   { argv: ['versions', 'semver'], note: 'which versions this project installs, and where. Never fetches' },
   { argv: ['validate'], note: 'check the config, including that no machine path reached the committed file' },
-  { argv: ['schema'], note: 'the JSON Schema for the config, for an editor or an agent writing one' },
+  {
+    argv: ['schema'],
+    note: 'the JSON Schema for the config, for an editor or an agent writing one',
+    // 300-odd lines of schema says nothing the first dozen do not. The point is
+    // that the command exists and what it prints, not the whole document.
+    lines: 12,
+  },
 ]
 
 /**
@@ -77,12 +83,15 @@ export function renderCliReference() {
     const clean = (text) =>
       text.split(project).join('~/code/my-app').split(store).join('~/.agent-reference');
 
-    return commands.map(({ argv, note }) => {
-      const out = execFileSync(process.execPath, ['--experimental-strip-types', cli, ...argv], {
+    return commands.map(({ argv, note, lines }) => {
+      const printed = execFileSync(process.execPath, ['--experimental-strip-types', cli, ...argv], {
         cwd: project,
         encoding: 'utf8',
         env: { ...process.env, AGENT_REFERENCE_STORE_DIR: store, NO_COLOR: '1' },
       });
+      const split = printed.trimEnd().split('\n');
+      const out =
+        lines && split.length > lines ? [...split.slice(0, lines), '\u2026'].join('\n') : printed;
       return {
         note,
         command: `agent-reference ${argv.join(' ')}`,
