@@ -13,9 +13,10 @@ reading the text would have produced.
 Runs are not tests. They cost money, they need network and a logged-in Claude Code, and they
 are not deterministic. `npm test` never invokes them.
 
-Three suites so far. `init` asks whether a printed brief gets carried out. `resolve` asks
+Four suites so far. `init` asks whether a printed brief gets carried out. `resolve` asks
 something narrower: when `get` cannot win on its own, is what it prints enough to iterate on?
-`history` asks what an agent does with a path once it has one.
+`history` asks what an agent does with a path once it has one. `adopt` asks the question
+before all of them: pointed at an ordinary task, does an agent reach for the tool at all?
 
 ## init
 
@@ -173,3 +174,67 @@ which is the load-bearing signal. Then whether the answer carries what only hist
 and one honesty check: an account of upstream's reasoning with no commit behind it is
 invention, not a pass. Going to the original repository the `file:` spec points at is
 recorded as a shortcut the fixture allows and a `github:` reference does not.
+
+## adopt
+
+```sh
+npm run build
+node evals/adopt/run.mjs                 # default: sonnet, one turn, no hints
+node evals/adopt/grade.mjs               # grade the newest run
+```
+
+Every other suite measures what an agent does once it has engaged. This one measures whether
+it engages, on the most ordinary task there is: build something with a library the project
+already installs. Nothing in the prompt names the tool, the docs, or a version, and nothing
+committed in the project names the library as something to go read, because a dependency
+needs no config entry. The skill's own trigger text is the only thing that can put an agent
+in the repository, which makes it the thing under test.
+
+### The world
+
+A checkout flow built on the `acme-ui` design system, which installs at 4.2.0. The task is to
+replace a plain country select with a searchable one.
+
+The library's 3.x line had a single flat `<Combobox options={...} />`. 4.0 replaced it with
+four primitives, made `filter` required, and put the combobox behind a `UIProvider` that
+nothing else in the app needs yet. It also kept the flat export working so 3.x code would
+still compile, and that export is now a shim: it renders an uncontrolled input, ignores
+`options`, and never filters.
+
+That shim is the trap, and it is what makes the suite discriminate. What the package publishes
+is one minified bundle plus a README pointing at a docs site, so the installed package names
+both the flat export and the primitives and says nothing about which one is current. An agent
+working from memory writes the 3.x call, greps the bundle, finds the name it expected, and is
+wrong with nothing on disk to contradict it. Only the repository carries the migration guide.
+
+`world.mjs` exports `EXPECTED`, split into what `node_modules` answers and what only the
+repository answers, so the fixture and the grader cannot drift apart. It also refuses to build
+a world where any of those facts is stated in the project tree, the published bundle and its
+README included. Identifiers are allowed to appear there, because a bundle names its exports;
+sentences about them are not.
+
+### Offline by construction
+
+Upstream is a local git repository and the registry is a stub on loopback, wired in through
+the project's own `registry` config key. `cacheDir` puts the store inside the run directory.
+Both live in `agent-reference.local.json`, which is where machine-specific settings belong and
+which also leaves the committed config empty, so `status` reports a project with no references
+declared, the resting state of a project that just installs things.
+
+The project ships the skill stub at `.claude/skills/`, so a run measures what this repository
+ships rather than whatever is installed globally on the machine.
+
+### What is graded
+
+Four questions, in the order they stop mattering if the previous one fails. Whether a checkout
+landed in the run store at the installed version. Whether the run read the repository's prose
+rather than only its source, since the facts the task needs are in `docs/` and nowhere else.
+Whether the code left behind is the 4.x shape rather than the remembered one, read from the
+files the run changed rather than from its own summary. And whether the reply carries what only
+the repository holds, which is that the export memory reaches for is a compatibility shim.
+
+Then one honesty check, the same one `history` makes: the 4.x shape described with no checkout
+behind it is a guess that happened to land, not a win. Reading `node_modules`, reaching for the
+network, and going to the upstream repository directly are all reported rather than scored;
+they are the routes the tool competes with, and which one a run took is the interesting part of
+a failure.
