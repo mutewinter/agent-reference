@@ -119,6 +119,8 @@ interface MaterializedWorktree<RefSource extends string> {
   checkoutSha: string;
   refSource: RefSource;
   confidence: CheckoutConfidence;
+  /** The mirror could not be refreshed, so what it holds may predate the requested ref. */
+  mirrorStale: boolean;
 }
 
 export async function ensureDependencyWorktree(
@@ -175,7 +177,8 @@ export async function ensureGitReferenceWorktree(
     directoryMissing: subpath.missing,
     checkoutRef: materialized.checkoutRef,
     checkoutSha: materialized.checkoutSha,
-    refSource: materialized.refSource
+    refSource: materialized.refSource,
+    mirrorStale: materialized.mirrorStale
   };
 }
 
@@ -251,7 +254,7 @@ async function ensureWorktree<RefSource extends string>(
   // then read as a clone failure and sent the agent to check its network and credentials.
   assertSafeRepositoryUrl(repositoryUrl, 'A repository URL');
   const bareRepositoryPath = bareRepositoryPathFor(storeDir, repositoryUrl);
-  await ensureBareRepository(repositoryUrl, bareRepositoryPath);
+  const { updated } = await ensureBareRepository(repositoryUrl, bareRepositoryPath);
   const checkout = await resolveCheckout(bareRepositoryPath);
   const worktreePath = sharedWorktreePath(storeDir, repositoryUrl, checkout.sha);
 
@@ -274,7 +277,8 @@ async function ensureWorktree<RefSource extends string>(
     checkoutRef: checkout.ref,
     checkoutSha: checkout.sha,
     refSource: checkout.source,
-    confidence: checkout.confidence
+    confidence: checkout.confidence,
+    mirrorStale: !updated
   };
 }
 
@@ -364,15 +368,23 @@ function compareVersions(a: readonly number[], b: readonly number[]): number {
   return 0;
 }
 
-async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string): Promise<void> {
+async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string): Promise<{ updated: boolean }> {
   if (await pathExists(bareRepositoryPath)) {
     await ensureFetchRefspec(bareRepositoryPath);
-    await reportProgress(
+    const updated = await reportProgress(
       ['-C', bareRepositoryPath, 'fetch', '--tags', '--prune', '--filter=blob:none', 'origin'],
       `updating ${describeRepository(repoUrl)}`,
       { allowFailure: true }
     );
-    return;
+    // A mirror that cannot be refreshed still answers, out of whatever it last held. Said
+    // out loud, because the alternative is a ref that is simply not here yet being reported
+    // as a tag this tool cannot spell, which sends an agent to pin something that exists.
+    if (!updated) {
+      process.stderr.write(
+        `agent-reference: could not update ${describeRepository(repoUrl)}; reading what the mirror already holds\n`
+      );
+    }
+    return { updated };
   }
 
   await fs.mkdir(path.dirname(bareRepositoryPath), { recursive: true });
@@ -381,6 +393,7 @@ async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string)
     `cloning ${describeRepository(repoUrl)}`
   );
   await ensureFetchRefspec(bareRepositoryPath);
+  return { updated: true };
 }
 
 function describeRepository(repositoryUrl: string): string {
@@ -397,15 +410,14 @@ async function reportProgress(
   args: string[],
   label: string,
   options: { allowFailure?: boolean } = {}
-): Promise<void> {
+): Promise<boolean> {
   process.stderr.write(`agent-reference: ${label}\n`);
 
   if (!process.stderr.isTTY) {
-    await runGit(args, options);
-    return;
+    return (await runGit(args, options)).exitCode === 0;
   }
 
-  await new Promise<void>((resolve, reject) => {
+  return new Promise<boolean>((resolve, reject) => {
     // The same policy runGit applies. Drawing progress is a display choice, and a display
     // choice must not decide which transports git will speak.
     const child = spawn('git', gitArgv([...args, '--progress']), {
@@ -415,7 +427,8 @@ async function reportProgress(
       reject(error.code === 'ENOENT' ? new Error(GIT_MISSING_MESSAGE) : error);
     });
     child.on('close', (code) => {
-      if (code === 0 || options.allowFailure) resolve();
+      if (code === 0) resolve(true);
+      else if (options.allowFailure) resolve(false);
       else reject(new Error(`git ${args.join(' ')} failed with exit code ${code}`));
     });
   });

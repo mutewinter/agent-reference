@@ -7,6 +7,7 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { cloneReferences } from '../src/core.ts';
+import { getReferences } from '../src/get.ts';
 import { stateFilePath } from '../src/manifest.ts';
 import { getStatusReport } from '../src/status.ts';
 import type { AgentReferenceManifest } from '../src/types.ts';
@@ -154,6 +155,31 @@ test('status reports a default-branch fallback as an error with a pin fix', asyn
   assert.equal(problem?.severity, 'error');
   assert.match(problem?.summary ?? '', /is NOT version 9\.9\.9/);
   assert.match(problem?.fix ?? '', /tag --list '\*9\.9\.9\*'/);
+});
+
+test('a mirror that could not be updated is said out loud, not blamed on tag naming', async () => {
+  const { projectRoot, storeDir, tempDir } = await scenario('stale-mirror', {});
+  const source = await createPackageRepo(tempDir, 'tiny-invariant', '1.3.1');
+  const metadataMap = {
+    'tiny-invariant@2.0.0': {
+      name: 'tiny-invariant',
+      version: '2.0.0',
+      repository: { type: 'git', url: source.path }
+    }
+  };
+  await writeConfig(projectRoot, { packages: { 'tiny-invariant': '2.0.0' } });
+
+  // Fill the mirror while the remote is readable, then take the remote away: a fetch that
+  // fails is allowed to fail, so what is left is a mirror that predates the asked-for tag.
+  await cloneReferences(projectRoot, { metadataMap, storeDir });
+  await fs.rm(source.path, { recursive: true, force: true });
+
+  const [result] = await getReferences(projectRoot, ['tiny-invariant'], { metadataMap, storeDir });
+
+  assert.equal(result?.confidence, 'fallback');
+  // Pinning a tag the mirror cannot see is work that cannot succeed, so the retry leads.
+  assert.match(result?.problem?.fix ?? '', /mirror could not be updated on this run/);
+  assert.match(result?.problem?.fix ?? '', /run agent-reference get tiny-invariant again/);
 });
 
 test('a fix names the file the reference was actually declared in', async () => {

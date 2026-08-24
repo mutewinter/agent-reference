@@ -8,7 +8,13 @@ import { DEFAULT_CONFIG_FILE, DEFAULT_LOCAL_CONFIG_FILE } from './config.ts';
 import { resolveReferencePath, pathExists } from './fs-utils.ts';
 import { ensureGitReferenceWorktree, resolvePackagePath, resolveStoreDir } from './git.ts';
 import { writeManifest } from './manifest.ts';
-import { ambiguousInstalledMessage, missingDirectoryProblem, pinFix, unresolvedProblem } from './problems.ts';
+import {
+  ambiguousInstalledMessage,
+  getCommand,
+  missingDirectoryProblem,
+  pinFix,
+  unresolvedProblem
+} from './problems.ts';
 import { isWorkspaceVersion, workspaceVersionDirectory, workspaceVersionPath } from './pnpm-lock.ts';
 import { loadReferenceContext, type LoadedReferenceContext } from './reference-context.ts';
 import {
@@ -356,7 +362,12 @@ function resultProblem(
       reference: `package:${name}`,
       severity: 'error',
       summary: `No release commit matched ${name}@${version}, so the default branch was checked out. The source at this path is NOT version ${version}.`,
-      fix: pinFix(name, version, result.metadata.repositoryUrl, storeDir, configFile),
+      // A mirror that could not be refreshed simply does not hold a commit published since
+      // it was last fetched. Sending the agent to pin a tag it cannot see is work that
+      // cannot succeed, so the retry comes first when that is what happened.
+      fix: result.mirrorStale
+        ? `The mirror could not be updated on this run, so the release commit may not be here yet rather than missing. With the remote reachable, run ${getCommand(name)} again. If it still misses, ${pinFix(name, version, result.metadata.repositoryUrl, storeDir, configFile)}`
+        : pinFix(name, version, result.metadata.repositoryUrl, storeDir, configFile),
       configPatch: { packages: { [name]: { version, ref: '<commit-or-tag>' } } },
       configFile
     };

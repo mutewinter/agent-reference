@@ -93,6 +93,12 @@ export interface GitWorktreeResult {
   /** A directory that claimed the package's name without confirming its version. */
   nameOnlyDirectory: string | null;
   pinnedRef: string | null;
+  /**
+   * The mirror could not be refreshed on this run, so a ref published since it was last
+   * fetched is simply not here yet. A fact about the run, not about the checkout, so it is
+   * reported and never recorded.
+   */
+  mirrorStale: boolean;
 }
 
 export interface GitReferenceWorktreeResult {
@@ -109,6 +115,8 @@ export interface GitReferenceWorktreeResult {
   checkoutRef: string;
   checkoutSha: string;
   refSource: 'configured' | 'defaultBranch';
+  /** The mirror could not be refreshed on this run. See `GitWorktreeResult.mirrorStale`. */
+  mirrorStale: boolean;
 }
 
 /** Empty selects every configured reference. */
