@@ -17,7 +17,7 @@ export const samples = {
     },
     "effect-docs": {
       "repository": "github:Effect-TS/website",
-      "description": "Effect's docs, which npm never ships"
+      "description": "Effect's documentation site, v3 and v4"
     }
   }
 }`,
