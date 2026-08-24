@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://unpkg.com/agent-reference/schema/agent-reference.schema.json",
   "title": "agent-reference config",
-  "description": "Desired state for the local reference source an agent can read. Lives at agent-reference.json (committed) or agent-reference.local.json (machine-specific, gitignored).",
+  "description": "Desired state for the local reference source an agent can read. Lives at agent-reference.json (committed) or agent-reference.local.json (machine-specific, gitignored). Both are read as JSON with comments (// and /* */) and trailing commas, so a note beside an entry is part of the format; keep any the file already carries when editing it.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

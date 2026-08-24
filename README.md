@@ -108,7 +108,9 @@ same format:
 
 Every reference is a shorthand string or an object adding `description`. There are no
 commands for editing config; agents and humans write the JSON directly, and `validate`
-checks it (unknown keys are rejected with a suggestion).
+checks it (unknown keys are rejected with a suggestion). Both files are read as JSON with
+comments (`//` and `/* */`) and trailing commas, because a file people edit by hand is a
+file people annotate.
 
 Dependencies need no entry at all: `get <name>` reads the lockfile at call time. A
 `packages` entry exists only when there is something to remember about one, a pin the

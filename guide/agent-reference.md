@@ -14,7 +14,7 @@ The instructions the skill on disk is too short to carry, printed by the install
 
 ## Adding references ("add this as a reference: ...")
 
-Edit the JSON directly; there are no add commands. Run `agent-reference validate` after every edit. Route by what was pasted:
+Edit the JSON directly; there are no add commands. Both config files are read as JSON with comments (`//` and `/* */`) and trailing commas, so preserve any note the file already carries rather than reformatting it away, and write one yourself when an entry needs a caveat that is not a `description`. Run `agent-reference validate` after every edit. Route by what was pasted:
 
 | the user pastes | kind | file |
 | --- | --- | --- |
