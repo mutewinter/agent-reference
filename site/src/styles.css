@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* The site borrows the CLI's own visual language: monospace, hairline rules,
+   and the middle dot the status output uses to separate a reference's facts.
+   Dark only, deliberately. A tool whose output is read in a terminal has one
+   appearance, and a second palette is a second thing to keep honest. */
+@theme {
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: var(--font-mono);
+
+  --color-bg: #0b0b0c;
+  --color-panel: #121214;
+  --color-line: #26262a;
+  --color-fg: #e9e7e3;
+  --color-muted: #8b8781;
+  --color-faint: #5f5c58;
+
+  /* Amber carries every interactive and emphatic thing. Green is reserved for
+     the one meaning it has in the CLI: a reference that is on disk. */
+  --color-accent: #e0a458;
+  --color-ready: #7fb069;
+}
+
+html {
+  color-scheme: dark;
+  background: var(--color-bg);
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(224, 164, 88, 0.25);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* A rule that reads as terminal chrome rather than as a border: the label sits
+   in the line the way a section marker sits in a box-drawing frame. */
+.rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--color-faint);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.rule::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--color-line);
+}

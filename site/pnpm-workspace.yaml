@@ -1,0 +1,9 @@
+# pnpm 11 refuses to install when a dependency's build script is neither
+# approved nor denied, and reads that approval from here rather than from a
+# "pnpm" field in package.json. Both of these download a platform binary the
+# build cannot run without. The value is a map of name to boolean, not a list:
+# a YAML sequence here is silently rewritten to keys '0', '1' and matches
+# nothing, which reads as the setting being ignored.
+allowBuilds:
+  esbuild: true
+  workerd: true

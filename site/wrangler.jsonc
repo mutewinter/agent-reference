@@ -1,0 +1,26 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	// Workers Builds matches a Worker by this name, so it has to stay in step
+	// with the name in the Cloudflare dashboard or every build fails.
+	"name": "agent-reference-site",
+	"compatibility_date": "2026-08-24",
+	"compatibility_flags": ["nodejs_compat"],
+	// TanStack Start ships its own server entry; there is no handler in this repo.
+	"main": "@tanstack/react-start/server-entry",
+	// Canonical URLs carry no trailing slash: /docs serves its HTML directly and
+	// /docs/ redirects to it. The default does the opposite, which sent every
+	// first visit to a route through a 307.
+	"assets": {
+		"html_handling": "drop-trailing-slash"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"routes": [
+		{
+			"custom_domain": true,
+			"pattern": "agent-reference.dev"
+		}
+	]
+}
