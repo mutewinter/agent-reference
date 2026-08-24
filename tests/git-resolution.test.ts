@@ -111,6 +111,96 @@ test('advances cached branch refs when the upstream default branch moves', async
  * A monorepo whose only tag for thing@1.0.0 is oddly named, plus a later `v1.0.0` tag that a
  * naive `v${version}` guess would pick even though it holds thing@2.0.0.
  */
+test('two subtrees of one monorepo are two references into one checkout', async () => {
+  const { projectRoot, storeDir, sourcePath } = await createSubtreeScenario('subtrees');
+  await declareSubtrees(projectRoot, sourcePath, {
+    'design-system': 'packages/design-system',
+    'api-client': 'packages/api-client'
+  });
+
+  const result = await cloneReferences(path.join(projectRoot, 'package.json'), { storeDir });
+  const byName = new Map(result.clonedGit.map((entry) => [entry.name, entry]));
+  const design = byName.get('design-system');
+  const api = byName.get('api-client');
+
+  // The store keys a checkout on repository and sha, so declaring the subtrees separately
+  // costs one clone, not two. That is what makes flat entries the right shape here.
+  assert.equal(design?.worktreePath, api?.worktreePath);
+  assert.equal(design?.referencePath, path.join(design?.worktreePath ?? '', 'packages/design-system'));
+  assert.equal(api?.referencePath, path.join(api?.worktreePath ?? '', 'packages/api-client'));
+  assert.equal(design?.directoryMissing, false);
+  assert.deepEqual(result.problems, []);
+
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir });
+  const entry = report.references.find((reference) => reference.name === 'design-system');
+
+  assert.equal(entry?.status, 'ready');
+  assert.equal(entry?.path, design?.referencePath);
+  assert.equal(entry?.repositoryPath, design?.worktreePath);
+  assert.equal(entry?.directoryMissing, false);
+  assert.deepEqual(report.problems, []);
+});
+
+test('a subtree that upstream moved is reported, and the checkout root is still handed back', async () => {
+  const { projectRoot, storeDir, sourcePath } = await createSubtreeScenario('moved-subtree');
+  await declareSubtrees(projectRoot, sourcePath, { 'design-system': 'packages/design-system' });
+  await cloneReferences(path.join(projectRoot, 'package.json'), { storeDir });
+
+  // The checkout is untouched; only the coordinate pointing into it goes wrong, which is what
+  // an upstream rename looks like from here.
+  await declareSubtrees(projectRoot, sourcePath, { 'design-system': 'packages/renamed-away' });
+
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir });
+  const entry = report.references.find((reference) => reference.name === 'design-system');
+
+  assert.equal(entry?.status, 'ready');
+  assert.equal(entry?.directoryMissing, true);
+  // Never withheld: the checkout is on disk and readable, so the path stands and the problem
+  // says it is the whole repository rather than the subtree that was asked for.
+  assert.equal(entry?.path, entry?.repositoryPath);
+
+  const problem = report.problems.find((candidate) => candidate.reference === 'git:design-system');
+  assert.equal(problem?.severity, 'error');
+  assert.match(problem?.summary ?? '', /packages\/renamed-away, which is not in this checkout/);
+  assert.match(problem?.summary ?? '', /whole repository rather than that subtree/);
+  assert.match(problem?.fix ?? '', /git\.design-system\.directory/);
+});
+
+async function createSubtreeScenario(
+  label: string
+): Promise<{ projectRoot: string; storeDir: string; sourcePath: string }> {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `agent-reference-${label}-test-`));
+  const projectRoot = await copyFixtureProject(tempDir);
+  const sourcePath = await initRepo(path.join(tempDir, 'monorepo-source'));
+
+  await writeFiles(sourcePath, {
+    'package.json': JSON.stringify({ name: 'monorepo', version: '0.0.0', private: true }),
+    'packages/design-system/tokens.css': ':root { --brand: #0e7869; }\n',
+    'packages/api-client/index.js': 'export const client = 1;\n'
+  });
+  await commit(sourcePath, 'two packages');
+
+  return { projectRoot, storeDir: path.join(tempDir, 'store'), sourcePath };
+}
+
+/**
+ * Declared in the gitignored file because that is where a checkout on this machine belongs,
+ * which is also what keeps the committed-path check quiet.
+ */
+async function declareSubtrees(
+  projectRoot: string,
+  sourcePath: string,
+  directories: Record<string, string>
+): Promise<void> {
+  const git = Object.fromEntries(
+    Object.entries(directories).map(([name, directory]) => [
+      name,
+      { repository: `file:${sourcePath}`, directory }
+    ])
+  );
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.local.json'), JSON.stringify({ git }));
+}
+
 async function createMonorepoScenario(
   label: string,
   requestedVersion = '1.0.0'

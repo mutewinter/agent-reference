@@ -17,12 +17,14 @@ import {
   unknownCommandHint
 } from './sets.ts';
 import { writeManifest } from './manifest.ts';
+import { gitDirectoryProblem } from './get.ts';
 import { unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import { resolvePackageMetadata } from './registry.ts';
 import { normalizeConfiguredRepository } from './repository.ts';
 import { sanitizeRelayed } from './text-utils.ts';
 import type {
+  AgentReferenceProblem,
   CloneReferencesOptions,
   CloneReferencesResult,
   ConfiguredPackageReference,
@@ -93,7 +95,9 @@ export async function cloneReferences(
 
   const clonedGit: CloneReferencesResult['clonedGit'] = [];
   for (const reference of gitReferences) {
-    clonedGit.push(await ensureGitReferenceWorktree(reference.name, reference.spec, worktreeOptions));
+    clonedGit.push(
+      await ensureGitReferenceWorktree(reference.name, reference.spec, reference.directory, worktreeOptions)
+    );
   }
 
   const manifestPath = await writeManifest(project.projectRoot, worktreeOptions.storeDir, cloned, clonedGit, unresolved);
@@ -106,7 +110,15 @@ export async function cloneReferences(
     skipped,
     unresolved,
     // Reported here as well as in `status`: an agent acts on the output it just got back.
-    problems: unresolved.map((failure) => unresolvedProblem(failure, worktreeOptions.storeDir, configFile)),
+    problems: [
+      ...unresolved.map((failure) => unresolvedProblem(failure, worktreeOptions.storeDir, configFile)),
+      ...gitReferences
+        .map((reference) => {
+          const result = clonedGit.find((entry) => entry.name === reference.name);
+          return result ? gitDirectoryProblem(reference, result) : null;
+        })
+        .filter((problem): problem is AgentReferenceProblem => problem !== null)
+    ],
     manifestPath
   };
 }

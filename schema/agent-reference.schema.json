@@ -121,6 +121,11 @@
                 "type": "string",
                 "description": "Branch, tag, or commit. Defaults to the repository default branch."
               },
+              "directory": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Subtree of the checkout worth reading, for a repository that is a monorepo. Resolved against the checkout on every command, so a directory upstream has moved is reported rather than silently ignored."
+              },
               "description": {
                 "$ref": "#/$defs/description"
               }
@@ -132,8 +137,9 @@
         {
           "typescript": "github:microsoft/TypeScript#main",
           "design-system": {
-            "repository": "github:acme/design-system",
-            "ref": "v4"
+            "repository": "github:acme/monorepo",
+            "ref": "v4",
+            "directory": "packages/design-system"
           }
         }
       ]
@@ -226,6 +232,11 @@
                     },
                     "ref": {
                       "type": "string"
+                    },
+                    "directory": {
+                      "type": "string",
+                      "minLength": 1,
+                      "description": "Subtree of the checkout worth reading, for a repository that is a monorepo. Resolved against the checkout on every command, so a directory upstream has moved is reported rather than silently ignored."
                     },
                     "name": {
                       "type": "string",

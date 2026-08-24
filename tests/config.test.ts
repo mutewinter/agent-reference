@@ -276,3 +276,49 @@ test('a committed local config is reported as tracked, because .gitignore cannot
   assert.equal(tracked.valid, false);
   assert.match(tracked.errors.join('\n'), /git rm --cached agent-reference\.local\.json/);
 });
+
+test('two subtrees of one repository are two references, not one repeated declaration', () => {
+  const withNames = parseConfig(
+    {
+      sets: [
+        {
+          description: 'acme platform surface',
+          git: [
+            { name: 'design-system', repository: 'github:acme/monorepo', ref: 'v2', directory: 'packages/design-system' },
+            { name: 'api-client', repository: 'github:acme/monorepo', ref: 'v2', directory: 'packages/api-client' }
+          ]
+        }
+      ]
+    },
+    'agent-reference.json'
+  );
+
+  assert.deepEqual(
+    withNames.git.map((entry) => [entry.name, entry.directory]),
+    [
+      ['design-system', 'packages/design-system'],
+      ['api-client', 'packages/api-client']
+    ]
+  );
+
+  // Without names both derive "monorepo" from the repository. The directory has to count as
+  // part of the target, or they merge and one subtree silently wins.
+  assert.throws(
+    () =>
+      parseConfig(
+        {
+          sets: [
+            {
+              description: 'acme platform surface',
+              git: [
+                { repository: 'github:acme/monorepo', ref: 'v2', directory: 'packages/design-system' },
+                { repository: 'github:acme/monorepo', ref: 'v2', directory: 'packages/api-client' }
+              ]
+            }
+          ]
+        },
+        'agent-reference.json'
+      ),
+    /git "monorepo" is declared more than once with different targets. Give one of them an explicit "name"/
+  );
+});

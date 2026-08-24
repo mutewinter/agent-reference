@@ -20,11 +20,14 @@ Edit the JSON directly; there are no add commands. Run `agent-reference validate
 | --- | --- | --- |
 | a dependency name | usually nothing: `get` already works; add a `packages` entry only for a pin, a description, or a place in a set, and give it an exact version from `agent-reference versions <name>` | `agent-reference.json` |
 | a git URL or `owner/repo` | `git` | `agent-reference.json` |
+| a git URL naming one package inside a monorepo | `git`, with `directory` set to that subtree | `agent-reference.json` |
 | a `file:` path to a checkout on this machine | `git` | `agent-reference.local.json`, always |
 | a relative path inside the repo | `folders` | `agent-reference.json` |
 | an absolute or `~/` path | `folders` | `agent-reference.local.json`, always |
 
 `agent-reference.local.json` is gitignored and overrides same-named entries; machine paths and private references live there and never reach a commit. `validate` enforces that mechanically: a machine path in the committed file is an error whichever key holds it, whether a `folders` path, a `file:` repository under `git`, or `cacheDir`, and so is `agent-reference.local.json` itself being tracked by git. `status` reports the same path leaks as warnings, so the config gets checked on a command you already run. Collections are sets: a labeled list with a `description` heading and members declared inline, mirroring how users paste these lists. When the user says "add this to the documentation sources", find the set whose description matches and append the member. Record intent as a `description` on the set or the reference; descriptions are how instructions like "never mention this folder in committed code" travel to future agents.
+
+A `git` reference checks out a whole repository. When only one subtree of it is worth reading, set `directory` to that path and the reference resolves to the subtree while `status` still reports the checkout root alongside it. Several subtrees of one monorepo are several entries with distinct names, not one nested entry: the store keys a checkout on repository and commit, so they share one clone, and each gets its own description and its own `ref`. A `directory` that is not in the checkout is an error naming the path to fix, because upstream reorganizations are the normal cause and a silent fall back to the repository root would hand you the wrong scope.
 
 A useful pattern for links, issues, and gathered research: create a folder, save the fetched material into it, and declare it as a folder reference with a description. The user may ask you to maintain such a folder over time.
 

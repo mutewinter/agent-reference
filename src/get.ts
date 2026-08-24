@@ -4,10 +4,11 @@ import process from 'node:process';
 import semver from 'semver';
 
 import { materializePackage } from './core.ts';
+import { DEFAULT_CONFIG_FILE, DEFAULT_LOCAL_CONFIG_FILE } from './config.ts';
 import { resolveConfigPath, resolveReferencePath, pathExists } from './fs-utils.ts';
 import { defaultStoreDir, ensureGitReferenceWorktree, resolvePackagePath } from './git.ts';
 import { writeManifest } from './manifest.ts';
-import { ambiguousInstalledMessage, pinFix, unresolvedProblem } from './problems.ts';
+import { ambiguousInstalledMessage, missingDirectoryProblem, pinFix, unresolvedProblem } from './problems.ts';
 import { isWorkspaceVersion, workspaceVersionDirectory, workspaceVersionPath } from './pnpm-lock.ts';
 import { loadReferenceContext, type LoadedReferenceContext } from './reference-context.ts';
 import {
@@ -18,6 +19,8 @@ import {
 } from './package-utils.ts';
 import { resolveRegistryVersion } from './registry.ts';
 import type {
+  ConfigScope,
+  ConfiguredGitReference,
   ConfiguredReference,
   AgentReferenceProblem,
   GetReferenceResult,
@@ -153,7 +156,12 @@ async function getConfigured(
   }
 
   if (reference.kind === 'git') {
-    const result = await ensureGitReferenceWorktree(reference.name, reference.spec, worktreeOptions);
+    const result = await ensureGitReferenceWorktree(
+      reference.name,
+      reference.spec,
+      reference.directory,
+      worktreeOptions
+    );
     recordedGit.push(result);
     return {
       kind: 'git',
@@ -161,7 +169,7 @@ async function getConfigured(
       requested: reference.spec,
       version: null,
       versionSource: null,
-      path: result.worktreePath,
+      path: result.referencePath,
       repositoryPath: result.worktreePath,
       repositoryUrl: result.repositoryUrl,
       checkoutRef: result.checkoutRef,
@@ -170,7 +178,7 @@ async function getConfigured(
       confidence: null,
       description: reference.description,
       recorded: true,
-      problem: null
+      problem: gitDirectoryProblem(reference, result)
     };
   }
 
@@ -384,7 +392,7 @@ function resultProblem(
 async function getAdHocGit(spec: string, worktreeOptions: GitWorktreeOptions): Promise<GetReferenceResult> {
   const normalized = normalizeGitShorthand(spec);
   const name = repoNameFromSpec(normalized);
-  const result = await ensureGitReferenceWorktree(name, normalized, worktreeOptions);
+  const result = await ensureGitReferenceWorktree(name, normalized, null, worktreeOptions);
 
   return {
     kind: 'git',
@@ -392,7 +400,7 @@ async function getAdHocGit(spec: string, worktreeOptions: GitWorktreeOptions): P
     requested: spec,
     version: null,
     versionSource: null,
-    path: result.worktreePath,
+    path: result.referencePath,
     repositoryPath: result.worktreePath,
     repositoryUrl: result.repositoryUrl,
     checkoutRef: result.checkoutRef,
@@ -428,3 +436,23 @@ function repoNameFromSpec(spec: string): string {
 }
 
 
+
+/** Shared by `get` and `clone`, so a missing subtree is reported wherever it is discovered. */
+export function gitDirectoryProblem(
+  reference: ConfiguredGitReference,
+  result: GitReferenceWorktreeResult
+): AgentReferenceProblem | null {
+  if (!result.directoryMissing || !result.directory) return null;
+  return missingDirectoryProblem(
+    reference.name,
+    result.directory,
+    result.checkoutRef,
+    result.worktreePath,
+    configFileFor(reference.scope)
+  );
+}
+
+/** An edit has to be made in the file the entry is in, which is not always the committed one. */
+export function configFileFor(scope: ConfigScope): string {
+  return scope === 'local' ? DEFAULT_LOCAL_CONFIG_FILE : DEFAULT_CONFIG_FILE;
+}

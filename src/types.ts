@@ -99,7 +99,13 @@ export interface GitReferenceWorktreeResult {
   name: string;
   requested: string;
   repositoryUrl: string;
+  /** The checkout root. `referencePath` is what the caller should read. */
   worktreePath: string;
+  directory: string | null;
+  /** The configured subtree when it exists, the checkout root otherwise. */
+  referencePath: string;
+  /** A directory was configured and is not in this checkout at this ref. */
+  directoryMissing: boolean;
   checkoutRef: string;
   checkoutSha: string;
   refSource: 'configured' | 'defaultBranch';
@@ -269,6 +275,8 @@ export interface AgentReferenceStatusEntry {
   repositoryUrl: string | null;
   checkoutSha: string | null;
   confidence: CheckoutConfidence | null;
+  /** A `directory` was configured for this git reference and is not in the checkout. */
+  directoryMissing: boolean;
   status: AgentReferenceStatusState;
   action: string;
 }
@@ -290,6 +298,8 @@ export interface AgentReferenceProblem {
   summary: string;
   fix: string;
   configPatch: Record<string, unknown> | null;
+  /** Which config file the patch belongs in. Defaults to the committed one. */
+  configFile?: string;
 }
 
 export interface AgentReferenceStatusSet {
@@ -351,6 +361,8 @@ export interface ConfiguredGitReference {
   ref: string | null;
   /** Canonical `repository#ref` form. Recorded in the state file so drift is detectable. */
   spec: string;
+  /** Subtree of the checkout worth reading, for a repository that is a monorepo. */
+  directory: string | null;
   description: string | null;
   sets: string[];
 }

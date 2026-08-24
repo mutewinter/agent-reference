@@ -132,6 +132,7 @@ export async function ensureDependencyWorktree(
 export async function ensureGitReferenceWorktree(
   name: string,
   spec: string,
+  directory: string | null,
   options: GitWorktreeOptions
 ): Promise<GitReferenceWorktreeResult> {
   const parsed = parseGitReferenceSpec(spec, options.projectRoot);
@@ -140,11 +141,19 @@ export async function ensureGitReferenceWorktree(
     resolveConfiguredRef(bareRepositoryPath, refName)
   );
 
+  // Resolved against the checkout every time rather than recorded: the subtree is a view of
+  // what was fetched, not a fact about the fetch, so editing `directory` takes effect on the
+  // next command and an upstream reorganization is noticed rather than remembered wrong.
+  const subpath = await resolveSubpath(materialized.worktreePath, directory);
+
   return {
     name,
     requested: spec,
     repositoryUrl: parsed.repositoryUrl,
     worktreePath: materialized.worktreePath,
+    directory,
+    referencePath: subpath.path,
+    directoryMissing: subpath.missing,
     checkoutRef: materialized.checkoutRef,
     checkoutSha: materialized.checkoutSha,
     refSource: materialized.refSource
@@ -169,23 +178,46 @@ export function manifestReferencePath(
 }
 
 /**
- * Packages published from a monorepo check out the whole repository, so the useful source
- * path is the package subdirectory whenever it actually exists in the checkout.
+ * A checkout holds a whole repository, and the subtree worth reading is often one directory
+ * inside it. `missing` separates "no directory was asked for" from "one was, and it is not
+ * here", which the two callers need to treat differently.
  */
-export async function resolvePackagePath(
+export interface SubpathResolution {
+  path: string;
+  missing: boolean;
+}
+
+export async function resolveSubpath(
   worktreePath: string,
-  packageDirectory: string | null | undefined
-): Promise<string> {
-  const directory = normalizeDirectory(packageDirectory);
-  if (!directory || directory === '.') return worktreePath;
+  requested: string | null | undefined
+): Promise<SubpathResolution> {
+  const directory = normalizeDirectory(requested);
+  if (!directory || directory === '.') return { path: worktreePath, missing: false };
 
   // Containment checked against the resolved path, not the input: normalizeDirectory rejects
   // a literal `..`, and this catches anything that reaches outside by another route.
   const candidate = path.resolve(worktreePath, directory);
   const root = path.resolve(worktreePath);
-  if (candidate !== root && !candidate.startsWith(`${root}${path.sep}`)) return worktreePath;
+  if (candidate !== root && !candidate.startsWith(`${root}${path.sep}`)) {
+    return { path: worktreePath, missing: true };
+  }
 
-  return (await pathExists(candidate)) ? candidate : worktreePath;
+  return (await pathExists(candidate))
+    ? { path: candidate, missing: false }
+    : { path: worktreePath, missing: true };
+}
+
+/**
+ * Packages published from a monorepo check out the whole repository, so the useful source
+ * path is the package subdirectory whenever it actually exists in the checkout. A directory
+ * that is not there falls back to the root without comment, because a package's real gate is
+ * the version its manifest reports, not this path.
+ */
+export async function resolvePackagePath(
+  worktreePath: string,
+  packageDirectory: string | null | undefined
+): Promise<string> {
+  return (await resolveSubpath(worktreePath, packageDirectory)).path;
 }
 
 async function ensureWorktree<RefSource extends string>(

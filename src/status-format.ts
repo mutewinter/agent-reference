@@ -96,7 +96,7 @@ export function formatProblem(problem: AgentReferenceProblem): string {
       .split('\n')
       .map((line) => `    ${line}`)
       .join('\n');
-    lines.push(`    add to agent-reference.json:\n${patch}`);
+    lines.push(`    add to ${problem.configFile ?? 'agent-reference.json'}:\n${patch}`);
   }
 
   return lines.join('\n');

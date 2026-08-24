@@ -1,7 +1,7 @@
 import path from 'node:path';
 
 import { pathExists, resolveConfigPath, resolveReferencePath } from './fs-utils.ts';
-import { defaultStoreDir, manifestReferencePath, resolvePackagePath } from './git.ts';
+import { defaultStoreDir, manifestReferencePath, resolvePackagePath, resolveSubpath } from './git.ts';
 import {
   configuredReferences,
   describeSelection,
@@ -14,7 +14,8 @@ import {
 } from './sets.ts';
 import { committedPathLeaks } from './config-hygiene.ts';
 import { readManifest } from './manifest.ts';
-import { getCommand, pinFix, unresolvedProblem } from './problems.ts';
+import { getCommand, missingDirectoryProblem, pinFix, unresolvedProblem } from './problems.ts';
+import { configFileFor } from './get.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import type {
   AgentReferenceConfig,
@@ -159,9 +160,25 @@ async function collectProblems(
 ): Promise<AgentReferenceProblem[]> {
   const problems: AgentReferenceProblem[] = [];
   const configFile = configPath ? path.basename(configPath) : 'agent-reference.json';
+  const gitByName = new Map((config?.git ?? []).map((entry) => [entry.name, entry]));
 
   for (const entry of entries) {
     const reference = `${entry.kind}:${entry.name}`;
+
+    if (entry.directoryMissing) {
+      const configured = gitByName.get(entry.name);
+      if (configured?.directory) {
+        problems.push(
+          missingDirectoryProblem(
+            entry.name,
+            configured.directory,
+            configured.ref,
+            entry.repositoryPath ?? '',
+            configFileFor(configured.scope)
+          )
+        );
+      }
+    }
 
     if (entry.status === 'unresolvable') {
       const failure = unresolvedByName.get(entry.name);
@@ -272,6 +289,7 @@ function statusEntry(input: StatusEntryInput): AgentReferenceStatusEntry {
     repositoryUrl: null,
     checkoutSha: null,
     confidence: null,
+    directoryMissing: false,
     ...input
   };
 }
@@ -342,9 +360,13 @@ async function buildGitStatus(
   referencePathFor: (entry: PackageManifestReference | GitManifestReference) => string,
   annotation: ReferenceAnnotation | undefined
 ): Promise<AgentReferenceStatusEntry> {
-  const referencePath = manifestEntry ? referencePathFor(manifestEntry) : null;
-  const ready = referencePath ? await pathExists(referencePath) : false;
+  const worktreePath = manifestEntry ? referencePathFor(manifestEntry) : null;
+  const ready = worktreePath ? await pathExists(worktreePath) : false;
   const status = getGitStatusState(reference.spec, manifestEntry, ready);
+
+  // Resolved here rather than read back from the manifest, so a `directory` added or edited
+  // since the clone takes effect now and an upstream move is caught on the next status.
+  const subpath = ready && worktreePath ? await resolveSubpath(worktreePath, reference.directory) : null;
 
   return statusEntry({
     kind: 'git',
@@ -353,10 +375,11 @@ async function buildGitStatus(
     scope: reference.scope,
     sets: annotation?.sets ?? [],
     requested: reference.spec,
-    path: referencePath,
-    repositoryPath: referencePath,
+    path: subpath?.path ?? worktreePath,
+    repositoryPath: worktreePath,
     repositoryUrl: manifestEntry?.repositoryUrl ?? null,
     checkoutSha: manifestEntry?.checkoutSha ?? null,
+    directoryMissing: subpath?.missing ?? false,
     status,
     action:
       status === 'ready'

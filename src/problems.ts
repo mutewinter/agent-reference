@@ -43,6 +43,30 @@ export function unresolvedProblem(
   };
 }
 
+/**
+ * Option A of the three: the checkout root is still handed back, because it is on disk and
+ * readable, but never silently. An agent that asked for a subtree and got a whole monorepo
+ * has to be told, or it reads the wrong scope believing it read the right one.
+ */
+export function missingDirectoryProblem(
+  name: string,
+  directory: string,
+  ref: string | null,
+  repositoryPath: string,
+  configFile: string
+): AgentReferenceProblem {
+  // `HEAD` names no particular commit to the reader, so it reads better left off.
+  const at = ref && ref !== 'HEAD' ? ` at ${ref}` : '';
+  return {
+    reference: `git:${name}`,
+    severity: 'error',
+    summary: `git.${name} asks for ${directory}, which is not in this checkout${at}. The path is the repository root, so it is the whole repository rather than that subtree.`,
+    fix: `List what is actually there with: ls ${repositoryPath}. Set git.${name}.directory in ${configFile} to the current path, or remove it to read from the root on purpose. Upstream moving a directory is the usual cause.`,
+    configPatch: { git: { [name]: { directory: '<path-in-repository>' } } },
+    configFile
+  };
+}
+
 export function pinFix(
   name: string,
   version: string | null,

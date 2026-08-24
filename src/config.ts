@@ -53,10 +53,10 @@ function requirePackageVersion(value: unknown, configPath: string, field: string
 
 const PACKAGE_KEYS = ['version', 'ref', 'repository', 'directory', 'description'];
 const FOLDER_KEYS = ['path', 'description'];
-const GIT_KEYS = ['repository', 'ref', 'description'];
+const GIT_KEYS = ['repository', 'ref', 'directory', 'description'];
 const SET_KEYS = ['name', 'description', 'packages', 'folders', 'git'];
 const SET_FOLDER_KEYS = ['path', 'name', 'description'];
-const SET_GIT_KEYS = ['repository', 'ref', 'name', 'description'];
+const SET_GIT_KEYS = ['repository', 'ref', 'directory', 'name', 'description'];
 const SET_PACKAGE_KEYS = ['name', 'version', 'ref', 'repository', 'directory', 'description'];
 
 function emptyConfig(): AgentReferenceConfig {
@@ -195,7 +195,7 @@ function parseSetFolder(
 function parseSetGit(item: unknown, configPath: string, field: string, label: string): ConfiguredGitReference {
   if (typeof item === 'string') {
     const spec = requireNonEmpty(item, configPath, field);
-    const reference = gitReference(repositoryNameFromSpec(spec), spec, null, null, configPath, field);
+    const reference = gitReference(repositoryNameFromSpec(spec), spec, null, null, null, configPath, field);
     reference.sets = [label];
     return reference;
   }
@@ -215,6 +215,7 @@ function parseSetGit(item: unknown, configPath: string, field: string, label: st
     optionalString(object.name, configPath, `${field}.name`) ?? repositoryNameFromSpec(repository),
     repository,
     object.ref === undefined || object.ref === null ? null : expectString(object.ref, configPath, `${field}.ref`),
+    optionalString(object.directory, configPath, `${field}.directory`),
     parseDescription(object.description, configPath, field),
     configPath,
     field
@@ -274,7 +275,7 @@ function mergeDuplicateReferences(config: AgentReferenceConfig, configPath: stri
     [entry.version, entry.ref, entry.repository, entry.directory].join('\u0000')
   );
   config.folders = mergeKind(config.folders, configPath, (entry) => entry.path);
-  config.git = mergeKind(config.git, configPath, (entry) => entry.spec);
+  config.git = mergeKind(config.git, configPath, (entry) => [entry.spec, entry.directory].join('\u0000'));
 }
 
 function mergeKind<T extends ConfiguredReference>(
@@ -372,7 +373,7 @@ function parseFolderEntry(name: string, entry: unknown, configPath: string): Con
 function parseGitEntry(name: string, entry: unknown, configPath: string): ConfiguredGitReference {
   const field = `git.${name}`;
   if (typeof entry === 'string') {
-    return gitReference(name, requireNonEmpty(entry, configPath, field), null, null, configPath, field);
+    return gitReference(name, requireNonEmpty(entry, configPath, field), null, null, null, configPath, field);
   }
 
   const object = expectObject(entry, configPath, field, 'a repository string or an object');
@@ -385,6 +386,7 @@ function parseGitEntry(name: string, entry: unknown, configPath: string): Config
     name,
     requireNonEmpty(expectString(object.repository, configPath, `${field}.repository`), configPath, `${field}.repository`),
     object.ref === undefined || object.ref === null ? null : expectString(object.ref, configPath, `${field}.ref`),
+    optionalString(object.directory, configPath, `${field}.directory`),
     parseDescription(object.description, configPath, field),
     configPath,
     field
@@ -395,6 +397,7 @@ function gitReference(
   name: string,
   repositorySpec: string,
   explicitRef: string | null,
+  directory: string | null,
   description: string | null,
   configPath: string,
   field: string
@@ -411,7 +414,7 @@ function gitReference(
   }
 
   const ref = explicitRef ?? inlineRef;
-  return { kind: 'git', name, scope: 'shared', repository, ref, spec: gitSpec(repository, ref), description, sets: [] };
+  return { kind: 'git', name, scope: 'shared', repository, ref, spec: gitSpec(repository, ref), directory, description, sets: [] };
 }
 
 function gitSpec(repository: string, ref: string | null): string {

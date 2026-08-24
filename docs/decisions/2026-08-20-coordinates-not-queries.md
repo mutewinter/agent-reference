@@ -55,6 +55,21 @@ Two rules about what a path is allowed to mean:
   claim the package's name. When nothing confirms, the path is the repository root.
 - A `directory` set in the config wins outright, the way a pinned ref does, and a manifest
   there that disagrees leaves the commit unconfirmed rather than sending it to a fallback.
+- A `git` reference takes the same `directory`, because repositories worth reading are often
+  monorepos. It is resolved against the checkout on every command rather than recorded in the
+  state file: the subtree is a view of what was fetched, not a fact about the fetch, so an
+  edit takes effect without refetching and an upstream move is noticed rather than remembered
+  wrong. A directory that is not there yields the checkout root **and** an error, never a
+  silent root, because an agent that asked for a subtree and got a monorepo would read the
+  wrong scope believing it read the right one. Packages keep the silent fallback, where the
+  real gate is the version a manifest reports.
+- Several subtrees of one repository are several entries with distinct names. Nesting them
+  under one repository declaration was considered and rejected: the store already keys a
+  checkout on repository and commit, so flat entries share one clone and save nothing by
+  nesting, while a name is the whole interface an agent uses and a second grouping concept
+  would compete with sets. Each subtree also gets its own `ref` and its own description this
+  way. The directory is part of a git reference's identity, so two subtrees that would derive
+  the same name are a conflict to be named rather than a duplicate to be merged.
 
 Coordinates may carry an ecosystem prefix, `npm:zod@3.22.0`. npm is the default and the only
 one resolved today; the prefix is accepted and printed back now rather than retrofitted once

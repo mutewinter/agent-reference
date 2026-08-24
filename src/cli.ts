@@ -169,7 +169,7 @@ function formatCloneResult(result: CloneReferencesResult): string {
     ...result.skipped.map(
       (skip) => `${skip.version ? dependencyKey(skip.name, skip.version) : skip.name} skipped: ${skip.reason}`
     ),
-    ...result.clonedGit.map((clone) => `git:${clone.name} -> ${displayPath(clone.worktreePath)}`),
+    ...result.clonedGit.map((clone) => `git:${clone.name} -> ${displayPath(clone.referencePath)}`),
     ...result.folders.map((name) => `folder:${name} is already local, nothing to clone`),
     `state -> ${displayPath(result.manifestPath)}`,
     ...(result.problems.length > 0
