@@ -49,6 +49,8 @@ export interface InitSurvey {
   dependencyCount: number;
   gitRepository: boolean;
   localConfigIgnored: boolean;
+  /** Already in git's index, so .gitignore cannot help and the file needs untracking. */
+  localConfigTracked: boolean;
   instructionFiles: InstructionFile[];
   /** One entry per distinct file on disk, symlinks collapsed onto their target. */
   editTargets: string[];
@@ -103,6 +105,7 @@ export async function surveyProject(
   const gitRepository =
     (await runGit(['-C', projectRoot, 'rev-parse', '--is-inside-work-tree'], { allowFailure: true })).exitCode === 0;
   const localConfigIgnored = gitRepository ? await isIgnored(projectRoot, DEFAULT_LOCAL_CONFIG_FILE) : false;
+  const localConfigTracked = gitRepository ? await isTracked(projectRoot, DEFAULT_LOCAL_CONFIG_FILE) : false;
 
   const instructionFiles = await findInstructionFiles(projectRoot);
 
@@ -117,6 +120,7 @@ export async function surveyProject(
     dependencyCount: dependencies.length,
     gitRepository,
     localConfigIgnored,
+    localConfigTracked,
     instructionFiles,
     editTargets: editTargets(instructionFiles),
     skill: await findSkill(projectRoot, home),
@@ -127,6 +131,16 @@ export async function surveyProject(
 async function isIgnored(projectRoot: string, file: string): Promise<boolean> {
   const result = await runGit(['-C', projectRoot, 'check-ignore', '-q', '--', file], { allowFailure: true });
   return result.exitCode === 0;
+}
+
+/**
+ * Asked separately from `isIgnored` because git excludes tracked files from `check-ignore`:
+ * a file already committed reports as not ignored, and the obvious remedy of adding it to
+ * .gitignore does nothing at all. Only the index says whether it is being committed.
+ */
+async function isTracked(projectRoot: string, file: string): Promise<boolean> {
+  const result = await runGit(['-C', projectRoot, 'ls-files', '--', file], { allowFailure: true });
+  return result.exitCode === 0 && result.stdout.trim().length > 0;
 }
 
 async function findInstructionFiles(projectRoot: string): Promise<InstructionFile[]> {

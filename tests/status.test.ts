@@ -182,6 +182,27 @@ test('a miss on a name this build does have as a command reads as an ordinary mi
   });
 });
 
+test('a machine path in the committed config is a warning here, not a blocked reference', async () => {
+  const projectRoot = await copyFixtureProject();
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
+    folders: { notes: '~/notes' },
+    git: { internal: 'file:/opt/checkouts/internal' }
+  }));
+
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+
+  assert.deepEqual(
+    report.problems.map((problem) => [problem.reference, problem.severity]),
+    [
+      ['folder:notes', 'warning'],
+      ['git:internal', 'warning']
+    ]
+  );
+  assert.match(report.problems[0]?.fix ?? '', /Move this entry to agent-reference\.local\.json/);
+  // Nothing here is unusable, so status must not tell the agent to stop and resolve errors.
+  assert.deepEqual(report.nextSteps, []);
+});
+
 async function copyFixtureProject(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-status-test-'));
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), tempDir, { recursive: true });

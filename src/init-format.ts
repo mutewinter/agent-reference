@@ -80,6 +80,8 @@ function lockfileSummary(survey: InitSurvey): string {
 
 function gitignoreSummary(survey: InitSurvey): string {
   if (!survey.gitRepository) return 'not a git repository';
+  // Tracked outranks ignored: a committed file is the state .gitignore cannot fix.
+  if (survey.localConfigTracked) return 'agent-reference.local.json COMMITTED; it needs untracking';
   return survey.localConfigIgnored ? 'agent-reference.local.json ignored' : 'agent-reference.local.json NOT ignored';
 }
 
@@ -171,7 +173,13 @@ function writeStep(survey: InitSurvey): string {
     'the format.'
   ];
 
-  if (survey.gitRepository && !survey.localConfigIgnored) {
+  if (survey.localConfigTracked) {
+    lines.push(
+      'agent-reference.local.json is committed. Adding it to .gitignore will not help, because git',
+      'ignores nothing it already tracks. Run: git rm --cached agent-reference.local.json, list it in',
+      '.gitignore, then commit. Tell the user that what it already held is in the history regardless.'
+    );
+  } else if (survey.gitRepository && !survey.localConfigIgnored) {
     lines.push('Add agent-reference.local.json to .gitignore; it is not ignored yet.');
   }
   lines.push('Then run: agent-reference validate');

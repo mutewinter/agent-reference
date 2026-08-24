@@ -20,15 +20,16 @@ Edit the JSON directly; there are no add commands. Run `agent-reference validate
 | --- | --- | --- |
 | a dependency name | usually nothing: `get` already works; add a `packages` entry only for a pin, a description, or a place in a set, and give it an exact version from `agent-reference versions <name>` | `agent-reference.json` |
 | a git URL or `owner/repo` | `git` | `agent-reference.json` |
+| a `file:` path to a checkout on this machine | `git` | `agent-reference.local.json`, always |
 | a relative path inside the repo | `folders` | `agent-reference.json` |
 | an absolute or `~/` path | `folders` | `agent-reference.local.json`, always |
 
-`agent-reference.local.json` is gitignored and overrides same-named entries; machine paths and private references live there and never reach a commit (`validate` enforces this). Collections are sets: a labeled list with a `description` heading and members declared inline, mirroring how users paste these lists. When the user says "add this to the documentation sources", find the set whose description matches and append the member. Record intent as a `description` on the set or the reference; descriptions are how instructions like "never mention this folder in committed code" travel to future agents.
+`agent-reference.local.json` is gitignored and overrides same-named entries; machine paths and private references live there and never reach a commit. `validate` enforces that mechanically: a machine path in the committed file is an error whichever key holds it, whether a `folders` path, a `file:` repository under `git`, or `cacheDir`, and so is `agent-reference.local.json` itself being tracked by git. `status` reports the same path leaks as warnings, so the config gets checked on a command you already run. Collections are sets: a labeled list with a `description` heading and members declared inline, mirroring how users paste these lists. When the user says "add this to the documentation sources", find the set whose description matches and append the member. Record intent as a `description` on the set or the reference; descriptions are how instructions like "never mention this folder in committed code" travel to future agents.
 
 A useful pattern for links, issues, and gathered research: create a folder, save the fetched material into it, and declare it as a folder reference with a description. The user may ask you to maintain such a folder over time.
 
 ## Setting a project up
 
-`agent-reference init` prints a numbered brief to carry out, computed against this project: what it already declares, whether the local config is really gitignored, which instruction file the agent here reads, whether the skill is installed, and where this machine keeps agent transcripts. Run it when the user asks to set up, initialize, or adopt agent-reference here, then do what it says. It reads and prints; every write is yours.
+`agent-reference init` prints a numbered brief to carry out, computed against this project: what it already declares, whether the local config is really gitignored or has already been committed, which instruction file the agent here reads, whether the skill is installed, and where this machine keeps agent transcripts. Run it when the user asks to set up, initialize, or adopt agent-reference here, then do what it says. It reads and prints; every write is yours.
 
 The brief tells you to mine recent sessions for references this project already needs. Grep and rank in the shell rather than reading transcripts into context, and put anything you find in `agent-reference.local.json` first regardless of its path shape: it came out of the user's own session history, so promoting it to the committed file is their call.

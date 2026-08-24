@@ -40,7 +40,12 @@ export function formatStatusReport(report: AgentReferenceStatusReport, options: 
     sections.push(`next steps:\n${report.nextSteps.map((step) => `  ${step}`).join('\n')}\n`);
   }
   if (report.problems.length > 0) {
-    sections.push(`problems:\n${report.problems.map(formatProblem).join('\n')}\n\n  ${KEEP_REFERENCE_NOTE}\n`);
+    // The note tells a reader not to delete a reference. That is the wrong advice when every
+    // problem is a config leak, because moving the entry out of the committed file is the fix.
+    const keepNote = report.problems.some((problem) => problem.about !== 'config')
+      ? `\n\n  ${KEEP_REFERENCE_NOTE}`
+      : '';
+    sections.push(`problems:\n${report.problems.map(formatProblem).join('\n')}${keepNote}\n`);
   }
 
   if (report.references.length === 0) {

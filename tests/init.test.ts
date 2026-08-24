@@ -83,6 +83,25 @@ test('the gitignore step appears only while the local config is still committabl
   assert.doesNotMatch(formatInitBrief(ignored, PLAIN), /Add agent-reference\.local\.json to \.gitignore/);
 });
 
+test('a local config already in the index is told to untrack, not to gitignore', async () => {
+  const { projectRoot, home } = await workspace('tracked');
+  await runGit(['init', '-q', projectRoot]);
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.local.json'), '{}\n');
+  await runGit(['-C', projectRoot, 'add', 'agent-reference.local.json']);
+  await fs.writeFile(path.join(projectRoot, '.gitignore'), 'agent-reference.local.json\n');
+
+  const survey = await survey_(projectRoot, home);
+
+  // check-ignore says "not ignored" for a tracked file, so the two flags disagree by design.
+  assert.equal(survey.localConfigTracked, true);
+  assert.equal(survey.localConfigIgnored, false);
+
+  const output = formatInitBrief(survey, PLAIN);
+  assert.match(output, /gitignore +agent-reference\.local\.json COMMITTED; it needs untracking/);
+  assert.match(output, /git rm --cached agent-reference\.local\.json/);
+  assert.doesNotMatch(output, /Add agent-reference\.local\.json to \.gitignore/);
+});
+
 test('a transcript store is reported only where one exists, and drives the mining step', async () => {
   const { projectRoot, home } = await workspace('transcripts');
 

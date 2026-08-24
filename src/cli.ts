@@ -259,7 +259,9 @@ Commands:
             declaring, write the config, and show the user the result. Reads and
             prints only; it never writes.
   validate  Check agent-reference.json and agent-reference.local.json; flags
-            machine paths that do not belong in the committed file.
+            machine paths that do not belong in the committed file, and the
+            local file being tracked by git. Exits non-zero, so CI can gate on
+            it.
   guide     Print the full agent instructions for this version. The installed
             skill is a short stub that cannot go stale; everything about config
             shape and setup lives here, next to the code it describes.

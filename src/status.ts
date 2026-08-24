@@ -12,6 +12,7 @@ import {
   splitSelectors,
   unknownCommandHint
 } from './sets.ts';
+import { committedPathLeaks } from './config-hygiene.ts';
 import { readManifest } from './manifest.ts';
 import { getCommand, pinFix, unresolvedProblem } from './problems.ts';
 import { loadReferenceContext } from './reference-context.ts';
@@ -118,6 +119,7 @@ export async function getStatusReport(
     unresolvedByName,
     new Set((config?.packages ?? []).filter((entry) => entry.directory).map((entry) => entry.name)),
     configPackages.drift,
+    config,
     storeDir,
     loadedConfig?.path ?? null
   );
@@ -151,6 +153,7 @@ async function collectProblems(
   /** Names whose package directory was chosen by hand, so an unconfirmed version is expected. */
   directoryPinned: Set<string>,
   drift: PackageDrift[],
+  config: AgentReferenceConfig | undefined,
   storeDir: string,
   configPath: string | null
 ): Promise<AgentReferenceProblem[]> {
@@ -197,6 +200,21 @@ async function collectProblems(
         configPatch: pinPatch(entry)
       });
     }
+  }
+
+  // Reported whatever the selection was: this is about the file being read, not about the
+  // references asked for, and a leak the caller filtered past is still a leak. Warnings
+  // rather than the errors `validate` raises, because nothing here is unusable; the agent
+  // maintaining this config is the one who can move the entry, and status is what it runs.
+  for (const leak of committedPathLeaks(config ?? { packages: [], folders: [], git: [], sets: [] })) {
+    problems.push({
+      reference: leak.reference,
+      about: 'config',
+      severity: 'warning',
+      summary: leak.summary,
+      fix: leak.fix,
+      configPatch: null
+    });
   }
 
   return problems;

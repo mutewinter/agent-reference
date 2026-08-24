@@ -281,6 +281,11 @@ export type ProblemSeverity = 'error' | 'warning';
  */
 export interface AgentReferenceProblem {
   reference: string | null;
+  /**
+   * `config` when the file itself is wrong and the fix is to edit it. Absent means the
+   * reference cannot be materialized, which is the case the keep-the-reference note is for.
+   */
+  about?: 'config';
   severity: ProblemSeverity;
   summary: string;
   fix: string;
@@ -384,6 +389,8 @@ export interface AgentReferenceConfig {
   allImporters?: boolean;
   registry?: string;
   cacheDir?: string;
+  /** Which config file supplied `cacheDir`, so a machine path in the committed one is catchable. */
+  cacheDirScope?: ConfigScope;
 }
 
 export interface LoadedAgentReferenceConfig {

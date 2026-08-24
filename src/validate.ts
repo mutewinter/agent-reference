@@ -2,8 +2,10 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { loadAgentReferenceConfig } from './config.ts';
+import { DEFAULT_LOCAL_CONFIG_FILE, loadAgentReferenceConfig } from './config.ts';
+import { committedPathLeaks } from './config-hygiene.ts';
 import { pathExists } from './fs-utils.ts';
+import { runGit } from './git.ts';
 import { configuredReferences, resolveSets, setMemberKey } from './sets.ts';
 import { resolveProjectInput } from './scanner.ts';
 import type { AgentReferenceKind } from './types.ts';
@@ -12,6 +14,8 @@ export interface ValidationReport {
   projectRoot: string;
   configPath: string | null;
   localConfigPath: string | null;
+  /** The gitignored file is in git's index, so it is already being committed. */
+  localConfigTracked: boolean;
   valid: boolean;
   errors: string[];
   warnings: string[];
@@ -38,6 +42,7 @@ export async function validateConfig(
     projectRoot,
     configPath: null,
     localConfigPath: null,
+    localConfigTracked: false,
     valid: false,
     errors: [],
     warnings: [],
@@ -100,19 +105,21 @@ export async function validateConfig(
     if (!(await pathExists(resolved))) {
       report.warnings.push(`folders.${folder.name} points at ${resolved}, which does not exist.`);
     }
+  }
 
-    // The committed file is read on every teammate's machine: a personal path there is a
-    // leak, not a preference, so it is an error rather than a warning.
-    if (folder.scope !== 'shared') continue;
-    if (path.isAbsolute(folder.path) || folder.path.startsWith('~')) {
-      report.errors.push(
-        `folders.${folder.name} puts the machine path ${folder.path} in the committed config. Move this entry to agent-reference.local.json (gitignored) so personal paths never reach a commit.`
-      );
-    } else if (folder.path.startsWith('..')) {
-      report.warnings.push(
-        `folders.${folder.name} escapes the repo (${folder.path}). Fine when the whole team shares that checkout layout; otherwise move it to agent-reference.local.json.`
-      );
-    }
+  // The committed file is read on every teammate's machine: a personal path there is a
+  // leak, not a preference, so it is an error rather than a warning.
+  for (const leak of committedPathLeaks(loaded.config)) {
+    const line = `${leak.summary} ${leak.fix}`;
+    if (leak.severity === 'error') report.errors.push(line);
+    else report.warnings.push(line);
+  }
+
+  if (await isLocalConfigTracked(projectRoot)) {
+    report.localConfigTracked = true;
+    report.errors.push(
+      `${DEFAULT_LOCAL_CONFIG_FILE} is tracked by git, so it is being committed. Adding it to .gitignore will not help: git ignores nothing it already tracks. Run: git rm --cached ${DEFAULT_LOCAL_CONFIG_FILE}, list it in .gitignore, then commit. Whatever it already carried stays in the history, so treat anything private in it as disclosed.`
+    );
   }
 
   if (loaded.config?.allImporters) {
@@ -138,6 +145,18 @@ async function resolveConfigRoot(projectPath: string | null | undefined, cwd: st
     const stat = await fs.stat(input).catch(() => null);
     return stat?.isDirectory() ? input : path.dirname(input);
   }
+}
+
+/**
+ * `git check-ignore` cannot answer this: git excludes tracked files from it, so a committed
+ * local config reads as "not ignored" and adding the line to .gitignore changes nothing.
+ * The index is the only place that says whether the file is actually being committed.
+ */
+async function isLocalConfigTracked(projectRoot: string): Promise<boolean> {
+  const result = await runGit(['-C', projectRoot, 'ls-files', '--', DEFAULT_LOCAL_CONFIG_FILE], {
+    allowFailure: true
+  });
+  return result.exitCode === 0 && result.stdout.trim().length > 0;
 }
 
 function resolveFolderPath(projectRoot: string, requested: string): string {

@@ -434,6 +434,8 @@ function mergeConfigs(base: AgentReferenceConfig, local: AgentReferenceConfig): 
     if (!sets.some((existing) => setLabel(existing) === setLabel(set))) sets.push(set);
   }
 
+  const cacheDir = local.cacheDir ?? base.cacheDir;
+
   return {
     packages: mergeByName(base.packages, local.packages),
     folders: mergeByName(base.folders, local.folders),
@@ -441,7 +443,8 @@ function mergeConfigs(base: AgentReferenceConfig, local: AgentReferenceConfig): 
     sets,
     allImporters: local.allImporters ?? base.allImporters,
     registry: local.registry ?? base.registry,
-    cacheDir: local.cacheDir ?? base.cacheDir
+    cacheDir,
+    cacheDirScope: cacheDir === undefined ? undefined : local.cacheDir === undefined ? 'shared' : 'local'
   };
 }
 

@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { loadAgentReferenceConfig, parseConfig } from '../src/config.ts';
+import { runGit } from '../src/git.ts';
 import { resolveSets, selectionFilter } from '../src/sets.ts';
 import { validateConfig } from '../src/validate.ts';
 
@@ -212,4 +213,66 @@ test('the printed schema and the parser accept the same top-level keys', async (
   for (const key of Object.keys(schema.properties)) {
     assert.doesNotThrow(() => parseConfig({ [key]: undefined }, 'agent-reference.json'), `schema key ${key}`);
   }
+});
+
+test('a local repository in the committed config leaks a machine path the same way a folder does', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-git-leak-test-'));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({
+      git: {
+        secret: 'file:/opt/checkouts/secret',
+        sibling: 'file:../company-ui',
+        upstream: 'github:acme/chess-engine'
+      }
+    })
+  );
+
+  const report = await validateConfig(projectRoot);
+
+  assert.equal(report.valid, false);
+  assert.match(report.errors.join('\n'), /git\.secret points at the machine path file:\/opt\/checkouts\/secret/);
+  assert.match(report.warnings.join('\n'), /git\.sibling escapes the repo \(file:\.\.\/company-ui\)/);
+  // A remote is portable by construction and has no business in either list.
+  assert.doesNotMatch([...report.errors, ...report.warnings].join('\n'), /git\.upstream/);
+});
+
+test('cacheDir is a leak in the committed file and unremarkable in the local one', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-cachedir-test-'));
+  const committed = path.join(projectRoot, 'agent-reference.json');
+  await fs.writeFile(committed, JSON.stringify({ cacheDir: '/opt/people/someone/.agent-reference' }));
+
+  const shared = await validateConfig(projectRoot);
+  assert.equal(shared.valid, false);
+  assert.match(shared.errors.join('\n'), /cacheDir puts the machine path \/opt\/people\/someone/);
+
+  await fs.writeFile(committed, JSON.stringify({}));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.local.json'),
+    JSON.stringify({ cacheDir: '/opt/people/someone/.agent-reference' })
+  );
+
+  const local = await validateConfig(projectRoot);
+  assert.equal(local.valid, true);
+  assert.doesNotMatch(local.errors.join('\n'), /cacheDir/);
+});
+
+test('a committed local config is reported as tracked, because .gitignore cannot undo that', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-tracked-test-'));
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({}));
+  await fs.writeFile(path.join(projectRoot, 'agent-reference.local.json'), JSON.stringify({}));
+
+  const clean = await validateConfig(projectRoot);
+  assert.equal(clean.localConfigTracked, false);
+  assert.equal(clean.valid, true);
+
+  await runGit(['init', '-q', projectRoot]);
+  await runGit(['-C', projectRoot, 'add', 'agent-reference.local.json']);
+  // Ignoring it afterwards is exactly the move that looks like a fix and is not one.
+  await fs.writeFile(path.join(projectRoot, '.gitignore'), 'agent-reference.local.json\n');
+
+  const tracked = await validateConfig(projectRoot);
+  assert.equal(tracked.localConfigTracked, true);
+  assert.equal(tracked.valid, false);
+  assert.match(tracked.errors.join('\n'), /git rm --cached agent-reference\.local\.json/);
 });
