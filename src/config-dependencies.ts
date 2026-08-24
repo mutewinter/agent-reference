@@ -1,5 +1,5 @@
 import { mergeDependencyEntries, selectInstalledPackage } from './package-utils.ts';
-import type { AgentReferenceConfig, PackageDrift, PackageReference } from './types.ts';
+import type { AgentReferenceConfig, PackageDrift, PackageManager, PackageReference } from './types.ts';
 
 export interface ConfigPackageReferences {
   packages: PackageReference[];
@@ -19,7 +19,7 @@ export interface ConfigPackageReferences {
 export function resolveConfigPackageReferences(
   config: AgentReferenceConfig | undefined,
   installedPackages: PackageReference[],
-  options: { importer?: string } = {}
+  options: { importer?: string; packageManager?: PackageManager } = {}
 ): ConfigPackageReferences {
   if (!config || config.packages.length === 0) {
     return { packages: [], drift: [] };
@@ -33,7 +33,10 @@ export function resolveConfigPackageReferences(
       name: entry.name,
       version: entry.version,
       specifier: entry.version,
-      packageManager: 'config',
+      // The project's own package manager, because that is what would install this version.
+      // Where the version came from is a different question, and `PackageVersionSource`
+      // answers it.
+      packageManager: options.packageManager ?? 'unknown',
       dependencyTypes: [],
       importers: ['agent-reference.json']
     });

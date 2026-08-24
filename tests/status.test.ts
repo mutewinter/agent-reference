@@ -65,7 +65,10 @@ test('reports config-only packages as configured references', async () => {
   assert.equal(report.references.length, 1);
   assert.equal(report.references[0]?.kind, 'package');
   assert.equal(report.references[0]?.name, 'tiny-warning');
-  assert.equal(report.references[0]?.packageManager, 'config');
+  // The project's own package manager, not the word `config`: where the version came from
+  // is a separate field.
+  assert.equal(report.references[0]?.packageManager, 'pnpm');
+  assert.equal(report.references[0]?.ecosystem, 'npm');
   assert.equal(report.references[0]?.currentVersion, '1.0.3');
   assert.equal(report.references[0]?.status, 'declared');
 });
@@ -242,6 +245,31 @@ test('a machine path in the committed config is a warning here, not a blocked re
   assert.match(report.problems[0]?.fix ?? '', /Move this entry to agent-reference\.local\.json/);
   // Nothing here is unusable, so status must not tell the agent to stop and resolve errors.
   assert.deepEqual(report.nextSteps, []);
+});
+
+test('a drift patch edits the key the config spelled, not the bare name', async () => {
+  const projectRoot = await copyFixtureProject();
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({ packages: { 'npm:tiny-invariant': '1.0.0' } }, null, 2)
+  );
+
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+
+  assert.equal(report.references[0]?.name, 'tiny-invariant');
+  const drift = report.problems.find((problem) => problem.summary.includes('is pinned to 1.0.0'));
+  // Keyed by the bare name, the patch would add a second entry for the same package, and the
+  // two versions would then disagree, which the parser refuses outright.
+  assert.deepEqual(drift?.configPatch, { packages: { 'npm:tiny-invariant': '1.3.3' } });
+  assert.match(drift?.fix ?? '', /packages\.npm:tiny-invariant/);
+});
+
+test('the report names the lockfile package versions were read from', async () => {
+  const projectRoot = await copyFixtureProject();
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+
+  assert.equal(path.basename(report.lockfilePath ?? ''), 'pnpm-lock.yaml');
+  assert.equal(report.packageManager, 'pnpm');
 });
 
 async function copyFixtureProject(): Promise<string> {

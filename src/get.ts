@@ -110,9 +110,18 @@ function findConfiguredReference(spec: string, context: LoadedReferenceContext):
 
   const colon = spec.indexOf(':');
   if (colon > 0) {
-    const kind = spec.slice(0, colon);
+    const prefix = spec.slice(0, colon);
     const name = spec.slice(colon + 1);
-    return references.find((reference) => reference.kind === kind && reference.name === name) ?? null;
+    // Two qualifiers, both spellings an agent already has: `package:zod` names the kind, and
+    // `npm:zod` names the ecosystem, which is what `get` prints back and what the config now
+    // stores. A prefix that is neither, `github:` or `file:`, falls through to the git specs.
+    return (
+      references.find(
+        (reference) =>
+          (reference.kind === prefix || (reference.kind === 'package' && reference.ecosystem === prefix)) &&
+          reference.name === name
+      ) ?? null
+    );
   }
 
   const matches = references.filter((reference) => reference.name === spec);
@@ -236,7 +245,7 @@ async function getPackage(
     versionSource = 'registry';
   }
 
-  const override = context.config?.packages.find((entry) => entry.name === name);
+  const override = context.config?.packages.find((entry) => entry.ecosystem === ecosystem && entry.name === name);
   return materializeToResult(dependency, spec, name, registryOptions, worktreeOptions, {
     // A pin belongs to the version it was made for: it must not redirect an explicit
     // historical request like name@old-version.
@@ -281,7 +290,7 @@ function adHocDependency(
     name,
     version,
     specifier,
-    packageManager: installed?.packageManager ?? 'config',
+    packageManager: installed?.packageManager ?? 'unknown',
     dependencyTypes: [],
     importers: []
   };

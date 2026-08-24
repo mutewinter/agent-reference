@@ -156,12 +156,13 @@ Commands:
   get       Materialize one reference and print its path. A spec is a configured
             reference name, a dependency name (version from the lockfile), a
             name@version, github:owner/repo, owner/repo, a git URL, or file:../repo.
-            A package may carry an ecosystem prefix (npm:zod@3.22.0); npm is
-            the default and the only one resolved today. Works with no config
-            and no project at all.
-  versions  Report every version of a package this project installs, and which
-            workspace package installs it. Reads only; never fetches, and an
-            unknown ecosystem or an absent package is an answer, not an error.
+            A package may carry an ecosystem prefix (npm:zod@3.22.0), in a spec
+            here and as a key in the config alike; npm is the default and the
+            only one resolved today. Works with no config and no project at all.
+  versions  Report every version of a package this project installs, which
+            workspace package installs it, and the lockfile the numbers came out
+            of. Reads only; never fetches, and an unknown ecosystem or an absent
+            package is an answer, not an error.
   status    Report every configured reference: scope, state, and absolute path.
             Declared-but-not-fetched is the normal state, not a problem.
   clone     Bulk prefetch every configured reference, for CI or a long flight.

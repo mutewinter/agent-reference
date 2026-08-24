@@ -1,6 +1,7 @@
 import path from 'node:path';
 import process from 'node:process';
 
+import { formatCoordinate } from './package-utils.ts';
 import { isWorkspaceVersion, workspaceVersionDirectory, workspaceVersionPath } from './pnpm-lock.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
 import type { PackageReference, ProjectContext } from './types.ts';
@@ -114,24 +115,30 @@ function merge(into: string[], values: string[]): void {
 export function formatVersionsReport(report: VersionsReport): string {
   if (report.versions.length === 0) {
     const where = report.lockfile
-      ? `Nothing in this project installs ${report.name}.`
+      ? `Nothing in ${path.basename(report.lockfile)} installs ${report.name}.`
       : `No lockfile this tool reads was found under ${report.projectRoot}.`;
     return [
       where,
       `Read the version from the project yourself, then ask for it directly:`,
-      `  agent-reference get ${report.name}@<version>`,
+      `  agent-reference get ${formatCoordinate(report.name, '<version>')}`,
       ''
     ].join('\n');
   }
+
+  // The lockfile leads, because saying where a number came from is the whole job here: a
+  // version with no source attached is one an agent could have guessed.
+  const lines = [`${report.name} \u00b7 ${report.lockfile ? path.basename(report.lockfile) : report.packageManager}`, ''];
 
   // Both halves, always. One workspace link used to end the report, hiding the versions
   // other importers install from the registry behind a flat "there is nothing to fetch".
   const workspace = report.versions.filter((entry) => entry.workspace);
   const registry = report.versions.filter((entry) => !entry.workspace);
-  const lines = workspace.map((entry) =>
-    entry.path
-      ? `${report.name} is a workspace package in this repository, at ${entry.path}.`
-      : `${report.name} is a workspace package in this repository. The lockfile records it as ${entry.version}, which does not say where.`
+  lines.push(
+    ...workspace.map((entry) =>
+      entry.path
+        ? `${report.name} is a workspace package in this repository, at ${entry.path}.`
+        : `${report.name} is a workspace package in this repository. The lockfile records it as ${entry.version}, which does not say where.`
+    )
   );
 
   if (registry.length === 0) {
@@ -142,17 +149,24 @@ export function formatVersionsReport(report: VersionsReport): string {
   }
 
   const width = Math.max(...registry.map((entry) => entry.version.length));
-  lines.push(...registry.map((entry) => `  ${entry.version.padEnd(width)}  ${entry.importers.join(', ')}`));
+  lines.push(
+    ...registry.map((entry) => `  ${entry.version.padEnd(width)}  ${entry.importers.map(importerLabel).join(', ')}`)
+  );
 
   if (registry.length > 1) {
     lines.push(
       '',
       `${registry.length} versions, so a bare name is ambiguous here. Ask for one:`,
-      `  agent-reference get ${report.name}@${registry[0]?.version}`
+      `  agent-reference get ${formatCoordinate(report.name, registry[0]?.version ?? null)}`
     );
   } else {
-    lines.push('', `  agent-reference get ${report.name}@${registry[0]?.version}`);
+    lines.push('', `  agent-reference get ${formatCoordinate(report.name, registry[0]?.version ?? null)}`);
   }
 
   return `${lines.join('\n')}\n`;
+}
+
+/** An importer is a path relative to the lockfile, and the lockfile's own directory is `.`. */
+function importerLabel(importer: string): string {
+  return importer === '.' ? '(lockfile root)' : importer;
 }

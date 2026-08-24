@@ -36,7 +36,10 @@ export async function loadReferenceContext(
   // workspace package invisible from the repository root, which then resolved as though it
   // were not installed at all. Which of several versions to use is decided per lookup.
   const installedPackages = await scanResolvedProject(project, { ...options, allImporters: true });
-  const configPackages = resolveConfigPackageReferences(config, installedPackages, { importer: project.importer });
+  const configPackages = resolveConfigPackageReferences(config, installedPackages, {
+    importer: project.importer,
+    packageManager: project.packageManager
+  });
 
   return { cwd, project, loadedConfig, config, configPackages, installedPackages };
 }

@@ -136,6 +136,32 @@ test('a name shared by two kinds must be qualified', async () => {
   assert.equal(result?.kind, 'path');
 });
 
+test('a config key written with the ecosystem prefix still answers to the package name', async () => {
+  const { projectRoot, storeDir, tempDir } = await scenario('prefixed-key');
+  const source = await createSourceRepo(tempDir, 'tiny-invariant', '1.3.3');
+  // The spelling `get` prints back as canonical. Stored as the reference's name it matched
+  // nothing, so the pin below was inert and every surface reported the config as healthy.
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({
+      packages: {
+        'npm:tiny-invariant': {
+          version: '1.3.3',
+          repository: `file:${source.path}`,
+          ref: source.commit
+        }
+      }
+    })
+  );
+
+  for (const spec of ['tiny-invariant', 'npm:tiny-invariant', 'package:tiny-invariant']) {
+    const [result] = await getReferences(path.join(projectRoot, 'package.json'), [spec], { storeDir });
+    assert.equal(result?.name, 'tiny-invariant', spec);
+    assert.equal(result?.confidence, 'pinned', spec);
+    assert.equal(result?.checkoutSha, source.commit, spec);
+  }
+});
+
 async function scenario(label: string): Promise<{ projectRoot: string; storeDir: string; tempDir: string }> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `agent-reference-get-${label}-test-`));
   const projectRoot = path.join(tempDir, 'project');

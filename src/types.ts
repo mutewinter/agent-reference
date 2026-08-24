@@ -1,6 +1,11 @@
 export type DependencyType = 'dependencies' | 'devDependencies' | 'optionalDependencies';
 
-export type PackageManager = 'pnpm' | 'npm' | 'bun' | 'yarn' | 'config' | 'unknown';
+/**
+ * Which lockfile format this project uses, and nothing else. Where a version came from is a
+ * separate question with its own type, `PackageVersionSource`; folding the two together made
+ * a config-declared package report `config` as its package manager, which is not one.
+ */
+export type PackageManager = 'pnpm' | 'npm' | 'bun' | 'yarn' | 'unknown';
 
 /**
  * A project is any directory: the nearest agent-reference config anchors it, and a Node
@@ -268,6 +273,8 @@ export type AgentReferenceStatusState =
 export interface AgentReferenceStatusEntry {
   kind: AgentReferenceKind;
   name: string;
+  /** The registry a package reference's name lives in. Null for the other kinds. */
+  ecosystem: string | null;
   description: string | null;
   /** Which config file declared this reference: committed (`shared`) or gitignored (`local`). */
   scope: ConfigScope | null;
@@ -327,6 +334,13 @@ export interface AgentReferenceStatusReport {
   configPath: string | null;
   localConfigPath: string | null;
   manifestPath: string | null;
+  /**
+   * The lockfile package versions are read from, and its format. Null when this project has
+   * none, which is the case worth saying out loud: nothing is installed to check a pin
+   * against, and a bare `get <name>` resolves the registry's latest instead.
+   */
+  lockfilePath: string | null;
+  packageManager: PackageManager;
   /** Lockfile dependencies available to `get` whether or not they are configured. */
   installedPackageCount: number;
   sets: AgentReferenceStatusSet[];
@@ -342,9 +356,17 @@ export type ConfigScope = 'shared' | 'local';
 
 export interface ConfiguredPackageReference {
   kind: 'package';
+  /** The package name alone, with any ecosystem prefix taken off the key. */
   name: string;
+  /** The registry the name lives in. Part of the reference's identity, so it is declared. */
+  ecosystem: string;
+  /**
+   * The key exactly as the config spelled it, `zod` or `npm:zod`. Config patches echo it, so
+   * a generated fix edits the entry that is there rather than adding a second one beside it.
+   */
+  configKey: string;
   scope: ConfigScope;
-  /** `installed` to follow the lockfile, or an exact version, range, or dist-tag. */
+  /** An exact version. Ranges, dist-tags, and "installed" are rejected at parse time. */
   version: string;
   /** Commit, tag, or branch to check out, overriding automatic version resolution. */
   ref: string | null;

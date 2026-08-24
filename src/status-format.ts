@@ -71,6 +71,9 @@ export function formatStatusReport(report: AgentReferenceStatusReport, options: 
     );
   }
 
+  const provenance = provenanceLine(report, options);
+  if (provenance) sections.push(provenance);
+
   const footer = footerLine(report, options);
   if (footer) sections.push(footer);
 
@@ -148,12 +151,33 @@ function entryLines(entries: AgentReferenceStatusEntry[], indent: number, option
 }
 
 /**
- * A path reference reads as what it turned out to be, because "folder" and "file" are what a
- * reader is actually looking for and the config declares neither. A missing one falls back
- * to the kind, since nothing is there to have a shape.
+ * Every row answers the same question: where does this come from? A package reads as its
+ * registry, so the column runs `npm \u00b7 git \u00b7 file \u00b7 folder` rather than saying
+ * `package`, which is the least informative word available when everything in the file is a
+ * package in some sense. A path reference reads as what it turned out to be, because "folder"
+ * and "file" are what a reader is actually looking for and the config declares neither; a
+ * missing one falls back to the kind, since nothing is there to have a shape.
  */
 function kindLabel(entry: AgentReferenceStatusEntry): string {
-  return entry.kind === 'path' ? (entry.pathType ?? 'path') : entry.kind;
+  if (entry.kind === 'path') return entry.pathType ?? 'path';
+  if (entry.kind === 'package') return entry.ecosystem ?? 'package';
+  return entry.kind;
+}
+
+/**
+ * Where package versions are read from, said once rather than on every package line: it is
+ * one fact about the project, not a property of each reference. The absent case earns the
+ * words, because nothing is installed for a pin to be checked against and a bare
+ * `get <name>` then answers from the registry rather than from this project.
+ */
+function provenanceLine(report: AgentReferenceStatusReport, options: StatusFormatOptions): string | null {
+  if (!report.references.some((entry) => entry.kind === 'package')) return null;
+
+  const text = report.lockfilePath
+    ? `package versions read from ${path.relative(report.projectRoot, report.lockfilePath) || report.lockfilePath}`
+    : 'no lockfile here, so nothing installed is available to check these versions against, and a bare get <name> resolves the registry\'s latest';
+
+  return `${paint(text, 'dim', options.color)}\n`;
 }
 
 /** The datum that matters for this entry right now; never a `-` placeholder. */

@@ -9,6 +9,7 @@ import {
 } from './sets.ts';
 import { committedPathLeaks } from './config-hygiene.ts';
 import { readManifest } from './manifest.ts';
+import { SUPPORTED_ECOSYSTEM } from './package-utils.ts';
 import { getCommand, missingDirectoryProblem, pinFix, unresolvedProblem } from './problems.ts';
 import { configFileFor } from './get.ts';
 import { loadReferenceContext } from './reference-context.ts';
@@ -114,6 +115,8 @@ export async function getStatusReport(
     configPath: loadedConfig?.path ?? null,
     localConfigPath: loadedConfig?.localPath ?? null,
     manifestPath: loadedManifest?.path ?? null,
+    lockfilePath: project.lockfilePath,
+    packageManager: project.packageManager,
     installedPackageCount: installedPackages.length,
     sets: resolveSets(config).map((set) => ({
       name: set.name,
@@ -142,6 +145,10 @@ async function collectProblems(
 ): Promise<AgentReferenceProblem[]> {
   const problems: AgentReferenceProblem[] = [];
   const gitByName = new Map((config?.git ?? []).map((entry) => [entry.name, entry]));
+  // A patch has to edit the entry that is there. Keying it by the bare name when the config
+  // spelled the key `npm:zod` would add a second entry for the same package, and the two
+  // would then disagree about the version, which the parser refuses outright.
+  const configKeyByName = new Map((config?.packages ?? []).map((entry) => [entry.name, entry.configKey]));
 
   for (const entry of entries) {
     const reference = `${entry.kind}:${entry.name}`;
@@ -172,12 +179,13 @@ async function collectProblems(
 
     const drifted = drift.find((candidate) => candidate.name === entry.name);
     if (drifted) {
+      const configKey = configKeyByName.get(entry.name) ?? entry.name;
       problems.push({
         reference,
         severity: 'warning',
         summary: `${entry.name} is pinned to ${drifted.pinned}, but this project installs ${drifted.installed.join(' and ')} (${drifted.importers.join(', ')}).`,
-        fix: `If the pin is deliberate, say so in packages.${entry.name}.description. Otherwise set packages.${entry.name} in ${configFile} to ${drifted.installed[0]} and run ${getCommand(entry.name)}.`,
-        configPatch: { packages: { [entry.name]: drifted.installed[0] } },
+        fix: `If the pin is deliberate, say so in packages.${configKey}.description. Otherwise set packages.${configKey} in ${configFile} to ${drifted.installed[0]} and run ${getCommand(entry.name)}.`,
+        configPatch: { packages: { [configKey]: drifted.installed[0] } },
         configFile
       });
     }
@@ -188,7 +196,7 @@ async function collectProblems(
         severity: 'error',
         summary: `${entry.name}@${entry.currentVersion} has no matching release commit, so the default branch was checked out. The source at this path is NOT version ${entry.currentVersion}.`,
         fix: pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile),
-        configPatch: pinPatch(entry),
+        configPatch: pinPatch(entry, configKeyByName.get(entry.name) ?? entry.name),
         configFile
       });
       continue;
@@ -200,7 +208,7 @@ async function collectProblems(
         severity: 'warning',
         summary: `${entry.name}@${entry.currentVersion} was checked out from a plausible ref, but no package.json confirmed the version.`,
         fix: `Spot-check ${entry.path}/package.json. If it is wrong, ${pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile)}`,
-        configPatch: pinPatch(entry),
+        configPatch: pinPatch(entry, configKeyByName.get(entry.name) ?? entry.name),
         configFile
       });
     }
@@ -234,10 +242,10 @@ function nextStepsFor(problems: AgentReferenceProblem[]): string[] {
   return steps;
 }
 
-function pinPatch(entry: AgentReferenceStatusEntry): Record<string, unknown> {
+function pinPatch(entry: AgentReferenceStatusEntry, configKey: string): Record<string, unknown> {
   return {
     packages: {
-      [entry.name]: { version: entry.requested ?? entry.currentVersion ?? 'installed', ref: '<commit-or-tag>' }
+      [configKey]: { version: entry.requested ?? entry.currentVersion ?? 'installed', ref: '<commit-or-tag>' }
     }
   };
 }
@@ -264,6 +272,7 @@ type StatusEntryInput = Partial<AgentReferenceStatusEntry> &
 /** Most fields do not apply to most kinds, so only the meaningful ones are passed in. */
 function statusEntry(input: StatusEntryInput): AgentReferenceStatusEntry {
   return {
+    ecosystem: null,
     description: null,
     scope: null,
     sets: [],
@@ -302,6 +311,7 @@ async function buildPackageStatus(
   return statusEntry({
     kind: 'package',
     name: dependency.name,
+    ecosystem: configEntry?.ecosystem ?? SUPPORTED_ECOSYSTEM,
     description: annotation?.description ?? null,
     scope: annotation?.scope ?? null,
     sets: annotation?.sets ?? [],

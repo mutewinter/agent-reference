@@ -5,7 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
+import { samples } from '../site/code-samples.mjs';
 import { loadAgentReferenceConfig, parseConfig } from '../src/config.ts';
+import { parseJsonc } from '../src/jsonc.ts';
 import { runGit } from '../src/git.ts';
 import { missingSelectionMessage, resolveSets, selectionFilter } from '../src/sets.ts';
 import { validateConfig } from '../src/validate.ts';
@@ -32,6 +34,8 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
   assert.deepEqual(config.packages[0], {
     kind: 'package',
     name: 'react',
+    ecosystem: 'npm',
+    configKey: 'react',
     scope: 'shared',
     version: '18.2.0',
     ref: null,
@@ -421,4 +425,93 @@ test('two subtrees of one repository are two references, not one repeated declar
       ),
     /git "monorepo" is declared more than once with different targets. Give one of them an explicit "name"/
   );
+});
+
+test('a packages key may carry the ecosystem prefix that get prints back', () => {
+  const config = parseConfig(
+    { packages: { 'npm:zod': '3.22.0', react: '18.2.0' } },
+    'agent-reference.json'
+  );
+
+  const zod = config.packages.find((entry) => entry.name === 'zod');
+  // The prefix is taken off the name, so every lookup that has only the package name still
+  // finds the entry. Storing `npm:zod` as the name made a pin unreachable and silently inert.
+  assert.equal(zod?.name, 'zod');
+  assert.equal(zod?.ecosystem, 'npm');
+  assert.equal(zod?.configKey, 'npm:zod');
+
+  const react = config.packages.find((entry) => entry.name === 'react');
+  assert.equal(react?.ecosystem, 'npm');
+  assert.equal(react?.configKey, 'react');
+});
+
+test('the prefixed and bare spellings of one package are one reference', () => {
+  const config = parseConfig(
+    { packages: { zod: '3.22.0', 'npm:zod': { version: '3.22.0', description: 'Same package, spelled twice' } } },
+    'agent-reference.json'
+  );
+
+  assert.equal(config.packages.length, 1);
+  assert.equal(config.packages[0]?.description, 'Same package, spelled twice');
+
+  assert.throws(
+    () => parseConfig({ packages: { zod: '3.22.0', 'npm:zod': '3.23.0' } }, 'agent-reference.json'),
+    /package "zod" is declared more than once with different targets/
+  );
+});
+
+test('a packages key naming an ecosystem this build cannot resolve fails at parse time', () => {
+  assert.throws(
+    () => parseConfig({ packages: { 'pypi:requests': '2.32.0' } }, 'agent-reference.json'),
+    /pypi: coordinates are not supported yet.*declare requests under "git"/s
+  );
+
+  // Not a known ecosystem at all, so the fix is a different one: the prefix is the mistake.
+  assert.throws(
+    () => parseConfig({ packages: { 'nmp:zod': '3.22.0' } }, 'agent-reference.json'),
+    /"nmp:" is not an ecosystem.*a key with no prefix means npm/s
+  );
+});
+
+test('a version in a packages key is rejected, naming the shape that works', () => {
+  assert.throws(
+    () => parseConfig({ packages: { 'zod@3.22.0': '3.22.0' } }, 'agent-reference.json'),
+    /carries a version in the key.*write "zod": "3.22.0"/s
+  );
+
+  // A scoped name's leading @ is not a version separator.
+  const config = parseConfig({ packages: { '@scope/thing': '1.0.0' } }, 'agent-reference.json');
+  assert.equal(config.packages[0]?.name, '@scope/thing');
+});
+
+test('a set member may carry the ecosystem prefix too', () => {
+  const config = parseConfig(
+    {
+      sets: [
+        {
+          description: 'validators we mirror',
+          packages: ['npm:zod@3.22.0', { name: 'npm:yup', version: '1.4.0' }]
+        }
+      ]
+    },
+    'agent-reference.json'
+  );
+
+  assert.deepEqual(
+    config.packages.map((entry) => [entry.name, entry.ecosystem, entry.configKey]),
+    [
+      ['zod', 'npm', 'npm:zod'],
+      ['yup', 'npm', 'npm:yup']
+    ]
+  );
+});
+
+test('every config the docs show is a config this parser accepts', () => {
+  // The site and the README render these, so a sample that does not parse is a copy-paste
+  // trap sitting on the front page. The complex example carried one: a set member and a
+  // top-level entry named the same repository at different refs, which is a hard error.
+  for (const [name, sample] of Object.entries(samples)) {
+    if (sample.lang !== 'jsonc') continue;
+    assert.doesNotThrow(() => parseConfig(parseJsonc(sample.code), 'agent-reference.json'), name);
+  }
 });

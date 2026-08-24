@@ -74,8 +74,8 @@ test('package lines carry version, confidence, and staleness inline', () => {
     PLAIN
   );
 
-  assert.match(output, /zod .*package · ready · 3\.25\.76 verified · \/store\/src\/zod\/9f0c9d1/);
-  assert.match(output, /electron-builder {2,}package · stale · lockfile 26\.15\.7, checkout 26\.14\.0 · agent-reference get electron-builder/);
+  assert.match(output, /zod .*npm · ready · 3\.25\.76 verified · \/store\/src\/zod\/9f0c9d1/);
+  assert.match(output, /electron-builder {2,}npm · stale · lockfile 26\.15\.7, checkout 26\.14\.0 · agent-reference get electron-builder/);
 });
 
 test('an empty report is an initialization hint, and color stays off when disabled', () => {
@@ -96,6 +96,54 @@ test('color paints statuses only when enabled', () => {
   assert.match(colored, /\[32mready\[0m/);
 });
 
+test('a package reads as the registry its name lives in, not as the word "package"', () => {
+  const output = formatStatusReport(
+    report([
+      entry({ kind: 'package', name: 'zod', scope: 'shared', status: 'declared', currentVersion: '3.22.0' }),
+      entry({ kind: 'git', name: 'codex', scope: 'shared', status: 'declared', requested: 'github:openai/codex' })
+    ]),
+    PLAIN
+  );
+
+  // Every row answers the same question, so the column reads as a set of sources.
+  assert.match(output, /zod {2,}npm · declared · 3\.22\.0/);
+  assert.match(output, /codex {2,}git · declared · github:openai\/codex/);
+});
+
+test('the lockfile package versions came from is named once, not on every line', () => {
+  const output = formatStatusReport(
+    report([
+      entry({ kind: 'package', name: 'zod', scope: 'shared', status: 'declared', currentVersion: '3.22.0' }),
+      entry({ kind: 'package', name: 'react', scope: 'shared', status: 'declared', currentVersion: '18.2.0' })
+    ]),
+    PLAIN
+  );
+
+  assert.equal(output.match(/pnpm-lock\.yaml/g)?.length, 1);
+  assert.match(output, /package versions read from pnpm-lock\.yaml/);
+});
+
+test('with no lockfile the report says what that costs rather than staying quiet', () => {
+  const output = formatStatusReport(
+    report([entry({ kind: 'package', name: 'zod', scope: 'shared', status: 'declared', currentVersion: '3.22.0' })], {
+      lockfilePath: null,
+      packageManager: 'unknown'
+    }),
+    PLAIN
+  );
+
+  assert.match(output, /no lockfile here.*registry's latest/s);
+});
+
+test('a project with no package references is not told where package versions come from', () => {
+  const output = formatStatusReport(
+    report([entry({ kind: 'path', name: 'notes', scope: 'local', status: 'ready', path: '/vault', pathType: 'folder' })]),
+    PLAIN
+  );
+
+  assert.doesNotMatch(output, /pnpm-lock\.yaml|no lockfile/);
+});
+
 function report(
   references: AgentReferenceStatusEntry[],
   overrides: Partial<AgentReferenceStatusReport> = {}
@@ -109,6 +157,8 @@ function report(
     configPath: '/project/agent-reference.json',
     localConfigPath: '/project/agent-reference.local.json',
     manifestPath: null,
+    lockfilePath: '/project/pnpm-lock.yaml',
+    packageManager: 'pnpm',
     installedPackageCount: 0,
     sets: [],
     references,
@@ -121,6 +171,7 @@ function report(
 
 function entry(input: Partial<AgentReferenceStatusEntry> & Pick<AgentReferenceStatusEntry, 'kind' | 'name' | 'status'>): AgentReferenceStatusEntry {
   return {
+    ecosystem: input.kind === 'package' ? 'npm' : null,
     description: null,
     scope: null,
     sets: [],

@@ -104,7 +104,7 @@ export function mergeDependencyEntries(entries: PackageReference[]): PackageRefe
  * by then coordinates are sitting in committed configs and in agents' habits.
  */
 export const SUPPORTED_ECOSYSTEM = 'npm';
-const KNOWN_ECOSYSTEMS = ['npm', 'pypi', 'crates', 'gem', 'go'];
+export const KNOWN_ECOSYSTEMS: string[] = ['npm', 'pypi', 'crates', 'gem', 'go'];
 
 export interface PackageCoordinate {
   ecosystem: string;
@@ -127,9 +127,46 @@ export function parsePackageCoordinate(spec: string): PackageCoordinate {
   return { ecosystem, name: rest, version: null };
 }
 
+/**
+ * A `packages` key, which is a coordinate with the version left out because the value holds
+ * it. Unlike `parsePackageCoordinate` this keeps an unrecognized prefix as an ecosystem
+ * claim rather than folding it into the name: in a config file a key is written once and
+ * read forever, so `foo:bar` has to fail loudly instead of becoming a package nothing can
+ * ever resolve. A bare key means npm, which is what every key written before the prefix
+ * existed already meant.
+ */
+export function parsePackageKey(key: string): PackageCoordinate {
+  let ecosystem = SUPPORTED_ECOSYSTEM;
+  let rest = key;
+
+  const colon = key.indexOf(':');
+  if (colon > 0) {
+    ecosystem = key.slice(0, colon);
+    rest = key.slice(colon + 1);
+  }
+
+  // Scoped names carry a leading `@` that is not a version separator, which is why this
+  // looks for the last one past index zero.
+  const at = rest.lastIndexOf('@');
+  if (at > 0) return { ecosystem, name: rest.slice(0, at), version: rest.slice(at + 1) };
+  return { ecosystem, name: rest, version: null };
+}
+
 /** The canonical spelling, printed back so an agent picks up the unambiguous form. */
 export function formatCoordinate(name: string, version: string | null): string {
   return version ? `${SUPPORTED_ECOSYSTEM}:${name}@${version}` : `${SUPPORTED_ECOSYSTEM}:${name}`;
+}
+
+/** How a package reference is spelled as a `packages` key: bare for npm, prefixed otherwise. */
+export function formatPackageKey(ecosystem: string, name: string): string {
+  return ecosystem === SUPPORTED_ECOSYSTEM ? name : `${ecosystem}:${name}`;
+}
+
+export function unknownEcosystemMessage(ecosystem: string): string {
+  return (
+    `"${ecosystem}:" is not an ecosystem. agent-reference knows ${KNOWN_ECOSYSTEMS.join(', ')}, ` +
+    `and a key with no prefix means ${SUPPORTED_ECOSYSTEM}.`
+  );
 }
 
 export function unsupportedEcosystemMessage(ecosystem: string, name: string): string {

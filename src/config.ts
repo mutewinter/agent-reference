@@ -1,7 +1,15 @@
 import path from 'node:path';
 
 import { pathExists, readJsoncFile } from './fs-utils.ts';
-import { isExactRegistryVersion, parsePackageAtVersion } from './package-utils.ts';
+import {
+  isExactRegistryVersion,
+  KNOWN_ECOSYSTEMS,
+  parsePackageAtVersion,
+  parsePackageKey,
+  SUPPORTED_ECOSYSTEM,
+  unknownEcosystemMessage,
+  unsupportedEcosystemMessage
+} from './package-utils.ts';
 import { repositoryNameFromSpec } from './repository.ts';
 import type {
   AgentReferenceConfig,
@@ -34,6 +42,32 @@ const TOP_LEVEL_KEYS = [
  */
 const VERSION_HELP =
   'Run `agent-reference versions <name>` to see every version this project installs, then pin that number.';
+
+/**
+ * Splits a `packages` key into the registry the name lives in and the name itself. The CLI
+ * has taken an ecosystem prefix since coordinates were introduced, and prints one back as
+ * the canonical spelling; the config could not hold one, so a key written the way `get`
+ * printed it became a package literally called `npm:zod` that no lookup ever matched.
+ */
+function parsePackageIdentity(
+  key: string,
+  configPath: string,
+  field: string
+): { ecosystem: string; name: string } {
+  const { ecosystem, name, version } = parsePackageKey(key);
+
+  if (version !== null) {
+    fail(
+      configPath,
+      `${field} carries a version in the key. The key is the package, the value is the version: write "${ecosystem === SUPPORTED_ECOSYSTEM ? name : `${ecosystem}:${name}`}": "${version}".`
+    );
+  }
+  if (!KNOWN_ECOSYSTEMS.includes(ecosystem)) fail(configPath, `${field}: ${unknownEcosystemMessage(ecosystem)}`);
+  if (ecosystem !== SUPPORTED_ECOSYSTEM) fail(configPath, `${field}: ${unsupportedEcosystemMessage(ecosystem, name)}`);
+  requireNonEmpty(name, configPath, field);
+
+  return { ecosystem, name };
+}
 
 function requirePackageVersion(value: unknown, configPath: string, field: string): string {
   if (value === undefined || value === null) {
@@ -239,9 +273,12 @@ function parseSetPackage(
     if (!parsed) {
       fail(configPath, `${field} must be "name@version" with an exact version, such as "react@18.2.0". ${VERSION_HELP}`);
     }
+    const identity = parsePackageIdentity(parsed.name, configPath, field);
     return {
       kind: 'package',
-      name: parsed.name,
+      name: identity.name,
+      ecosystem: identity.ecosystem,
+      configKey: parsed.name,
       scope: 'shared',
       version: parsed.version,
       ref: null,
@@ -255,10 +292,18 @@ function parseSetPackage(
   const object = expectObject(item, configPath, field, 'a package name string or an object');
   assertKnownKeys(object, SET_PACKAGE_KEYS, configPath, field);
   if (object.name === undefined) fail(configPath, `${field}.name is required.`);
+  const declared = requireNonEmpty(
+    expectString(object.name, configPath, `${field}.name`),
+    configPath,
+    `${field}.name`
+  );
+  const identity = parsePackageIdentity(declared, configPath, `${field}.name`);
 
   return {
     kind: 'package',
-    name: requireNonEmpty(expectString(object.name, configPath, `${field}.name`), configPath, `${field}.name`),
+    name: identity.name,
+    ecosystem: identity.ecosystem,
+    configKey: declared,
     scope: 'shared',
     version: requirePackageVersion(object.version, configPath, `${field}.version`),
     ref: optionalString(object.ref, configPath, `${field}.ref`),
@@ -275,8 +320,13 @@ function parseSetPackage(
  * declarations disagreeing about what the name points at is a real conflict.
  */
 function mergeDuplicateReferences(config: AgentReferenceConfig, configPath: string): void {
-  config.packages = mergeKind(config.packages, configPath, (entry) =>
-    [entry.version, entry.ref, entry.repository, entry.directory].join('\u0000')
+  // Keyed on the ecosystem as well as the name, so a future `pypi:zod` is a second reference
+  // rather than a conflict, while `zod` and `npm:zod` are two spellings of one.
+  config.packages = mergeKind(
+    config.packages,
+    configPath,
+    (entry) => [entry.version, entry.ref, entry.repository, entry.directory].join('\u0000'),
+    (entry) => `${entry.ecosystem} ${entry.name}`
   );
   config.paths = mergeKind(config.paths, configPath, (entry) => entry.path);
   config.git = mergeKind(config.git, configPath, (entry) => [entry.spec, entry.directory].join('\u0000'));
@@ -285,14 +335,16 @@ function mergeDuplicateReferences(config: AgentReferenceConfig, configPath: stri
 function mergeKind<T extends ConfiguredReference>(
   entries: T[],
   configPath: string,
-  identity: (entry: T) => string
+  identity: (entry: T) => string,
+  keyOf: (entry: T) => string = (entry) => entry.name
 ): T[] {
   const byName = new Map<string, T>();
 
   for (const entry of entries) {
-    const existing = byName.get(entry.name);
+    const key = keyOf(entry);
+    const existing = byName.get(key);
     if (!existing) {
-      byName.set(entry.name, entry);
+      byName.set(key, entry);
       continue;
     }
     if (identity(existing) !== identity(entry)) {
@@ -320,12 +372,16 @@ function memberEntries(value: unknown, configPath: string, field: string): Array
   return value.map((item, index) => [index, item]);
 }
 
-function parsePackageEntry(name: string, entry: unknown, configPath: string): ConfiguredPackageReference {
-  const field = `packages.${name}`;
+function parsePackageEntry(key: string, entry: unknown, configPath: string): ConfiguredPackageReference {
+  const field = `packages.${key}`;
+  const { ecosystem, name } = parsePackageIdentity(key, configPath, field);
+
   if (typeof entry === 'string') {
     return {
       kind: 'package',
       name,
+      ecosystem,
+      configKey: key,
       scope: 'shared',
       version: requirePackageVersion(entry, configPath, field),
       ref: null,
@@ -342,6 +398,8 @@ function parsePackageEntry(name: string, entry: unknown, configPath: string): Co
   return {
     kind: 'package',
     name,
+    ecosystem,
+    configKey: key,
     scope: 'shared',
     version: requirePackageVersion(object.version, configPath, `${field}.version`),
     ref: optionalString(object.ref, configPath, `${field}.ref`),

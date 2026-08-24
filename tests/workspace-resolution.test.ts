@@ -436,7 +436,7 @@ test('a workspace link does not hide the versions other importers install', () =
 
   assert.match(text, /is a workspace package in this repository, at \/repo\/shared\./);
   assert.match(text, /1\.2\.3\s+apps\/legacy/);
-  assert.match(text, /agent-reference get shared@1\.2\.3/);
+  assert.match(text, /agent-reference get npm:shared@1\.2\.3/);
   assert.doesNotMatch(text, /nothing to fetch/);
 });
 
