@@ -60,6 +60,34 @@ test('prune drops old checkouts and the mirror once nothing is checked out', asy
   assert.equal(report.reclaimedBytes > 0, true);
 });
 
+test('a repository under a subgroup is one repository, not two', async () => {
+  // GitLab subgroups and self-hosted forges nest one level deeper than github does. Counting
+  // levels split this into a phantom repository plus a mirror that looked unused, and prune
+  // then deleted a live mirror whatever the age threshold said.
+  const storeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-nested-test-'));
+  const checkout = path.join(storeDir, 'src', 'forge.example', 'group', 'sub', 'repo', 'aaaaaaaaaaaa');
+  const bare = path.join(storeDir, 'git', 'forge.example', 'group', 'sub', 'repo.git');
+  await fs.mkdir(checkout, { recursive: true });
+  await fs.mkdir(bare, { recursive: true });
+  await fs.writeFile(path.join(checkout, 'index.js'), 'y'.repeat(1024));
+  await fs.writeFile(path.join(bare, 'packed-refs'), 'x'.repeat(2048));
+
+  const report = await inspectStore({ storeDir });
+  const [repository, ...rest] = report.repositories;
+
+  assert.deepEqual(rest, []);
+  assert.equal(repository?.name, 'forge.example/group/sub/repo');
+  assert.equal(repository?.bareRepositoryPath, bare);
+  assert.deepEqual(
+    repository?.checkouts.map((entry) => entry.commit),
+    ['aaaaaaaaaaaa']
+  );
+
+  const pruned = await inspectStore({ storeDir, prune: true, days: 30 });
+  assert.deepEqual(pruned.removed, []);
+  assert.equal(await exists(bare), true);
+});
+
 test('formats byte counts for humans', () => {
   assert.equal(formatBytes(512), '512 B');
   assert.equal(formatBytes(1536), '1.5 KB');

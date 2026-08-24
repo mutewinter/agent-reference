@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { pathExists } from './fs-utils.ts';
-import { BARE_DIR, CHECKOUT_DIR, defaultStoreDir, runGit } from './git.ts';
+import { BARE_DIR, CHECKOUT_DIR, defaultStoreDir, isCheckoutDirectoryName, runGit } from './git.ts';
 
 export interface StoredRepository {
   /** `github.com/owner/repo`, the same shape that appears in every printed path. */
@@ -107,8 +107,10 @@ async function collectRepositories(storeDir: string, now: number): Promise<Store
     repository.bareBytes = await directorySize(bare);
   }
 
-  // Checkout paths are <store>/src/<host>/<owner>/<repo>/<commit>.
-  for (const checkout of await findLeaves(path.join(storeDir, CHECKOUT_DIR), () => false, 4)) {
+  // A checkout is recognized by its commit-shaped name rather than by how deep it sits: a
+  // remote whose path carries a subgroup nests one level further than github does, and
+  // counting levels reported the repository directory itself as a single huge checkout.
+  for (const checkout of await findLeaves(path.join(storeDir, CHECKOUT_DIR), isCheckoutDirectoryName)) {
     const relative = storeName(path.join(storeDir, CHECKOUT_DIR), checkout);
     const segments = relative.split(path.sep);
     const commit = segments.pop() ?? '';
@@ -133,15 +135,11 @@ async function collectRepositories(storeDir: string, now: number): Promise<Store
 }
 
 /**
- * Walks to directories that either look like a leaf or sit at `depth`, so the store layout
- * is read without assuming how deeply nested an owner or host path is.
+ * Walks to the directories a predicate calls leaves, so the store layout is read without
+ * assuming how deeply nested an owner or host path is. A leaf is never descended into, so
+ * a checkout's own contents can never be mistaken for more of the store.
  */
-async function findLeaves(
-  root: string,
-  isLeaf: (name: string) => boolean,
-  depth = Number.POSITIVE_INFINITY,
-  level = 1
-): Promise<string[]> {
+async function findLeaves(root: string, isLeaf: (name: string) => boolean): Promise<string[]> {
   if (!(await pathExists(root))) return [];
 
   const entries = await fs.readdir(root, { withFileTypes: true }).catch(() => []);
@@ -150,10 +148,10 @@ async function findLeaves(
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const full = path.join(root, entry.name);
-    if (isLeaf(entry.name) || level === depth) {
+    if (isLeaf(entry.name)) {
       found.push(full);
     } else {
-      found.push(...(await findLeaves(full, isLeaf, depth, level + 1)));
+      found.push(...(await findLeaves(full, isLeaf)));
     }
   }
 

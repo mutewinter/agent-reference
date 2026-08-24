@@ -24,6 +24,17 @@ const STORE_DIR_NAME = '.agent-reference';
 /** Short on purpose: these two segments appear in every path the tool prints. */
 export const BARE_DIR = 'git';
 export const CHECKOUT_DIR = 'src';
+/**
+ * A checkout directory is named for its commit, and that name is the only thing marking it
+ * as a checkout: the host and owner segments above it nest as deeply as the remote's path
+ * does. `store` reads the tree back with this, so the two cannot disagree about the layout.
+ */
+export const CHECKOUT_SHA_LENGTH = 12;
+const CHECKOUT_DIR_NAME = new RegExp(`^[0-9a-f]{${CHECKOUT_SHA_LENGTH}}$`);
+
+export function isCheckoutDirectoryName(name: string): boolean {
+  return CHECKOUT_DIR_NAME.test(name);
+}
 
 /** `--filter=blob:none` partial clones need git 2.19. */
 const MINIMUM_GIT_VERSION = [2, 19, 0] as const;
@@ -171,7 +182,7 @@ export async function ensureGitReferenceWorktree(
 function sharedWorktreePath(storeDir: string, repositoryUrl: string, sha: string): string {
   const parts = repositoryCacheParts(repositoryUrl);
   const repo = (parts.pop() ?? 'repository').replace(/\.git$/, '');
-  return path.join(storeDir, CHECKOUT_DIR, ...parts, repo, sha.slice(0, 12));
+  return path.join(storeDir, CHECKOUT_DIR, ...parts, repo, sha.slice(0, CHECKOUT_SHA_LENGTH));
 }
 
 export function bareRepositoryPathFor(storeDir: string, repositoryUrl: string): string {
