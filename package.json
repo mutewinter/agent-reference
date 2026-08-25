@@ -30,12 +30,19 @@
   "scripts": {
     "build": "npm run clean && tsc -p tsconfig.json && node --input-type=module -e \"import {chmod} from 'node:fs/promises'; await chmod(new URL('dist/cli.js', import.meta.url), 0o755);\"",
     "dev": "node --experimental-strip-types src/cli.ts",
+    "dev:all": "turbo run site:dev talk:dev --ui tui",
+    "check": "turbo run format lint check-types test site:lint site:check-types --continue=dependencies-successful",
     "test": "node --test --experimental-strip-types tests/*.test.ts",
     "check-types": "tsc -p tsconfig.check.json",
     "lint": "oxlint --type-aware src tests evals scripts",
     "lint:fix": "oxlint --type-aware --fix src tests evals scripts",
     "format": "oxfmt --check .",
     "format:fix": "oxfmt .",
+    "site:dev": "pnpm --dir site run dev",
+    "site:build": "pnpm --dir site run build",
+    "site:lint": "pnpm --dir site run lint",
+    "site:check-types": "pnpm --dir site run check-types",
+    "talk:dev": "pnpm --dir talks/2026-08-25-nashjs run dev",
     "sync-readme": "node scripts/sync-readme.ts",
     "prepack": "npm run build",
     "prepare": "npm run build",
@@ -61,6 +68,7 @@
     "oxfmt": "^0.65.0",
     "oxlint": "^1.79.0",
     "oxlint-tsgolint": "^7.0.2001",
+    "turbo": "^2.10.11",
     "typescript": "^5.9.3"
   },
   "dependencies": {
