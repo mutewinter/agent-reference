@@ -1,0 +1,8 @@
+# Revisions that changed formatting and nothing else. Configure git to skip them:
+#
+#     git config blame.ignoreRevsFile .git-blame-ignore-revs
+#
+# GitHub reads this file on its own and needs no configuration.
+
+# format: adopt oxfmt across both projects
+92ad571daa8229cb8b17d8c4e245b5eb54adb438
