@@ -35,6 +35,9 @@
     "docs/",
     // A dated single-use deck, and the only Vue in the repository.
     "talks/",
+    // The same deck, built. It is committed so the site can serve it, which
+    // makes it the one piece of build output that is not under dist/.
+    "site/public/talk/",
     // Vendored: the syntax theme, the lockfiles, and the fixture manifests.
     "**/*.json",
     "pnpm-lock.yaml"
