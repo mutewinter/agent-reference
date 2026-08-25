@@ -261,6 +261,28 @@
   color: var(--ok);
 }
 
+/* Output that is technically a success and materially the problem: a wall of
+   minified source, a page of markup. Neither is an error, so neither is red. */
+.sess .warn {
+  color: #d9a441;
+}
+
+/* The word the human keyed in, which is the whole point of naming a group. */
+.p b {
+  font-weight: 400;
+  background: #4a3c1c;
+  padding: 0 3px;
+}
+
+/* A screenshot of one config slide should say what it is on its own. */
+.subhead {
+  flex: none;
+  margin-top: -0.55em;
+  margin-bottom: 1.1em;
+  font-size: 15px;
+  color: #666;
+}
+
 /* An empty input, until it is pasted into. The caret has to leave the flow
    rather than fade, or the pasted text lands one character to the right. */
 .p .slidev-vclick-hidden {

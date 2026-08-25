@@ -51,7 +51,7 @@ class: beat
 
 <div class="body">
 
-<div class="term"><div class="term-bar">agent</div><div class="term-body"><div class="sess"><div class="p"><div>&gt; drag and drop puts the card in the wrong column if you drop it fast. can you fix</div></div><div class="step" v-click="1"><div><span class="dot">&#9679;</span> Read(package.json)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;"interactjs": "^1.10.28"</div></div><div class="step" v-click="2"><div><span class="dot">&#9679;</span> Bash(ls node_modules/interactjs)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;LICENSE&nbsp;&nbsp;&nbsp;README.md&nbsp;&nbsp;&nbsp;bower.json&nbsp;&nbsp;&nbsp;dist&nbsp;&nbsp;&nbsp;index.d.ts&nbsp;&nbsp;&nbsp;index.js</div></div><div class="step" v-click="3"><div><span class="dot">&#9679;</span> Read(node_modules/interactjs/dist/interact.min.js)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Read 4 lines</div></div><div class="step" v-click="4"><div><span class="dot">&#9679;</span> Bash(sed -n '3p' &hellip;/interact.min.js | cut -c 1-2000)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;!function(t,e){&quot;object&quot;==typeof exports&amp;&amp;&quot;undefined&quot;!=typeof module?modul&hellip;</div></div><div class="step" v-click="5"><div><span class="dot">&#9679;</span> Bash(sed -n '3p' &hellip;/interact.min.js | cut -c 2000-4000)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;ect.setPrototypeOf.bind():function(t,e){return t.__proto__=e,t},l(t,e)}f&hellip;</div></div><div class="step" v-click="6"><div><span class="dot">&#9679;</span> Bash(sed -n '3p' &hellip;/interact.min.js | cut -c 4000-6000)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;:function(t){return&quot;number&quot;==typeof t},bool:function(t){return&quot;boolean&quot;&hellip;</div></div></div></div></div>
+<div class="term"><div class="term-bar">agent</div><div class="term-body"><div class="sess"><div class="p"><div>&gt; drag and drop puts the card in the wrong column if you drop it fast. can you fix</div></div><div class="step" v-click="1"><div><span class="dot">&#9679;</span> Read(package.json)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;"interactjs": "^1.10.28"</div></div><div class="step" v-click="2"><div><span class="dot">&#9679;</span> Bash(ls node_modules/interactjs)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;LICENSE&nbsp;&nbsp;&nbsp;README.md&nbsp;&nbsp;&nbsp;bower.json&nbsp;&nbsp;&nbsp;dist&nbsp;&nbsp;&nbsp;index.d.ts&nbsp;&nbsp;&nbsp;index.js</div></div><div class="step" v-click="3"><div><span class="dot">&#9679;</span> Read(node_modules/interactjs/dist/interact.min.js)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Read 4 lines</div></div><div class="step" v-click="4"><div><span class="dot">&#9679;</span> Bash(sed -n '3p' &hellip;/interact.min.js | cut -c 1-2000)</div><div class="warn"><span class="el">&#9151;</span>&nbsp;&nbsp;!function(t,e){&quot;object&quot;==typeof exports&amp;&amp;&quot;undefined&quot;!=typeof module?modul&hellip;</div></div><div class="step" v-click="5"><div><span class="dot">&#9679;</span> Bash(sed -n '3p' &hellip;/interact.min.js | cut -c 2000-4000)</div><div class="warn"><span class="el">&#9151;</span>&nbsp;&nbsp;ect.setPrototypeOf.bind():function(t,e){return t.__proto__=e,t},l(t,e)}f&hellip;</div></div><div class="step" v-click="6"><div><span class="dot">&#9679;</span> Bash(sed -n '3p' &hellip;/interact.min.js | cut -c 4000-6000)</div><div class="warn"><span class="el">&#9151;</span>&nbsp;&nbsp;:function(t){return&quot;number&quot;==typeof t},bool:function(t){return&quot;boolean&quot;&hellip;</div></div></div></div></div>
 
 </div>
 
@@ -63,7 +63,7 @@ class: beat
 
 <div class="body">
 
-<div class="term"><div class="term-bar">agent</div><div class="term-body"><div class="sess"><div class="p"><div>&gt; use effect to read the config file. handle it if the file isnt there</div></div><div class="step" v-click="1"><div><span class="dot">&#9679;</span> WebSearch("effect typescript read a file")</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Found 8 results</div></div><div class="step" v-click="2"><div><span class="dot">&#9679;</span> WebFetch(effect.website/docs/platform/file-system)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Received 412 KB</div><div class="r">&nbsp;&nbsp;&nbsp;&lt;!doctype html&gt;&lt;html lang=&quot;en&quot; class=&quot;dark&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;&hellip;</div><div class="r">&nbsp;&nbsp;&nbsp;&hellip;&lt;nav class=&quot;sidebar&quot;&gt;&lt;a href=&quot;/docs/getting-started&quot;&gt;Getting Started&lt;/a&gt;&hellip;</div><div class="r">&nbsp;&nbsp;&nbsp;&hellip;&lt;div class=&quot;prose&quot;&gt;&lt;h1&gt;FileSystem&lt;/h1&gt;&lt;p&gt;The &lt;code&gt;FileSystem&lt;/code&gt; tag&hellip;</div><div class="r">&nbsp;&nbsp;&nbsp;&hellip;&lt;script id=&quot;__NEXT_DATA__&quot; type=&quot;application/json&quot;&gt;{&quot;props&quot;:{&quot;page&hellip;</div></div><div class="step" v-click="3"><div><span class="dot">&#9679;</span> WebFetch(effect.website/docs/getting-started)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Received 288 KB</div><div class="r">&nbsp;&nbsp;&nbsp;&lt;!doctype html&gt;&lt;html lang=&quot;en&quot; class=&quot;dark&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;&hellip;</div><div class="r">&nbsp;&nbsp;&nbsp;&hellip;&lt;div class=&quot;prose&quot;&gt;&lt;h1&gt;Getting Started&lt;/h1&gt;&lt;p&gt;Effect is a library&hellip;</div></div><div class="step" v-click="4"><div><span class="dot">&#9679;</span> WebSearch("effect v4 filesystem readFileString example")</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Found 8 results</div></div></div></div></div>
+<div class="term"><div class="term-bar">agent</div><div class="term-body"><div class="sess"><div class="p"><div>&gt; use effect to read the config file. handle it if the file isnt there</div></div><div class="step" v-click="1"><div><span class="dot">&#9679;</span> WebSearch("effect typescript read a file")</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Found 8 results</div></div><div class="step" v-click="2"><div><span class="dot">&#9679;</span> WebFetch(effect.website/docs/platform/file-system)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Received 412 KB</div><div class="warn">&nbsp;&nbsp;&nbsp;&lt;!doctype html&gt;&lt;html lang=&quot;en&quot; class=&quot;dark&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;&hellip;</div><div class="warn">&nbsp;&nbsp;&nbsp;&hellip;&lt;nav class=&quot;sidebar&quot;&gt;&lt;a href=&quot;/docs/getting-started&quot;&gt;Getting Started&lt;/a&gt;&hellip;</div><div class="warn">&nbsp;&nbsp;&nbsp;&hellip;&lt;div class=&quot;prose&quot;&gt;&lt;h1&gt;FileSystem&lt;/h1&gt;&lt;p&gt;The &lt;code&gt;FileSystem&lt;/code&gt; tag&hellip;</div><div class="warn">&nbsp;&nbsp;&nbsp;&hellip;&lt;script id=&quot;__NEXT_DATA__&quot; type=&quot;application/json&quot;&gt;{&quot;props&quot;:{&quot;page&hellip;</div></div><div class="step" v-click="3"><div><span class="dot">&#9679;</span> WebFetch(effect.website/docs/getting-started)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Received 288 KB</div><div class="warn">&nbsp;&nbsp;&nbsp;&lt;!doctype html&gt;&lt;html lang=&quot;en&quot; class=&quot;dark&quot;&gt;&lt;head&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;&hellip;</div><div class="warn">&nbsp;&nbsp;&nbsp;&hellip;&lt;div class=&quot;prose&quot;&gt;&lt;h1&gt;Getting Started&lt;/h1&gt;&lt;p&gt;Effect is a library&hellip;</div></div><div class="step" v-click="4"><div><span class="dot">&#9679;</span> WebSearch("effect v4 filesystem readFileString example")</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Found 8 results</div></div></div></div></div>
 
 </div>
 
@@ -195,13 +195,15 @@ layout: statement
 class: interlude
 ---
 
-# Everything your agent can reference
+# What can a reference be?
 
 ---
 class: config
 ---
 
-## Sibling folders
+## Reference the repos checked out beside this one
+
+<div class="subhead">By name, so nobody has to remember a path</div>
 
 <div class="body">
 
@@ -216,7 +218,9 @@ class: config
 class: config
 ---
 
-## Repos your agent can learn from
+## Check out any repo worth reading
+
+<div class="subhead">Public or private, and the projects you copy patterns from</div>
 
 <div class="body">
 
@@ -231,7 +235,9 @@ class: config
 class: config
 ---
 
-## Your agent reads the version you install
+## Check out source for exact npm versions
+
+<div class="subhead">The version your lockfile installs, from the repository rather than the tarball</div>
 
 <div class="body">
 
@@ -246,7 +252,9 @@ class: config
 class: config
 ---
 
-## Multiple versions of the same package
+## Check out two versions of one package at once
+
+<div class="subhead">Both on disk, keyed by commit, so an upgrade can be read from both sides</div>
 
 <div class="body">
 
@@ -261,7 +269,9 @@ class: config
 class: config
 ---
 
-## References your agent can reach from anywhere
+## Reference anything on your machine, from any folder
+
+<div class="subhead">A config at home, for every project that has none of its own</div>
 
 <div class="body">
 
@@ -278,12 +288,14 @@ class: config
 
 ## Group references under one name
 
+<div class="subhead">Ask for all of them at once, by that name</div>
+
 <div class="body">
 
 <div class="pair">
 <div class="panel"><div class="panel-head">agent-reference.json</div><div class="panel-body"><div class="code small"><div><span class="k">"references"</span>: {</div><div>&nbsp;&nbsp;<span class="k">"harnesses"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"How others solve this"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"references"</span>: [</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:earendil-works/pi"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:openai/codex"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:anomalyco/opencode"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;]</div><div>&nbsp;&nbsp;}</div><div>}</div></div></div></div>
 <div class="panel"><div class="panel-head">agent</div><div class="panel-body"><div class="sess" style="font-size:12px">
-<div class="p"><div>&gt; how do other harnesses compact context</div></div>
+<div class="p"><div>&gt; how do other <b>harnesses</b> compact context</div></div>
 <div>
 <div><span class="dot">&#9679;</span> Bash(agent-reference get harnesses)</div>
 <div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;codex&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&hellip;/openai/codex/a4f10b27</div>
