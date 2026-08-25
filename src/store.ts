@@ -121,7 +121,7 @@ async function collectRepositories(storeDir: string, now: number): Promise<Store
     isCheckoutDirectoryName,
   )) {
     const relative = storeName(path.join(storeDir, CHECKOUT_DIR), checkout);
-    const segments = relative.split(path.sep);
+    const segments = relative.split('/');
     const commit = segments.pop() ?? '';
     const repository = repositoryFor(segments.join('/'));
     const stat = await fs.stat(checkout).catch(() => null);
@@ -172,8 +172,17 @@ async function findLeaves(root: string, isLeaf: (name: string) => boolean): Prom
   return found;
 }
 
+/**
+ * The key a repository is grouped by, in the store's own spelling: forward slashes,
+ * because that is what the paths under it are built from and what every printed line
+ * shows. `path.relative` hands back backslashes on Windows, so the bare half and the
+ * checkout half of one repository keyed differently and it appeared twice: once holding
+ * the mirror with no checkouts, once holding the checkouts with no mirror. `--prune` then
+ * read the first as a repository nothing is checked out from and deleted the mirror
+ * whatever its age.
+ */
 function storeName(root: string, target: string): string {
-  return path.relative(root, target);
+  return path.relative(root, target).split(path.sep).join('/');
 }
 
 async function directorySize(directory: string): Promise<number> {
