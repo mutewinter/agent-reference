@@ -239,6 +239,11 @@
   color: #fff;
 }
 
+/* A failing command, in the red a terminal would print it in. */
+.sess .e {
+  color: #ff6b6b;
+}
+
 /* What the human sent: a full-bleed band inside the terminal body, one line
    tall, rather than a padded card floating in the transcript. */
 .p {
@@ -602,12 +607,22 @@
 
 .brawndo {
   position: absolute;
-  right: 26px;
-  bottom: -30px;
-  height: 78%;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   opacity: 0;
   pointer-events: none;
   animation: brawndo-arrives 60s ease-in forwards;
+}
+
+/* The text sits over the still, which arrives behind it. */
+.slidev-layout.closer h1,
+.slidev-layout.closer .crave,
+.slidev-layout.closer .cta {
+  position: relative;
+  z-index: 1;
+  text-shadow: 0 2px 18px rgb(0 0 0 / 0.85);
 }
 
 @keyframes brawndo-arrives {
@@ -615,7 +630,7 @@
     opacity: 0;
   }
   to {
-    opacity: 0.42;
+    opacity: 0.38;
   }
 }
 
