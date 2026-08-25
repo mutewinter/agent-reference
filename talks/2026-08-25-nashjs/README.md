@@ -22,8 +22,8 @@ The deck runs in three modes and every slide is exactly one of them, so nobody i
 
 Everything else follows from those.
 
-- **Nothing implies an operating system.** The terminal frame is a centered path in a bar, the browser is a centered address bar. No traffic lights, no window furniture.
-- **The callout lands on top.** The takeaway is one line, absolutely positioned over the bottom of the terminal on the last click, so it never takes a column away from the transcript. `.term-body` reserves the strip it lands in. Same accent the website gives the one thing on the page you click.
+- **Nothing implies an operating system.** The terminal bar carries one word, `agent`, and the browser has a centered address bar. No traffic lights, no window furniture, no machine or folder named.
+- **A session steps only where the stepping is the point.** The four problem sessions and the setup reveal a click at a time, because watching them go wrong is the argument. The small sessions beside a config on an example slide render whole: they are read, not walked through.
 - **Only the dot is colored.** Claude Code does not tint a tool name, and a wall of green reads as output rather than as a call.
 - **Nothing invented appears inside a transcript.** What the CLI prints inside one is faithful to what it really prints, and `⎿` goes on a tool result's first line only.
 - **Prompts are written the way somebody would really type them.** No capital at the front, no period at the end. The human's turn is a full-bleed band one line tall, the way Claude Code sets it apart.

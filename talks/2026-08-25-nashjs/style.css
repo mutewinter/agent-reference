@@ -136,7 +136,7 @@
   font-size: 21px;
   font-weight: 600;
   letter-spacing: -0.015em;
-  margin-bottom: 0.7em;
+  margin-bottom: 0.9em;
 }
 
 .slidev-layout.beat h2 {
@@ -158,6 +158,9 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  /* A pair tall enough to fill the body would otherwise sit right under the
+     heading, since centering has no slack left to give. */
+  padding-top: 6px;
 }
 
 /* ------------------------------------------------------- terminal frame */
@@ -173,9 +176,14 @@
 }
 
 .term-bar {
-  height: 22px;
+  padding: 5px 12px;
   background: var(--term-chrome);
   border-bottom: 1px solid var(--term-edge);
+  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  font-size: 11px;
+  color: #6b6b6b;
+  letter-spacing: 0.04em;
+  text-align: center;
 }
 
 .term-body {
@@ -291,6 +299,12 @@
 
 .code.small {
   font-size: 13px;
+}
+
+/* For the one slide that shows every kind of reference at once. */
+.code.tiny {
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 /* Colors lifted from the site's own theme, so a config on a slide and a config
