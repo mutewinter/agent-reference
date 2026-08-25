@@ -8,8 +8,8 @@ import { createHighlighter } from 'shiki';
 import type { ThemeRegistrationRaw } from 'shiki';
 import { defineConfig } from 'vite';
 
-import { renderCliReference } from './cli-reference.mjs';
-import { samples } from './code-samples.mjs';
+import { renderCliReference } from './cli-reference.ts';
+import { samples } from './code-samples.ts';
 
 // The site states the version of the CLI it documents, read from the package
 // at the repository root rather than restated here, so the two cannot disagree.
@@ -66,7 +66,7 @@ function highlightedSnippets() {
 
 /**
  * Serves the generated CLI reference as a virtual module. The generating lives
- * in cli-reference.mjs, next to the fixture it runs against, because the README
+ * in cli-reference.ts, next to the fixture it runs against, because the README
  * pastes the same transcripts.
  */
 function cliReference() {

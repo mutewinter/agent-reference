@@ -517,7 +517,7 @@ async function linkedWorkspace(label: string): Promise<{ projectRoot: string; st
     ['apps/web', '@mono/web'],
     ['packages/tools', '@mono/tools'],
     ['packages/shared', '@mono/shared'],
-  ]) {
+  ] as const) {
     await fs.mkdir(path.join(projectRoot, dir), { recursive: true });
     await fs.writeFile(path.join(projectRoot, dir, 'package.json'), JSON.stringify({ name }));
   }

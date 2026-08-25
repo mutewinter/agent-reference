@@ -1,0 +1,18 @@
+{
+  // `tsconfig.json` is the build: it emits `dist/` from `src/` alone, so it is
+  // the wrong shape for checking. Everything TypeScript in this project is
+  // checked here instead, which until this file existed meant the tests were
+  // TypeScript that no compiler ever read.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    // Emit-only settings, off because nothing is emitted. `isolatedDeclarations`
+    // in particular would demand explicit return types across files that are
+    // never published.
+    "declaration": false,
+    "declarationMap": false,
+    "isolatedDeclarations": false
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts", "scripts/**/*.ts"]
+}

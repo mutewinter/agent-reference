@@ -1,11 +1,9 @@
 {
-  // The `.mjs` modules are in here so TypeScript infers their shape from the
-  // literals rather than handing the page an `any`: `examples`, `copy`, and the
-  // snippet maps are the contract between this project and `scripts/sync-readme.mjs`
-  // at the repository root, and a stale key in one of them should not typecheck.
-  // `checkJs` stays off, so they are read for their types and not checked as
-  // source; they run under bare node, where none of this applies.
-  "include": ["**/*.ts", "**/*.tsx", "*.mjs"],
+  // `cli-deps.mjs` is the last JavaScript here, and stays that way because it is
+  // the one file that runs on the deploy path, under whichever Node Cloudflare
+  // provides. It is in the program so its shape is inferred rather than assumed;
+  // `checkJs` stays off, so it is read for its types and not checked as source.
+  "include": ["**/*.ts", "**/*.tsx", "cli-deps.mjs"],
   "compilerOptions": {
     "target": "ES2022",
     "allowJs": true,

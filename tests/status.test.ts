@@ -32,6 +32,7 @@ test('reports ready dependencies with store worktree paths', async () => {
   const projectRoot = await copyFixtureProject();
   await useConfig(projectRoot);
   const [reference] = await writeManifest(projectRoot, '1.3.3');
+  assert.ok(reference, 'writeManifest wrote no references');
   const worktreePath = manifestReferencePath(STORE_DIR, reference);
   await fs.mkdir(worktreePath, { recursive: true });
 

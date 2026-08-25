@@ -86,7 +86,7 @@ export function renderCliReference() {
     }
 
     const cli = new URL('../src/cli.ts', import.meta.url).pathname;
-    const clean = (text) =>
+    const clean = (text: string) =>
       text.split(project).join('~/code/my-app').split(store).join('~/.agent-reference');
 
     return commands.map(({ argv, note, lines }) => {

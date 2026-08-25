@@ -1,12 +1,13 @@
 // Renders the site's own content into README.md. The README says what the site
 // says and nothing else, in the same order, so everything it carries comes from
-// site/code-samples.mjs or from running the CLI and neither has a second copy
+// site/code-samples.ts or from running the CLI and neither has a second copy
 // here. This script pastes both into the regions the README marks, and
 // tests/readme.test.ts fails when the README no longer matches.
 import { readFileSync, writeFileSync } from 'node:fs';
 
-import { renderCliReference } from '../site/cli-reference.mjs';
+import { renderCliReference } from '../site/cli-reference.ts';
 import {
+  type Example,
   agents,
   cd,
   copy,
@@ -18,19 +19,20 @@ import {
   setupPrompt,
   terminals,
   trees,
-} from '../site/code-samples.mjs';
+} from '../site/code-samples.ts';
 
 const README = new URL('../README.md', import.meta.url);
 
 /** A fenced block. No sample contains a fence, so three backticks are enough. */
-const fence = (lang, text) => '```' + lang + '\n' + text + '\n```';
+const fence = (lang: string, text: string) => '```' + lang + '\n' + text + '\n```';
 
 /** A snippet under the filename it belongs in, the way the site labels its panels. */
-const labeled = (file, name) => `\`${file}\`\n\n${fence(samples[name].lang, samples[name].code)}`;
+const labeled = (file: string, name: keyof typeof samples) =>
+  `\`${file}\`\n\n${fence(samples[name].lang, samples[name].code)}`;
 
 /** The README hard-wraps its prose, and a generated paragraph has to look the same. */
-function wrap(text, width = 92) {
-  const lines = [];
+function wrap(text: string, width = 92): string {
+  const lines: string[] = [];
   let line = '';
   for (const word of text.split(' ')) {
     if (line && line.length + 1 + word.length > width) {
@@ -44,7 +46,7 @@ function wrap(text, width = 92) {
   return lines.join('\n');
 }
 
-function renderExample({ title, note, tree, file, sample, terminal }) {
+function renderExample({ title, note, tree, file, sample, terminal }: Example): string {
   const blocks = [`### ${title}`, wrap(note)];
   if (tree) blocks.push(fence('text', trees[tree]));
   blocks.push(labeled(file, sample));
@@ -56,7 +58,7 @@ function renderExample({ title, note, tree, file, sample, terminal }) {
  * The install card, which cycles the harness name on the site. Markdown cannot
  * cycle, so the alternatives ride along as a comment on the line they replace.
  */
-function renderInstall() {
+function renderInstall(): string {
   const [first, ...rest] = agents;
   return [
     `### ${copy.install.heading}`,
@@ -67,14 +69,14 @@ function renderInstall() {
   ].join('\n\n');
 }
 
-function renderCommands() {
+function renderCommands(): string {
   return renderCliReference()
     .map((entry) => `### ${entry.command}\n\n${fence('text', entry.transcript)}`)
     .join('\n\n');
 }
 
 /** The two configs, the store they leave behind, and a line on either side. */
-function renderHowItWorks() {
+function renderHowItWorks(): string {
   return [
     wrap(howItWorks.lead),
     ...howItWorks.configs.map((config) => labeled(config.file, config.sample)),
@@ -84,7 +86,7 @@ function renderHowItWorks() {
 }
 
 /** Marker id to the markdown it stands for. */
-const generated = {
+const generated: Record<string, string> = {
   // Bold, so a lone sentence under the title reads as the tagline it is.
   tagline: `**${copy.tagline}**`,
   hero: [labeled('agent-reference.json', 'shared'), fence('text', terminals.session)].join('\n\n'),
@@ -97,8 +99,8 @@ const generated = {
   commands: [wrap(copy.commands.note), renderCommands()].join('\n\n'),
 };
 
-export function render(readme) {
-  const seen = new Set();
+export function render(readme: string): string {
+  const seen = new Set<string>();
   const rendered = readme.replaceAll(
     /<!-- generated:(\S+) -->[\s\S]*?<!-- \/generated -->/g,
     (_match, id) => {
@@ -113,7 +115,7 @@ export function render(readme) {
   return rendered;
 }
 
-export function readReadme() {
+export function readReadme(): string {
   return readFileSync(README, 'utf8');
 }
 

@@ -6,6 +6,7 @@ import {
   agents,
   cd,
   copy,
+  type Example as ExampleData,
   examples,
   howItWorks,
   install,
@@ -13,18 +14,11 @@ import {
   setupPrompt,
   terminals,
   trees,
-} from '../../code-samples.mjs';
+} from '../../code-samples.ts';
 import { Highlighted, Panel, Session, Term, Tree, source } from '../components/panels';
 import { ForYou, ForYourAgent, Or } from '../components/start';
 
 export const Route = createFileRoute('/')({ component: Home });
-
-// An example names its tree and its terminal by key, and those keys arrive as
-// data. The maps themselves are object literals, so TypeScript knows their exact
-// keys and refuses a lookup by plain string; this is the widening that says the
-// lookup really is by name.
-const treeText: Record<string, string> = trees;
-const terminalText: Record<string, string> = terminals;
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -38,21 +32,9 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function Example({
-  title,
-  note,
-  tree,
-  terminal,
-  file,
-  sample,
-}: {
-  title: string;
-  note?: string;
-  tree?: string;
-  terminal?: string;
-  file: string;
-  sample: string;
-}) {
+// The props are the data. A key renamed in `samples`, `trees`, or `terminals`
+// fails here rather than rendering an empty panel.
+function Example({ title, note, tree, terminal, file, sample }: ExampleData) {
   const paired = Boolean(tree ?? terminal);
   return (
     <div className="mt-12 first:mt-0">
@@ -61,7 +43,7 @@ function Example({
       <div className={`mt-4 grid gap-5 ${paired ? 'lg:grid-cols-2' : 'max-w-3xl'}`}>
         {tree ? (
           <Panel>
-            <Tree text={treeText[tree]} />
+            <Tree text={trees[tree]} />
           </Panel>
         ) : null}
         <Panel label={file} copy={source(sample)}>
@@ -69,7 +51,7 @@ function Example({
         </Panel>
         {terminal ? (
           <Panel tone="term">
-            <Term text={terminalText[terminal]} />
+            <Term text={terminals[terminal]} />
           </Panel>
         ) : null}
       </div>
@@ -95,7 +77,7 @@ function HowItWorks() {
           ))}
         </div>
         <Panel>
-          <Tree text={treeText[howItWorks.tree]} />
+          <Tree text={trees[howItWorks.tree]} />
         </Panel>
       </div>
       <p className="mt-6 max-w-3xl text-muted">{howItWorks.cache}</p>

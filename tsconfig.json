@@ -3,6 +3,10 @@
     "allowImportingTsExtensions": true,
     "declaration": true,
     "declarationMap": true,
+    // `dev`, `test`, and `sync-readme` all run TypeScript directly under node,
+    // which erases types and cannot generate code. An enum or a namespace would
+    // compile here and then fail at runtime, so the compiler refuses them.
+    "erasableSyntaxOnly": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "isolatedDeclarations": true,

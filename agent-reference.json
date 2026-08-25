@@ -1,7 +1,5 @@
 {
   "$schema": "https://unpkg.com/agent-reference/schema/agent-reference.schema.json",
-  // Upstreams this repo makes a claim about. Each description names the claim,
-  // so the next agent knows what goes stale when that project moves.
   "git": {
     "opencode": {
       "repository": "github:anomalyco/opencode",
@@ -14,12 +12,6 @@
     "agent-browser": {
       "repository": "github:vercel-labs/agent-browser",
       "description": "Prior art for how a CLI ships its own agent instructions. Read it when deciding how the skill reaches a project, how much of it lives in the binary rather than on disk, and what the install line should say. Site: agent-browser.dev"
-    }
-  },
-  "packages": {
-    "typescript": {
-      "version": "5.9.3",
-      "description": "Read when the compiler disagrees with the code and the error text alone does not say why. src/compiler/checker.ts carries the message strings; tests/cases/ has a reproduction for most of them"
     }
   }
 }

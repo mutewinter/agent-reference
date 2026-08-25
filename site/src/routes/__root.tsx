@@ -1,6 +1,6 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
 
-import { copy, quickStart } from '../../code-samples.mjs';
+import { copy, quickStart } from '../../code-samples.ts';
 import appCss from '../styles.css?url';
 
 const { title: TITLE, tagline: TAGLINE, description: DESCRIPTION } = copy;
@@ -13,7 +13,7 @@ const NPM = 'https://www.npmjs.com/package/agent-reference';
 const HEADLINE = `${TITLE} \u00B7 ${TAGLINE}`;
 
 /**
- * The link preview, drawn by og.mjs and committed under public/. Absolute,
+ * The link preview, drawn by og.ts and committed under public/. Absolute,
  * because the crawler that reads it has no page to resolve a relative path
  * against.
  */

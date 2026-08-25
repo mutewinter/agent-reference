@@ -281,7 +281,21 @@ package versions read from pnpm-lock.yaml`,
 };
 
 /** The examples section, in the order somebody meets these problems. */
-export const examples = [
+/**
+ * One example, on the site and in the README. Every key here names an entry in
+ * one of the maps above, so a snippet renamed in `samples` or a tree dropped
+ * from `trees` fails to typecheck rather than rendering an empty panel.
+ */
+export interface Example {
+  title: string;
+  note: string;
+  file: string;
+  sample: keyof typeof samples;
+  tree?: keyof typeof trees;
+  terminal?: keyof typeof terminals;
+}
+
+export const examples: Example[] = [
   {
     title: 'Multiple repositories',
     note: 'Let your agent read other repositories checked out on your computer, by name.',
@@ -340,7 +354,16 @@ export const examples = [
  * Neither config carries a path reference: a path is read where it already is,
  * so it would put a line on the left with nothing to answer it on the right.
  */
-export const howItWorks = {
+/** The walkthrough section, keyed to the same maps the examples use. */
+export interface HowItWorks {
+  heading: string;
+  lead: string;
+  configs: Array<{ file: string; sample: keyof typeof samples }>;
+  tree: keyof typeof trees;
+  cache: string;
+}
+
+export const howItWorks: HowItWorks = {
   heading: 'How it works',
   lead: 'Skip this if you like: your agent handles all of it. It is here for anyone who wants to see where the source it reads lands. Two projects, pinning two versions of the same dependency, sharing one store.',
   configs: [

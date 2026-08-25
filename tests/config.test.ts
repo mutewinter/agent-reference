@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { samples } from '../site/code-samples.mjs';
+import { samples } from '../site/code-samples.ts';
 import { loadAgentReferenceConfig, parseConfig } from '../src/config.ts';
 import { parseJsonc } from '../src/jsonc.ts';
 import { runGit } from '../src/git.ts';

@@ -284,7 +284,8 @@ function entry(
     repositoryUrl: null,
     checkoutSha: null,
     confidence: null,
-    status: input.status,
+    pathType: null,
+    directoryMissing: false,
     action: '',
     ...input,
   };

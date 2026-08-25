@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { render } from 'takumi-js';
 import { googleFonts } from 'takumi-js/helpers';
 
-import { copy, quickStart } from './code-samples.mjs';
+import { copy, quickStart } from './code-samples.ts';
 
 const PUBLIC = new URL('./public/', import.meta.url);
 
@@ -20,9 +20,9 @@ const PUBLIC = new URL('./public/', import.meta.url);
  * here, so the card cannot drift from the page the way a second copy of nine
  * hex values would.
  */
-function palette() {
+function palette(): Record<string, string> {
   const css = readFileSync(new URL('./src/styles.css', import.meta.url), 'utf8');
-  const colors = {};
+  const colors: Record<string, string> = {};
   for (const [, name, value] of css.matchAll(/--color-([a-z]+):\s*(#[0-9a-f]{3,8});/giu)) {
     colors[name] = value;
   }
@@ -41,9 +41,9 @@ const favicon = readFileSync(new URL('favicon.svg', PUBLIC), 'utf8');
 const mark = `data:image/svg+xml;base64,${Buffer.from(favicon).toString('base64')}`;
 
 /** No snippet contains either, but the text comes from a file other people edit. */
-const esc = (text) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
+const esc = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
 
-const span = (color, text) => `<span style="color:${color}">${esc(text)}</span>`;
+const span = (color: string, text: string) => `<span style="color:${color}">${esc(text)}</span>`;
 
 const RUNNERS = new Set(['npx', 'pnpx', 'bunx', 'dlx']);
 
@@ -52,7 +52,7 @@ const RUNNERS = new Set(['npx', 'pnpx', 'bunx', 'dlx']);
  * prompt and the runner sit back, so the emphasis lands on the tool being run
  * rather than on the thing running it, the way reading it aloud would.
  */
-function command(text) {
+function command(text: string) {
   const words = text.split(' ');
   const at = RUNNERS.has(words[0]) ? 1 : 0;
   return [

@@ -20,6 +20,12 @@ its users; the repo holds itself to it everywhere.
 
 - Source imports carry `.ts` extensions and run under `--experimental-strip-types`, so
   tests need no build step. Do not "fix" them to `.js`.
+- `tsconfig.json` is the build and emits `dist/` from `src/` alone. `tsconfig.check.json` is
+  what checks everything else, so `pnpm run check-types` rather than `pnpm run build` is what
+  tells you the tests and scripts typecheck.
+- The one remaining JavaScript file outside `evals/` is `site/cli-deps.mjs`, and it stays
+  JavaScript because it is the only one that runs on the deploy path, under Cloudflare's Node
+  rather than the pinned one.
 - Tests stay offline and out of the real store: fixture lockfiles, git repositories
   created in a temp dir, and an explicit `storeDir`. A test that reaches npm or GitHub, or
   writes to the default `~/.agent-reference`, is a bug.
@@ -28,8 +34,10 @@ its users; the repo holds itself to it everywhere.
 
 ## Conventions
 
-- `pnpm test`, `pnpm run build`, and `pnpm run lint` before handing work back. The site is
-  its own project: `pnpm --dir site run lint` and `pnpm --dir site run check-types`.
+- `pnpm test`, `pnpm run build`, `pnpm run lint`, `pnpm run check-types`, and `pnpm run format`
+  before handing work back. The site is its own project: `pnpm --dir site run lint` and
+  `pnpm --dir site run check-types`. `lint:fix` and `format:fix` write; the bare names check,
+  which is the form CI runs.
 - Commit subjects: `scope: description`, lowercase, imperative.
 
 ## The Node version

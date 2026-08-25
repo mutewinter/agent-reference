@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { copy as pageCopy } from '../../code-samples.mjs';
+import { copy as pageCopy } from '../../code-samples.ts';
 import { CheckIcon, CopyIcon, IconCopy, useCopy } from './copy';
 
 /** Both of these sit inside the Get started section, one level under its h2. */

@@ -51,7 +51,8 @@ test('every shipped skill has frontmatter a real YAML parser accepts', async () 
     const file = path.join(skillsDir, skill, 'SKILL.md');
     const contents = await fs.readFile(file, 'utf8');
     const frontmatter = /^---\n([\s\S]*?)\n---\n/.exec(contents);
-    assert.ok(frontmatter, `${skill}/SKILL.md opens with no frontmatter block`);
+    const block = frontmatter?.[1];
+    assert.ok(block !== undefined, `${skill}/SKILL.md opens with no frontmatter block`);
 
     // The harness that installs a skill reads this leniently; nothing else does. An unquoted
     // scalar holding ": " is a mapping entry rather than prose, so a description phrased as
@@ -60,7 +61,7 @@ test('every shipped skill has frontmatter a real YAML parser accepts', async () 
     // what puts this failure in front of users rather than in front of this repo.
     let parsed: unknown;
     assert.doesNotThrow(() => {
-      parsed = load(frontmatter[1]);
+      parsed = load(block);
     }, `${skill}/SKILL.md frontmatter is not valid YAML`);
 
     const fields = parsed as Record<string, unknown>;

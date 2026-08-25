@@ -15,7 +15,7 @@
     "lint:fix": "oxlint --type-aware --fix",
     "preview": "pnpm run build && vite preview",
     "deploy": "pnpm run build && wrangler deploy",
-    "og": "node og.mjs",
+    "og": "node og.ts",
     "generate-routes": "tsr generate",
     "cf-typegen": "wrangler types"
   },

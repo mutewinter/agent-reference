@@ -25,11 +25,10 @@
       "rules": { "typescript/no-unsafe-type-assertion": "off" }
     },
     {
-      // The `.mjs` modules are untyped ESM, shared with `scripts/sync-readme.mjs`
-      // at the repository root, which runs them under bare node. They are outside
-      // this project's tsconfig, so every expression in them reads as `any` and
-      // the type-aware rules report all of it. The syntactic rules still apply.
-      "files": ["*.mjs"],
+      // `cli-deps.mjs` is untyped ESM on purpose: it runs on the deploy path,
+      // under whichever Node Cloudflare provides. Nothing types it, so every
+      // expression in it reads as `any`. The syntactic rules still apply.
+      "files": ["cli-deps.mjs"],
       "rules": {
         "typescript/no-unsafe-argument": "off",
         "typescript/no-unsafe-assignment": "off",

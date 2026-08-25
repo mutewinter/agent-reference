@@ -32,7 +32,7 @@ jobs:
     # TypeScript and correctness rules; the site adds React and Tailwind on top
     # of them, which is where the design system is enforced: a size or a color
     # written into a class rather than declared in `@theme` fails here.
-    name: lint
+    name: lint and types
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -54,6 +54,10 @@ jobs:
       - run: pnpm run format
       - run: pnpm run lint
       - run: pnpm --dir site run lint
+      # `tsconfig.json` emits from `src/` alone, so on its own it leaves the
+      # tests and scripts unchecked. `tsconfig.check.json` is what covers them.
+      - run: pnpm run check-types
+      - run: pnpm --dir site run check-types
 
   site:
     # Cloudflare Workers Builds deploys this on every push to main, so a build
@@ -77,8 +81,6 @@ jobs:
       # this checkout against a throwaway project.
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir site install --frozen-lockfile
-      # `vite build` does not typecheck, so nothing else here would.
-      - run: pnpm --dir site run check-types
       - run: pnpm --dir site run build
 
   install:
