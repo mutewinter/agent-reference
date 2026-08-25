@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "slidev --port 6181 --open",
+    "dev": "slidev --port 6181",
     "build": "slidev build",
     "export": "slidev export",
     "capture": "./capture.sh"
