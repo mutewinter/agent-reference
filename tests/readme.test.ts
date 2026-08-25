@@ -3,10 +3,10 @@ import test from 'node:test';
 
 import { readReadme, render } from '../scripts/sync-readme.mjs';
 
-// The site and the README are different targets and their prose is written twice on
-// purpose. The examples are not: a config snippet with a stale key is wrong rather than
-// differently worded, so both surfaces render `site/code-samples.mjs`.
-test('the README carries the examples the site shows', () => {
+// The README is the site read top to bottom: the same sections in the same order, and no
+// copy of its own. Both surfaces render `site/code-samples.mjs`, so a config snippet
+// cannot go stale on one of them.
+test('the README carries what the site shows', () => {
   const readme = readReadme();
   assert.equal(
     render(readme),
