@@ -34,16 +34,16 @@ export const EXPECTED = {
   task: 'a searchable country picker in src/ShippingForm.tsx',
   fromNodeModules: {
     exports: 'both the flat Combobox and the v4 primitives are named in dist/acme-ui.js',
-    readme: 'a stub that points at a docs site, which is a version ahead and unreachable here'
+    readme: 'a stub that points at a docs site, which is a version ahead and unreachable here',
   },
   onlyFromRepository: {
     primitives: 'ComboboxRoot, ComboboxInput, ComboboxList and ComboboxOption are the v4 API',
     provider: 'ComboboxRoot has to be inside a UIProvider; nothing else in this app needs one yet',
     filter: 'filter is required on ComboboxRoot, and matchSorter is the helper docs point at',
-    shim: 'the flat Combobox is a v3 compatibility export that ignores options and never filters'
+    shim: 'the flat Combobox is a v3 compatibility export that ignores options and never filters',
   },
   /** The trap: plausible from memory, present in the bundle, and wrong at this version. */
-  wrongFromMemory: '<Combobox options={...} value={...} onChange={...} />'
+  wrongFromMemory: '<Combobox options={...} value={...} onChange={...} />',
 };
 
 export async function buildWorld(runDir) {
@@ -75,7 +75,7 @@ async function buildUpstream(parent) {
     'package.json': manifest('3.9.0'),
     'README.md': README_V3,
     'src/combobox.tsx': COMBOBOX_V3,
-    'src/index.ts': "export { Combobox } from './combobox.tsx';\n"
+    'src/index.ts': "export { Combobox } from './combobox.tsx';\n",
   });
   await commit(repoPath, 'ui: the 3.x combobox');
   await tag(repoPath, 'v3.9.0');
@@ -90,7 +90,7 @@ async function buildUpstream(parent) {
     'src/combobox.tsx': COMBOBOX_V4,
     'src/provider.tsx': PROVIDER_V4,
     'src/filters.ts': FILTERS_V4,
-    'src/index.ts': INDEX_V4
+    'src/index.ts': INDEX_V4,
   });
   await commit(repoPath, 'ui: split the combobox into primitives (#88)');
   await tag(repoPath, 'v4.0.0');
@@ -99,7 +99,7 @@ async function buildUpstream(parent) {
     'package.json': manifest('4.2.0'),
     'CHANGELOG.md': CHANGELOG_V42,
     'src/filters.ts': `${FILTERS_V4}\nexport function startsWith(items, query, toText) {\n  return items.filter((item) => toText(item).toLowerCase().startsWith(query.toLowerCase()));\n}\n`,
-    'src/index.ts': `${INDEX_V4}export { startsWith } from './filters.ts';\n`
+    'src/index.ts': `${INDEX_V4}export { startsWith } from './filters.ts';\n`,
   });
   await commit(repoPath, 'ui: add a startsWith filter');
   await tag(repoPath, 'v4.2.0');
@@ -136,10 +136,13 @@ export async function startRegistry(upstreamPath) {
   });
   const { port } = server.address();
 
-  return { url: `http://127.0.0.1:${port}`, close: () =>
+  return {
+    url: `http://127.0.0.1:${port}`,
+    close: () =>
       new Promise((resolve) => {
         server.close(resolve);
-      }) };
+      }),
+  };
 }
 
 /**
@@ -156,10 +159,10 @@ async function buildProject(projectRoot) {
         version: '2.1.0',
         private: true,
         type: 'module',
-        dependencies: { 'acme-ui': '^4.2.0', react: '^19.0.0' }
+        dependencies: { 'acme-ui': '^4.2.0', react: '^19.0.0' },
       },
       null,
-      2
+      2,
     )}\n`,
     'package-lock.json': LOCKFILE,
     '.gitignore': 'node_modules\nagent-reference.local.json\n',
@@ -169,18 +172,21 @@ async function buildProject(projectRoot) {
     'node_modules/acme-ui/package.json': `${JSON.stringify(
       { name: 'acme-ui', version: '4.2.0', main: 'dist/acme-ui.js', sideEffects: false },
       null,
-      2
+      2,
     )}\n`,
     'node_modules/acme-ui/dist/acme-ui.js': PUBLISHED_BUNDLE,
     'node_modules/acme-ui/README.md': PUBLISHED_README,
-    'node_modules/react/package.json': `${JSON.stringify({ name: 'react', version: '19.0.0', main: 'index.js' }, null, 2)}\n`
+    'node_modules/react/package.json': `${JSON.stringify({ name: 'react', version: '19.0.0', main: 'index.js' }, null, 2)}\n`,
   });
 
   // The skill as `npx skills add` leaves it, so the run measures the shipped stub rather than
   // whatever the operator happens to have installed globally.
   const skillDir = path.join(projectRoot, '.claude', 'skills', 'agent-reference');
   await fs.mkdir(skillDir, { recursive: true });
-  await fs.copyFile(path.join(repoRoot, 'skills', 'agent-reference', 'SKILL.md'), path.join(skillDir, 'SKILL.md'));
+  await fs.copyFile(
+    path.join(repoRoot, 'skills', 'agent-reference', 'SKILL.md'),
+    path.join(skillDir, 'SKILL.md'),
+  );
 }
 
 /**
@@ -190,14 +196,21 @@ async function buildProject(projectRoot) {
  * bundle names its exports; sentences about them are not.
  */
 async function assertRepositoryOnly(projectRoot) {
-  const forbidden = [/UIProvider is required/i, /compatibility export/i, /ignores `?options/i, /\bdeprecated\b/i];
+  const forbidden = [
+    /UIProvider is required/i,
+    /compatibility export/i,
+    /ignores `?options/i,
+    /\bdeprecated\b/i,
+  ];
   const files = await listFiles(projectRoot);
 
   for (const file of files) {
     const contents = await fs.readFile(file, 'utf8').catch(() => '');
     for (const pattern of forbidden) {
       if (pattern.test(contents)) {
-        throw new Error(`${path.relative(projectRoot, file)} states ${pattern}; that fact has to live only in the repository.`);
+        throw new Error(
+          `${path.relative(projectRoot, file)} states ${pattern}; that fact has to live only in the repository.`,
+        );
       }
     }
   }
@@ -295,22 +308,24 @@ const LOCKFILE = `${JSON.stringify(
       '': {
         name: 'checkout-flow',
         version: '2.1.0',
-        dependencies: { 'acme-ui': '^4.2.0', react: '^19.0.0' }
+        dependencies: { 'acme-ui': '^4.2.0', react: '^19.0.0' },
       },
       'node_modules/acme-ui': {
         version: '4.2.0',
         resolved: 'https://registry.npmjs.org/acme-ui/-/acme-ui-4.2.0.tgz',
-        integrity: 'sha512-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000='
+        integrity:
+          'sha512-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000=',
       },
       'node_modules/react': {
         version: '19.0.0',
         resolved: 'https://registry.npmjs.org/react/-/react-19.0.0.tgz',
-        integrity: 'sha512-1111111111111111111111111111111111111111111111111111111111111111111111111111111111111='
-      }
-    }
+        integrity:
+          'sha512-1111111111111111111111111111111111111111111111111111111111111111111111111111111111111=',
+      },
+    },
   },
   null,
-  2
+  2,
 )}\n`;
 
 /**
@@ -608,10 +623,10 @@ function manifest(version) {
       version,
       type: 'module',
       main: 'src/index.ts',
-      repository: { type: 'git', url: 'https://github.com/acme/acme-ui.git' }
+      repository: { type: 'git', url: 'https://github.com/acme/acme-ui.git' },
     },
     null,
-    2
+    2,
   )}\n`;
 }
 

@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 
-import { copy as pageCopy } from '../../code-samples.mjs'
-import { CheckIcon, CopyIcon, IconCopy, useCopy } from './copy'
+import { copy as pageCopy } from '../../code-samples.mjs';
+import { CheckIcon, CopyIcon, IconCopy, useCopy } from './copy';
 
 /** Both of these sit inside the Get started section, one level under its h2. */
 function Heading({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-3 text-fg">{children}</h3>
+  return <h3 className="mb-3 text-fg">{children}</h3>;
 }
 
 /** Renders `backticked` spans as inline code, while the clipboard gets the raw text. */
@@ -22,7 +22,7 @@ function WithCode({ text }: { text: string }) {
         ),
       )}
     </>
-  )
+  );
 }
 
 /**
@@ -33,7 +33,7 @@ function WithCode({ text }: { text: string }) {
  * has been a trope for years.
  */
 export function ForYourAgent({ text }: { text: string }) {
-  const { copied, copy } = useCopy(text)
+  const { copied, copy } = useCopy(text);
 
   return (
     <div>
@@ -42,7 +42,8 @@ export function ForYourAgent({ text }: { text: string }) {
         type="button"
         onClick={copy}
         aria-label={copied ? 'Copied' : 'Copy this prompt'}
-        className="flex w-full cursor-pointer items-start gap-4 border border-accent/60 bg-accent/10 p-4 text-left shadow-offset transition-all hover:translate-0.5 hover:bg-accent/20 hover:shadow-offset-sm active:translate-1 active:shadow-none">
+        className="flex w-full cursor-pointer items-start gap-4 border border-accent/60 bg-accent/10 p-4 text-left shadow-offset transition-all hover:translate-0.5 hover:bg-accent/20 hover:shadow-offset-sm active:translate-1 active:shadow-none"
+      >
         <span className="flex-1 text-sm leading-relaxed text-fg">
           <WithCode text={text} />
         </span>
@@ -59,7 +60,7 @@ export function ForYourAgent({ text }: { text: string }) {
       </button>
       <p className="mt-3 text-sm text-muted">{pageCopy.agent.note}</p>
     </div>
-  )
+  );
 }
 
 /**
@@ -71,24 +72,24 @@ export function ForYourAgent({ text }: { text: string }) {
  * than a line that merely softens, and this is the secondary path.
  */
 function CyclingCommand({ names, prompt }: { names: Array<string>; prompt: string }) {
-  const [index, setIndex] = useState(0)
-  const [visible, setVisible] = useState(true)
+  const [index, setIndex] = useState(0);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     const cycle = setInterval(() => {
-      setVisible(false)
+      setVisible(false);
       setTimeout(() => {
-        setIndex((current) => (current + 1) % names.length)
-        setVisible(true)
-      }, 300)
-    }, 5000)
+        setIndex((current) => (current + 1) % names.length);
+        setVisible(true);
+      }, 300);
+    }, 5000);
 
     return () => {
-      clearInterval(cycle)
-    }
-  }, [names])
+      clearInterval(cycle);
+    };
+  }, [names]);
 
   return (
     <div className={`transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-40'}`}>
@@ -96,7 +97,7 @@ function CyclingCommand({ names, prompt }: { names: Array<string>; prompt: strin
       <span className="text-accent">{names[index]}</span>
       {` "${prompt}"`}
     </div>
-  )
+  );
 }
 
 /** Install it, go where the code is, then ask an agent to do the rest. */
@@ -106,10 +107,10 @@ export function ForYou({
   prompt,
   agents,
 }: {
-  cd: string
-  install: string
-  prompt: string
-  agents: Array<string>
+  cd: string;
+  install: string;
+  prompt: string;
+  agents: Array<string>;
 }) {
   return (
     <div>
@@ -135,7 +136,7 @@ export function ForYou({
         </pre>
       </div>
     </div>
-  )
+  );
 }
 
 /** Between the two cards, so nobody reads them as steps one and two. */
@@ -149,5 +150,5 @@ export function Or() {
         <span className="w-px flex-1 bg-line" />
       </span>
     </div>
-  )
+  );
 }

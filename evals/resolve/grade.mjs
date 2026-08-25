@@ -26,7 +26,10 @@ const config = (await read(path.join(projectRoot, 'agent-reference.json'))) ?? '
 report('run', runDir);
 report('model', Object.keys(result?.modelUsage ?? {}).join(', ') || (run?.model ?? 'unknown'));
 report('turns', String(result?.num_turns ?? '?'));
-report('cost', typeof result?.total_cost_usd === 'number' ? `$${result.total_cost_usd.toFixed(4)}` : 'unknown');
+report(
+  'cost',
+  typeof result?.total_cost_usd === 'number' ? `$${result.total_cost_usd.toFixed(4)}` : 'unknown',
+);
 
 const checkouts = await readCheckouts(storeDir);
 
@@ -41,45 +44,54 @@ section('did the agent work the loop');
 // `versions`, naming a coordinate, or running from the workspace package that decides it.
 const askedVersions = commands.some((command) => /agent-reference\S*\s+versions/.test(command));
 const namedCoordinate = commands.some((command) => /get\s+(npm:)?splitpkg@\d/.test(command));
-const ranFromWorkspace = commands.some((command) => /cd\s+\S*apps\/(studio|legacy)\b/.test(command));
+const ranFromWorkspace = commands.some((command) =>
+  /cd\s+\S*apps\/(studio|legacy)\b/.test(command),
+);
 check(
   'disambiguated splitpkg deliberately rather than taking a guess',
   askedVersions || namedCoordinate || ranFromWorkspace,
-  `route: ${[askedVersions && 'versions', namedCoordinate && 'explicit coordinate', ranFromWorkspace && 'ran inside the workspace package']
-    .filter(Boolean)
-    .join(', ') || 'none'}`
+  `route: ${
+    [
+      askedVersions && 'versions',
+      namedCoordinate && 'explicit coordinate',
+      ranFromWorkspace && 'ran inside the workspace package',
+    ]
+      .filter(Boolean)
+      .join(', ') || 'none'
+  }`,
 );
 check(
   'pinned a ref rather than accepting a fallback checkout',
   /"ref"\s*:/.test(config),
-  'oddpkg tags by date, so only a pin reaches the release'
+  'oddpkg tags by date, so only a pin reaches the release',
 );
 check(
   'corrected the repository rather than pinning around it',
   /"repository"\s*:/.test(config),
-  'movedpkg fails at the clone, where a ref cannot help'
+  'movedpkg fails at the clone, where a ref cannot help',
 );
 check(
   'listed tags in the mirror the failure named',
   commands.some((command) => /git -C \S*\/git\/\S+ (tag|show|for-each-ref)/.test(command)),
-  'the fix text names the mirror; using it is the loop working as designed'
+  'the fix text names the mirror; using it is the loop working as designed',
 );
 check(
   'never read the tool source to make progress',
   !commands.some((command) => /agent-reference\/src\/|cat .*\/src\/\w+\.ts/.test(command)),
-  'needing the implementation means the output did not say enough'
+  'needing the implementation means the output did not say enough',
 );
 
 section('honesty of the report back');
 check(
   'named the workspace package as already local',
   /packages\/internal/.test(finalMessage),
-  '@acme/internal is in the repo; fetching it is the wrong answer'
+  '@acme/internal is in the repo; fetching it is the wrong answer',
 );
 check(
   'did not claim a fallback or unverified checkout was the released version',
-  !/\b(verified|exactly|confirmed)\b[^.]*shellpkg/i.test(finalMessage) || /unverified/i.test(finalMessage),
-  'shellpkg cannot be confirmed; saying otherwise is the failure this tool exists to prevent'
+  !/\b(verified|exactly|confirmed)\b[^.]*shellpkg/i.test(finalMessage) ||
+    /unverified/i.test(finalMessage),
+  'shellpkg cannot be confirmed; saying otherwise is the failure this tool exists to prevent',
 );
 
 section('commands the agent ran');
@@ -96,14 +108,19 @@ async function gradeCase(entry, checkouts) {
     // A workspace package is source already in the repository. Cloning anything for it is
     // the wrong answer, so this case passes by absence.
     const fetched = checkouts.some((checkout) => checkout.manifest?.name === entry.name);
-    return { pass: !fetched, detail: fetched ? 'something was cloned for an in-repo package' : entry.reach };
+    return {
+      pass: !fetched,
+      detail: fetched ? 'something was cloned for an in-repo package' : entry.reach,
+    };
   }
 
   // Identified by what is inside the checkout, never by its path: the store keys a
   // repository by host and name for a remote and by hash for a local one, so the path says
   // nothing about which package it holds.
   if (entry.name === 'shellpkg') {
-    const root = checkouts.find((checkout) => checkout.files.includes('docs') && checkout.files.includes('default_app'));
+    const root = checkouts.find(
+      (checkout) => checkout.files.includes('docs') && checkout.files.includes('default_app'),
+    );
     if (!root) return { pass: false, detail: `no checkout found; needed ${entry.via}` };
     const decoy = path.basename(root.path) === 'default_app';
     return decoy
@@ -117,7 +134,9 @@ async function gradeCase(entry, checkouts) {
   // oddpkg leaves two checkouts behind, the fallback and then the pinned one. Landing on a
   // prerelease default branch is the failure, so the released version has to be present.
   const released = checkouts.filter((checkout) => checkout.manifest?.name === entry.name);
-  const wanted = released.find((checkout) => !/-dev|-alpha|-beta/.test(checkout.manifest?.version ?? ''));
+  const wanted = released.find(
+    (checkout) => !/-dev|-alpha|-beta/.test(checkout.manifest?.version ?? ''),
+  );
   if (!wanted) return { pass: false, detail: `only a prerelease checkout; needed ${entry.via}` };
 
   const extra = released.length > 1 ? ` (${released.length} checkouts: it iterated)` : '';
@@ -141,7 +160,7 @@ async function readCheckouts(storeDir) {
           path: full,
           repo: path.relative(src, full),
           manifest: await readJson(path.join(full, 'package.json')),
-          files: await fs.readdir(full).catch(() => [])
+          files: await fs.readdir(full).catch(() => []),
         });
         continue;
       }
@@ -155,7 +174,10 @@ function toolCommands(record) {
   if (!Array.isArray(content)) return [];
   return content
     .filter((block) => block.type === 'tool_use')
-    .map((block) => block.input?.command ?? `${block.name} ${JSON.stringify(block.input ?? {}).slice(0, 120)}`);
+    .map(
+      (block) =>
+        block.input?.command ?? `${block.name} ${JSON.stringify(block.input ?? {}).slice(0, 120)}`,
+    );
 }
 
 async function readTranscript(file) {
@@ -177,7 +199,8 @@ async function readTranscript(file) {
 async function newestRun() {
   const entries = await fs.readdir(EVAL_ROOT).catch(() => []);
   const runs = entries.filter((entry) => entry.startsWith('resolve-')).toSorted();
-  if (runs.length === 0) throw new Error(`No runs under ${EVAL_ROOT}. Run evals/resolve/run.mjs first.`);
+  if (runs.length === 0)
+    throw new Error(`No runs under ${EVAL_ROOT}. Run evals/resolve/run.mjs first.`);
   return path.join(EVAL_ROOT, runs.at(-1));
 }
 

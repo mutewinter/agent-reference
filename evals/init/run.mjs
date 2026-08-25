@@ -29,7 +29,7 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
  */
 const DEFAULT_TURNS = [
   'Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.',
-  'Machine-wide for the skill, and yes, go ahead and mine my sessions. Carry on through the rest of the brief.'
+  'Machine-wide for the skill, and yes, go ahead and mine my sessions. Carry on through the rest of the brief.',
 ];
 const TIMEOUT_MS = 15 * 60 * 1000;
 
@@ -45,7 +45,7 @@ const INHERITED_SESSION_VARS = [
   'CLAUDE_CODE_EXECPATH',
   'CLAUDE_PID',
   'CLAUDE_EFFORT',
-  'CLAUDE_AGENT_SDK_VERSION'
+  'CLAUDE_AGENT_SDK_VERSION',
 ];
 
 const options = parseArgs(process.argv.slice(2));
@@ -56,7 +56,17 @@ const runDir = path.join(os.homedir(), '.agent-reference-evals', `init-${stamp()
 const { home, projectRoot } = await buildWorld(runDir);
 await execFileAsync('git', ['init', '-q', projectRoot]);
 await execFileAsync('git', ['-C', projectRoot, 'add', '-A']);
-await execFileAsync('git', ['-C', projectRoot, '-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', 'storefront: initial']);
+await execFileAsync('git', [
+  '-C',
+  projectRoot,
+  '-c',
+  'user.email=eval@example.com',
+  '-c',
+  'user.name=Eval',
+  'commit',
+  '-qm',
+  'storefront: initial',
+]);
 
 const binDir = await writeShims(runDir, home);
 await snapshot(projectRoot, path.join(runDir, 'before'));
@@ -75,15 +85,22 @@ await snapshot(projectRoot, path.join(runDir, 'after'));
 
 // The agent ran under the operator's HOME, so its own transcript landed there.
 const transcript = result.session_id
-  ? path.join(os.homedir(), '.claude', 'projects', projectRoot.replaceAll(/[^A-Za-z0-9]/g, '-'), `${result.session_id}.jsonl`)
+  ? path.join(
+      os.homedir(),
+      '.claude',
+      'projects',
+      projectRoot.replaceAll(/[^A-Za-z0-9]/g, '-'),
+      `${result.session_id}.jsonl`,
+    )
   : null;
 await fs.writeFile(
   path.join(runDir, 'run.json'),
-  `${JSON.stringify({ runDir, home, projectRoot, transcript, model: options.model, turns: options.turns }, null, 2)}\n`
+  `${JSON.stringify({ runDir, home, projectRoot, transcript, model: options.model, turns: options.turns }, null, 2)}\n`,
 );
 
 console.log(`\ndone in ${elapsed}s, ${result.num_turns ?? '?'} turns`);
-if (typeof result.total_cost_usd === 'number') console.log(`cost: $${result.total_cost_usd.toFixed(4)}`);
+if (typeof result.total_cost_usd === 'number')
+  console.log(`cost: $${result.total_cost_usd.toFixed(4)}`);
 console.log(`transcript: ${transcript ?? 'unknown'}`);
 console.log(`\nexpected to surface: ${EXPECTED.strong.map((entry) => entry.name).join(', ')}`);
 console.log(`expected to skip:    ${EXPECTED.noise.map((entry) => entry.name).join(', ')}`);
@@ -114,11 +131,15 @@ async function oneTurn({ env, projectRoot, model, turn, resume }) {
     '--dangerously-skip-permissions',
     '--output-format',
     'json',
-    turn
+    turn,
   ];
 
   return await new Promise((resolve, reject) => {
-    const child = spawn('claude', args, { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'inherit'] });
+    const child = spawn('claude', args, {
+      cwd: projectRoot,
+      env,
+      stdio: ['ignore', 'pipe', 'inherit'],
+    });
     const chunks = [];
     const timer = setTimeout(() => child.kill('SIGKILL'), TIMEOUT_MS);
 
@@ -155,7 +176,7 @@ async function writeShims(runDir, home) {
   await fs.writeFile(
     path.join(binDir, 'agent-reference'),
     `#!/bin/sh\nHOME=${JSON.stringify(home)} exec node ${JSON.stringify(path.join(repoRoot, 'dist', 'cli.js'))} "$@"\n`,
-    { mode: 0o755 }
+    { mode: 0o755 },
   );
   // The brief now leads with the skills installer, which is not on this machine and would
   // reach the network if it were. This lands the checkout's skill where the real installer
@@ -172,9 +193,9 @@ async function writeShims(runDir, home) {
       'mkdir -p "$dest"',
       `cp -R ${JSON.stringify(path.join(repoRoot, 'skills', 'agent-reference') + '/.')} "$dest/"`,
       'echo "added agent-reference to $dest"',
-      ''
+      '',
     ].join('\n'),
-    { mode: 0o755 }
+    { mode: 0o755 },
   );
 
   await fs.writeFile(
@@ -185,9 +206,9 @@ async function writeShims(runDir, home) {
       'while [ "$1" = "-y" ] || [ "$1" = "--yes" ]; do shift; done',
       'cmd=$(printf %s "$1" | sed "s/@[^@]*$//"); shift',
       'exec "$cmd" "$@"',
-      ''
+      '',
     ].join('\n'),
-    { mode: 0o755 }
+    { mode: 0o755 },
   );
 
   return binDir;
@@ -199,7 +220,8 @@ async function snapshot(projectRoot, destination) {
   await fs.mkdir(path.dirname(destination), { recursive: true });
   await fs.cp(projectRoot, destination, {
     recursive: true,
-    filter: (source) => !source.includes(`${path.sep}.git${path.sep}`) && !source.endsWith(`${path.sep}.git`)
+    filter: (source) =>
+      !source.includes(`${path.sep}.git${path.sep}`) && !source.endsWith(`${path.sep}.git`),
   });
 }
 

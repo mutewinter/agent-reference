@@ -33,14 +33,21 @@ export const CLI_COMMANDS: readonly string[] = [
   'schema',
   'store',
   'help',
-  'version'
+  'version',
 ];
 
 const COMMANDS = new Set<string>(CLI_COMMANDS);
 const VALID_OPTIONS = '--set <name-or-description>, --json, --prune, --days <n>';
 
 export function parseArgv(argv: string[]): CliOptions {
-  const options: CliOptions = { command: 'status', positionals: [], sets: [], json: false, prune: false, days: null };
+  const options: CliOptions = {
+    command: 'status',
+    positionals: [],
+    sets: [],
+    json: false,
+    prune: false,
+    days: null,
+  };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -60,7 +67,8 @@ export function parseArgv(argv: string[]): CliOptions {
       options.prune = true;
     } else if (flag === '--days') {
       const value = Number(flagValue(argv, index, flag, inlineValue));
-      if (!Number.isFinite(value) || value < 0) throw new Error('--days requires a non-negative number');
+      if (!Number.isFinite(value) || value < 0)
+        throw new Error('--days requires a non-negative number');
       options.days = value;
       if (inlineValue === null) index += 1;
     } else if (flag === '--set') {
@@ -90,7 +98,12 @@ export function parseArgv(argv: string[]): CliOptions {
  * is 0 and finite, so a typo or an unset shell variable asked `store --prune` to delete
  * every checkout in the store rather than failing.
  */
-function flagValue(argv: string[], index: number, flag: string, inlineValue: string | null): string {
+function flagValue(
+  argv: string[],
+  index: number,
+  flag: string,
+  inlineValue: string | null,
+): string {
   if (inlineValue === null) return readFlagValue(argv, index, flag);
   if (!inlineValue.trim()) throw new Error(`${flag} requires a value`);
   return inlineValue;

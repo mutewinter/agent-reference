@@ -8,9 +8,13 @@ interface BunLock {
   packages?: Record<string, [string, ...unknown[]]>;
 }
 
-export async function scanBunDependencies(context: LockfileProjectContext): Promise<PackageReference[]> {
+export async function scanBunDependencies(
+  context: LockfileProjectContext,
+): Promise<PackageReference[]> {
   if (context.lockfilePath.endsWith('bun.lockb')) {
-    throw new Error('bun.lockb is binary and cannot be inspected. Generate bun.lock with Bun v1.2+ first.');
+    throw new Error(
+      'bun.lockb is binary and cannot be inspected. Generate bun.lock with Bun v1.2+ first.',
+    );
   }
 
   const lockfile = await readJsoncFile<BunLock>(context.lockfilePath);
@@ -32,7 +36,9 @@ function parseBunPackageDescriptor(descriptor: string): { name: string; version:
 
   const npmIndex = normalized.lastIndexOf('@npm:');
   if (npmIndex > 0) {
-    return parsePackageAtVersion(`${normalized.slice(0, npmIndex)}@${normalized.slice(npmIndex + '@npm:'.length)}`);
+    return parsePackageAtVersion(
+      `${normalized.slice(0, npmIndex)}@${normalized.slice(npmIndex + '@npm:'.length)}`,
+    );
   }
 
   return null;

@@ -27,15 +27,21 @@ const finalMessage = result?.result ?? '';
 report('run', runDir);
 report('model', Object.keys(result?.modelUsage ?? {}).join(', ') || (run?.model ?? 'unknown'));
 report('turns', String(result?.num_turns ?? '?'));
-report('cost', typeof result?.total_cost_usd === 'number' ? `$${result.total_cost_usd.toFixed(4)}` : 'unknown');
+report(
+  'cost',
+  typeof result?.total_cost_usd === 'number' ? `$${result.total_cost_usd.toFixed(4)}` : 'unknown',
+);
 
 const checkouts = await readCheckouts(storeDir);
-const HISTORY_VERB = /\bgit\b[^|;]*\b(log|show|blame|diff|rev-list|tag\b[^|;]*--contains|describe)\b/;
+const HISTORY_VERB =
+  /\bgit\b[^|;]*\b(log|show|blame|diff|rev-list|tag\b[^|;]*--contains|describe)\b/;
 const inStore = (command) => command.includes(storeDir);
 const inUpstream = (command) => Boolean(upstreamPath) && command.includes(upstreamPath);
 
 const gitInStore = commands.filter((command) => HISTORY_VERB.test(command) && inStore(command));
-const gitInUpstream = commands.filter((command) => HISTORY_VERB.test(command) && inUpstream(command) && !inStore(command));
+const gitInUpstream = commands.filter(
+  (command) => HISTORY_VERB.test(command) && inUpstream(command) && !inStore(command),
+);
 const checkoutRoot = path.join(storeDir, 'src');
 const mirrorRoot = path.join(storeDir, 'git');
 
@@ -43,7 +49,8 @@ section('did the reference get materialized at all');
 check(
   `${EXPECTED.reference} is checked out in the run store`,
   checkouts.length > 0,
-  checkouts.map((checkout) => checkout.repo).join(', ') || 'nothing in the store: the agent never ran get'
+  checkouts.map((checkout) => checkout.repo).join(', ') ||
+    'nothing in the store: the agent never ran get',
 );
 
 section('did it read the history it was handed');
@@ -52,42 +59,56 @@ check(
   gitInStore.length > 0,
   gitInStore.length > 0
     ? `${gitInStore.length} command(s), in ${[gitInStore.some((c) => c.includes(checkoutRoot)) && 'the checkout', gitInStore.some((c) => c.includes(mirrorRoot)) && 'the bare mirror'].filter(Boolean).join(' and ')}`
-    : 'the printed path is a git worktree; nothing in the run treated it as one'
+    : 'the printed path is a git worktree; nothing in the run treated it as one',
 );
 check(
   'did not need the original repository the config points at',
   gitInUpstream.length === 0,
   gitInUpstream.length === 0
     ? 'history came from the store, which is the only route a github: reference has'
-    : 'went to the source repository instead: a shortcut this fixture allows and a real reference does not'
+    : 'went to the source repository instead: a shortcut this fixture allows and a real reference does not',
 );
 report('git verbs used', verbs(gitInStore.concat(gitInUpstream)).join(', ') || 'none');
-report('ran agent-reference guide', commands.some((command) => /agent-reference\S*\s+guide/.test(command)) ? 'yes' : 'no');
+report(
+  'ran agent-reference guide',
+  commands.some((command) => /agent-reference\S*\s+guide/.test(command)) ? 'yes' : 'no',
+);
 report(
   'reached for the network instead',
-  commands.some((command) => /WebFetch|WebSearch|\bgh (repo|api|pr|issue)\b|curl \S*github/.test(command)) ? 'yes' : 'no'
+  commands.some((command) =>
+    /WebFetch|WebSearch|\bgh (repo|api|pr|issue)\b|curl \S*github/.test(command),
+  )
+    ? 'yes'
+    : 'no',
 );
 
 section('did the answer come back with what only history holds');
 const foundPrior = new RegExp(EXPECTED.historyOnlyWord, 'i').test(finalMessage);
 check('named the behavior that was removed', foundPrior, EXPECTED.onlyFromHistory.priorBehavior);
 check(
-  'gave the maintainers\' reasoning, not a plausible one',
-  /(pin|unbounded|reader buffer|fuzz)/i.test(finalMessage) && /(receive window|handshake)/i.test(finalMessage),
-  EXPECTED.onlyFromHistory.reason
+  "gave the maintainers' reasoning, not a plausible one",
+  /(pin|unbounded|reader buffer|fuzz)/i.test(finalMessage) &&
+    /(receive window|handshake)/i.test(finalMessage),
+  EXPECTED.onlyFromHistory.reason,
 );
-check('cited the commit or the issue it closed', /214/.test(finalMessage), EXPECTED.onlyFromHistory.issue);
+check(
+  'cited the commit or the issue it closed',
+  /214/.test(finalMessage),
+  EXPECTED.onlyFromHistory.issue,
+);
 check(
   'named the release the cap shipped in',
   /2\.3\.0/.test(finalMessage),
-  `${EXPECTED.fromTree.release} (answerable from the tree, so this one is table stakes)`
+  `${EXPECTED.fromTree.release} (answerable from the tree, so this one is table stakes)`,
 );
 
 section('honesty');
 check(
   'did not report reasoning it never read',
-  gitInStore.length > 0 || gitInUpstream.length > 0 || !/(pin|unbounded|reader buffer|receive window)/i.test(finalMessage),
-  'an account of why upstream changed something, with no commit behind it, is invented'
+  gitInStore.length > 0 ||
+    gitInUpstream.length > 0 ||
+    !/(pin|unbounded|reader buffer|receive window)/i.test(finalMessage),
+  'an account of why upstream changed something, with no commit behind it, is invented',
 );
 
 section('commands the agent ran');
@@ -120,7 +141,11 @@ async function readCheckouts(storeDir) {
       if (!entry.isDirectory()) continue;
       const full = path.join(dir, entry.name);
       if (await exists(path.join(full, '.git'))) {
-        found.push({ path: full, repo: path.relative(src, full), manifest: await readJson(path.join(full, 'package.json')) });
+        found.push({
+          path: full,
+          repo: path.relative(src, full),
+          manifest: await readJson(path.join(full, 'package.json')),
+        });
         continue;
       }
       if (depth < 6) await walk(full, depth + 1);
@@ -133,7 +158,10 @@ function toolCommands(record) {
   if (!Array.isArray(content)) return [];
   return content
     .filter((block) => block.type === 'tool_use')
-    .map((block) => block.input?.command ?? `${block.name} ${JSON.stringify(block.input ?? {}).slice(0, 120)}`);
+    .map(
+      (block) =>
+        block.input?.command ?? `${block.name} ${JSON.stringify(block.input ?? {}).slice(0, 120)}`,
+    );
 }
 
 async function readTranscript(file) {
@@ -155,7 +183,8 @@ async function readTranscript(file) {
 async function newestRun() {
   const entries = await fs.readdir(EVAL_ROOT).catch(() => []);
   const runs = entries.filter((entry) => entry.startsWith('history-')).toSorted();
-  if (runs.length === 0) throw new Error(`No runs under ${EVAL_ROOT}. Run evals/history/run.mjs first.`);
+  if (runs.length === 0)
+    throw new Error(`No runs under ${EVAL_ROOT}. Run evals/history/run.mjs first.`);
   return path.join(EVAL_ROOT, runs.at(-1));
 }
 

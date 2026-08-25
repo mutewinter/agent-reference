@@ -48,6 +48,10 @@ jobs:
       # to be installed rather than just checked out.
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir site install --frozen-lockfile
+      # One formatter for the whole repository, run from the root: unlike the
+      # type-aware rules it reads no TypeScript program, so it needs no install
+      # of its own and covers both projects in one pass.
+      - run: pnpm run format
       - run: pnpm run lint
       - run: pnpm --dir site run lint
 

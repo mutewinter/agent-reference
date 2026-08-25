@@ -1,5 +1,9 @@
 import { bareRepositoryPathFor } from './git.ts';
-import type { AgentReferenceProblem, PackageReference, UnresolvedManifestReference } from './types.ts';
+import type {
+  AgentReferenceProblem,
+  PackageReference,
+  UnresolvedManifestReference,
+} from './types.ts';
 
 export function getCommand(name: string): string {
   return `agent-reference get ${name}`;
@@ -11,7 +15,9 @@ export function getCommand(name: string): string {
  */
 export function ambiguousInstalledMessage(name: string, candidates: PackageReference[]): string {
   const width = Math.max(...candidates.map((entry) => entry.version.length));
-  const rows = candidates.map((entry) => `  ${entry.version.padEnd(width)}  ${entry.importers.join(', ')}`);
+  const rows = candidates.map(
+    (entry) => `  ${entry.version.padEnd(width)}  ${entry.importers.join(', ')}`,
+  );
 
   return (
     `${name} is installed at ${candidates.length} versions in this project:\n${rows.join('\n')}\n` +
@@ -32,15 +38,16 @@ export const KEEP_REFERENCE_NOTE: string =
 export function unresolvedProblem(
   failure: UnresolvedManifestReference,
   storeDir: string,
-  configFile: string
+  configFile: string,
 ): AgentReferenceProblem {
   return {
     reference: `package:${failure.name}`,
     severity: 'error',
-    summary: `${failure.name}@${failure.version} could not be materialized. ${failure.detail}`.trim(),
+    summary:
+      `${failure.name}@${failure.version} could not be materialized. ${failure.detail}`.trim(),
     fix: unresolvedFix(failure, storeDir, configFile),
     configPatch: unresolvedPatch(failure),
-    configFile
+    configFile,
   };
 }
 
@@ -52,7 +59,7 @@ export function gitUnresolvedProblem(
   name: string,
   spec: string,
   detail: string,
-  configFile: string
+  configFile: string,
 ): AgentReferenceProblem {
   return {
     reference: `git:${name}`,
@@ -60,7 +67,7 @@ export function gitUnresolvedProblem(
     summary: `git.${name} (${spec}) could not be materialized. ${detail}`.trim(),
     fix: `Check that git can read ${spec} directly; agent-reference clones with your own credentials. If the repository moved or the ref was renamed, correct git.${name} in ${configFile}, then run ${getCommand(name)}.`,
     configPatch: null,
-    configFile
+    configFile,
   };
 }
 
@@ -74,7 +81,7 @@ export function missingDirectoryProblem(
   directory: string,
   ref: string | null,
   repositoryPath: string,
-  configFile: string
+  configFile: string,
 ): AgentReferenceProblem {
   // `HEAD` names no particular commit to the reader, so it reads better left off.
   const at = ref && ref !== 'HEAD' ? ` at ${ref}` : '';
@@ -84,7 +91,7 @@ export function missingDirectoryProblem(
     summary: `git.${name} asks for ${directory}, which is not in this checkout${at}. The path is the repository root, so it is the whole repository rather than that subtree.`,
     fix: `List what is actually there with: ls ${repositoryPath}. Set git.${name}.directory in ${configFile} to the current path, or remove it to read from the root on purpose. Upstream moving a directory is the usual cause.`,
     configPatch: { git: { [name]: { directory: '<path-in-repository>' } } },
-    configFile
+    configFile,
   };
 }
 
@@ -93,7 +100,7 @@ export function pinFix(
   version: string | null,
   repositoryUrl: string | null,
   storeDir: string,
-  configFile: string
+  configFile: string,
 ): string {
   const search = repositoryUrl
     ? `List the candidate tags with: git -C ${bareRepositoryPathFor(storeDir, repositoryUrl)} tag --list '*${version ?? ''}*'. Inspect a candidate with: git -C ${bareRepositoryPathFor(storeDir, repositoryUrl)} show <tag>:package.json.`
@@ -102,7 +109,11 @@ export function pinFix(
   return `${search} Pick the commit or tag that really is ${name}@${version ?? ''}, set packages.${name}.ref to it in ${configFile}, then run ${getCommand(name)}. A pinned ref always wins over automatic resolution.`;
 }
 
-function unresolvedFix(failure: UnresolvedManifestReference, storeDir: string, configFile: string): string {
+function unresolvedFix(
+  failure: UnresolvedManifestReference,
+  storeDir: string,
+  configFile: string,
+): string {
   if (failure.reason === 'no-repository') {
     return `The registry has no repository for this package. Find its source repository, then set packages.${failure.name}.repository in ${configFile} (github:owner/repo or a git URL). Add "ref" too if the tags are unusual. Then run ${getCommand(failure.name)}.`;
   }
@@ -129,7 +140,11 @@ function unresolvedFix(failure: UnresolvedManifestReference, storeDir: string, c
 
 function unresolvedPatch(failure: UnresolvedManifestReference): Record<string, unknown> {
   const pinned: Record<string, unknown> = { version: failure.version };
-  if (failure.reason === 'no-repository' || failure.reason === 'registry-error' || failure.reason === 'clone-failed') {
+  if (
+    failure.reason === 'no-repository' ||
+    failure.reason === 'registry-error' ||
+    failure.reason === 'clone-failed'
+  ) {
     pinned.repository = '<github:owner/repo>';
   }
   // A ref cannot be chosen against a repository that was never read, and a rejected value

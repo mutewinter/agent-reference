@@ -21,14 +21,16 @@ test('materializes a lockfile dependency with no config entry at all', async () 
 
   const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['tiny-invariant'], {
     metadataMap: metadataFor(source, 'tiny-invariant', '1.3.3'),
-    storeDir
+    storeDir,
   });
 
   assert.equal(result?.kind, 'package');
   assert.equal(result?.version, '1.3.3');
   assert.equal(result?.confidence, 'verified');
   assert.equal(result?.recorded, true);
-  const manifest = JSON.parse(await fs.readFile(path.join(result?.path ?? '', 'package.json'), 'utf8')) as {
+  const manifest = JSON.parse(
+    await fs.readFile(path.join(result?.path ?? '', 'package.json'), 'utf8'),
+  ) as {
     version: string;
   };
   assert.equal(manifest.version, '1.3.3');
@@ -40,10 +42,12 @@ test('records a canonical materialization so status reports it ready', async () 
 
   await getReferences(path.join(projectRoot, 'package.json'), ['tiny-invariant'], {
     metadataMap: metadataFor(source, 'tiny-invariant', '1.3.3'),
-    storeDir
+    storeDir,
   });
 
-  const state = JSON.parse(await fs.readFile(stateFilePath(storeDir, projectRoot), 'utf8')) as AgentReferenceManifest;
+  const state = JSON.parse(
+    await fs.readFile(stateFilePath(storeDir, projectRoot), 'utf8'),
+  ) as AgentReferenceManifest;
   assert.equal(state.references[0]?.name, 'tiny-invariant');
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir });
@@ -54,10 +58,14 @@ test('an explicit historical version is a one-off: materialized but not recorded
   const { projectRoot, storeDir, tempDir } = await scenario('historical');
   const source = await createSourceRepo(tempDir, 'tiny-invariant', '1.2.0');
 
-  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['tiny-invariant@1.2.0'], {
-    metadataMap: metadataFor(source, 'tiny-invariant', '1.2.0'),
-    storeDir
-  });
+  const [result] = await getReferences(
+    path.join(projectRoot, 'package.json'),
+    ['tiny-invariant@1.2.0'],
+    {
+      metadataMap: metadataFor(source, 'tiny-invariant', '1.2.0'),
+      storeDir,
+    },
+  );
 
   assert.equal(result?.version, '1.2.0');
   assert.equal(result?.recorded, false);
@@ -71,7 +79,7 @@ test('materializes an ad hoc git spec without touching project state', async () 
   const [result] = await getReferences(
     path.join(projectRoot, 'package.json'),
     [`file:${path.relative(projectRoot, source.path)}#${source.commit}`],
-    { storeDir }
+    { storeDir },
   );
 
   assert.equal(result?.kind, 'git');
@@ -86,10 +94,12 @@ test('resolves a configured folder reference to its absolute path', async () => 
   await fs.mkdir(folderPath, { recursive: true });
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ paths: { notes: './notes' } })
+    JSON.stringify({ paths: { notes: './notes' } }),
   );
 
-  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['notes'], { storeDir });
+  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['notes'], {
+    storeDir,
+  });
 
   assert.equal(result?.kind, 'path');
   assert.equal(result?.path, folderPath);
@@ -102,13 +112,20 @@ test('materializes configured references in a directory that is not a Node proje
   const folderPath = path.join(projectRoot, 'notes');
   await fs.mkdir(folderPath, { recursive: true });
   const source = await createSourceRepo(tempDir, 'scratch-tool', '0.0.1');
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    paths: { notes: './notes' },
-    git: { tooling: `file:${path.relative(projectRoot, source.path)}#${source.commit}` }
-  }, null, 2));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify(
+      {
+        paths: { notes: './notes' },
+        git: { tooling: `file:${path.relative(projectRoot, source.path)}#${source.commit}` },
+      },
+      null,
+      2,
+    ),
+  );
 
   const results = await getReferences(projectRoot, ['notes', 'tooling'], {
-    storeDir: path.join(tempDir, 'store')
+    storeDir: path.join(tempDir, 'store'),
   });
 
   assert.equal(results[0]?.path, folderPath);
@@ -123,16 +140,18 @@ test('a name shared by two kinds must be qualified', async () => {
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
       paths: { tooling: './tooling' },
-      git: { tooling: 'github:example/tooling' }
-    })
+      git: { tooling: 'github:example/tooling' },
+    }),
   );
 
   await assert.rejects(
     getReferences(path.join(projectRoot, 'package.json'), ['tooling'], { storeDir }),
-    /Qualify it: path:tooling or git:tooling/
+    /Qualify it: path:tooling or git:tooling/,
   );
 
-  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['path:tooling'], { storeDir });
+  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['path:tooling'], {
+    storeDir,
+  });
   assert.equal(result?.kind, 'path');
 });
 
@@ -148,21 +167,25 @@ test('a config key written with the ecosystem prefix still answers to the packag
         'npm:tiny-invariant': {
           version: '1.3.3',
           repository: `file:${source.path}`,
-          ref: source.commit
-        }
-      }
-    })
+          ref: source.commit,
+        },
+      },
+    }),
   );
 
   for (const spec of ['tiny-invariant', 'npm:tiny-invariant', 'package:tiny-invariant']) {
-    const [result] = await getReferences(path.join(projectRoot, 'package.json'), [spec], { storeDir });
+    const [result] = await getReferences(path.join(projectRoot, 'package.json'), [spec], {
+      storeDir,
+    });
     assert.equal(result?.name, 'tiny-invariant', spec);
     assert.equal(result?.confidence, 'pinned', spec);
     assert.equal(result?.checkoutSha, source.commit, spec);
   }
 });
 
-async function scenario(label: string): Promise<{ projectRoot: string; storeDir: string; tempDir: string }> {
+async function scenario(
+  label: string,
+): Promise<{ projectRoot: string; storeDir: string; tempDir: string }> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `agent-reference-get-${label}-test-`));
   const projectRoot = path.join(tempDir, 'project');
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), projectRoot, { recursive: true });
@@ -172,22 +195,22 @@ async function scenario(label: string): Promise<{ projectRoot: string; storeDir:
 function metadataFor(
   source: { path: string; commit: string },
   name: string,
-  version: string
+  version: string,
 ): Record<string, object> {
   return {
     [`${name}@${version}`]: {
       name,
       version,
       repository: { type: 'git', url: source.path },
-      gitHead: source.commit
-    }
+      gitHead: source.commit,
+    },
   };
 }
 
 async function createSourceRepo(
   parentDir: string,
   name: string,
-  version: string
+  version: string,
 ): Promise<{ path: string; commit: string }> {
   const repoPath = path.join(parentDir, `${name}-source`);
   await fs.mkdir(repoPath, { recursive: true });

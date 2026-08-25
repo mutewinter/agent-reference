@@ -11,7 +11,9 @@ interface NpmPackageLock {
   dependencies?: Record<string, { version?: string }>;
 }
 
-export async function scanNpmDependencies(context: LockfileProjectContext): Promise<PackageReference[]> {
+export async function scanNpmDependencies(
+  context: LockfileProjectContext,
+): Promise<PackageReference[]> {
   const lockfile = await readJsonFile<NpmPackageLock>(context.lockfilePath);
 
   return dependenciesFromPackageJsonDirectives(context, ({ name }) => {
@@ -39,10 +41,11 @@ export async function scanNpmDependencies(context: LockfileProjectContext): Prom
  */
 function workspaceLink(
   entry: { link?: boolean; resolved?: string } | undefined,
-  importer: string
+  importer: string,
 ): string | null {
   if (!entry?.link || !entry.resolved) return null;
-  const fromImporter = importer === '.' ? entry.resolved : path.posix.relative(importer, entry.resolved);
+  const fromImporter =
+    importer === '.' ? entry.resolved : path.posix.relative(importer, entry.resolved);
   return `link:${fromImporter || '.'}`;
 }
 

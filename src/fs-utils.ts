@@ -4,7 +4,11 @@ import path from 'node:path';
 
 import { parseJsonc } from './jsonc.ts';
 
-export function resolveConfigPath(projectRoot: string, cwd: string, configuredPath: string): string {
+export function resolveConfigPath(
+  projectRoot: string,
+  cwd: string,
+  configuredPath: string,
+): string {
   if (path.isAbsolute(configuredPath)) return configuredPath;
   if (configuredPath.startsWith('.')) return path.resolve(projectRoot, configuredPath);
   return path.resolve(cwd, configuredPath);
@@ -58,7 +62,7 @@ export async function readJsoncFile<T>(filePath: string): Promise<T> {
  */
 export function displayPath(
   value: string | null,
-  { tilde = false, home }: { tilde?: boolean; home?: string } = {}
+  { tilde = false, home }: { tilde?: boolean; home?: string } = {},
 ): string {
   if (!value) return '-';
   const prefix = (home ?? os.homedir()) + path.sep;

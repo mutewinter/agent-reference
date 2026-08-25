@@ -9,7 +9,7 @@ import type {
   AgentReferenceManifestReference,
   GitReferenceWorktreeResult,
   GitWorktreeResult,
-  UnresolvedManifestReference
+  UnresolvedManifestReference,
 } from './types.ts';
 
 const SCHEMA_VERSION = 6;
@@ -42,7 +42,7 @@ export async function writeManifest(
   storeDir: string,
   packageResults: GitWorktreeResult[],
   gitResults: GitReferenceWorktreeResult[] = [],
-  unresolved: UnresolvedManifestReference[] = []
+  unresolved: UnresolvedManifestReference[] = [],
 ): Promise<string> {
   // Agents materialize several references at once, and this is a read-modify-write against
   // one shared file, so without a lock two runs silently drop each other's entries. The lock
@@ -61,15 +61,17 @@ async function writeManifestLocked(
   storeDir: string,
   packageResults: GitWorktreeResult[],
   gitResults: GitReferenceWorktreeResult[] = [],
-  unresolved: UnresolvedManifestReference[] = []
+  unresolved: UnresolvedManifestReference[] = [],
 ): Promise<string> {
   const existing = (await readManifest(projectRoot, storeDir))?.manifest;
   const updates = [
     ...packageResults.map(packageResultToManifestReference),
-    ...gitResults.map(gitResultToManifestReference)
+    ...gitResults.map(gitResultToManifestReference),
   ];
 
-  const byKey = new Map((existing?.references ?? []).map((reference) => [referenceKey(reference), reference]));
+  const byKey = new Map(
+    (existing?.references ?? []).map((reference) => [referenceKey(reference), reference]),
+  );
   for (const reference of updates) {
     byKey.set(referenceKey(reference), reference);
   }
@@ -77,10 +79,16 @@ async function writeManifestLocked(
   const manifest: AgentReferenceManifest = {
     schemaVersion: SCHEMA_VERSION,
     projectRoot,
-    references: [...byKey.values()].toSorted((a, b) => referenceKey(a).localeCompare(referenceKey(b)))
+    references: [...byKey.values()].toSorted((a, b) =>
+      referenceKey(a).localeCompare(referenceKey(b)),
+    ),
   };
 
-  const mergedUnresolved = mergeUnresolved(existing?.unresolved ?? [], unresolved, manifest.references);
+  const mergedUnresolved = mergeUnresolved(
+    existing?.unresolved ?? [],
+    unresolved,
+    manifest.references,
+  );
   if (mergedUnresolved.length > 0) manifest.unresolved = mergedUnresolved;
 
   const manifestPath = stateFilePath(storeDir, projectRoot);
@@ -132,7 +140,7 @@ async function writeAtomic(target: string, contents: string): Promise<void> {
 
 export async function readManifest(
   projectRoot: string,
-  storeDir: string
+  storeDir: string,
 ): Promise<{ path: string; manifest: AgentReferenceManifest } | null> {
   const manifestPath = stateFilePath(storeDir, projectRoot);
   try {
@@ -148,9 +156,13 @@ function referenceKey(reference: AgentReferenceManifestReference): string {
   return `${reference.kind}:${reference.name}`;
 }
 
-function packageResultToManifestReference(result: GitWorktreeResult): AgentReferenceManifestReference {
+function packageResultToManifestReference(
+  result: GitWorktreeResult,
+): AgentReferenceManifestReference {
   if (!result.metadata.repositoryUrl) {
-    throw new Error(`Cannot write manifest entry for ${result.dependency.name}@${result.dependency.version} without a repository URL.`);
+    throw new Error(
+      `Cannot write manifest entry for ${result.dependency.name}@${result.dependency.version} without a repository URL.`,
+    );
   }
 
   return {
@@ -165,11 +177,13 @@ function packageResultToManifestReference(result: GitWorktreeResult): AgentRefer
     checkoutSha: result.checkoutSha,
     refSource: result.refSource,
     confidence: result.confidence,
-    pinnedRef: result.pinnedRef
+    pinnedRef: result.pinnedRef,
   };
 }
 
-function gitResultToManifestReference(result: GitReferenceWorktreeResult): AgentReferenceManifestReference {
+function gitResultToManifestReference(
+  result: GitReferenceWorktreeResult,
+): AgentReferenceManifestReference {
   return {
     kind: 'git',
     name: result.name,
@@ -177,7 +191,7 @@ function gitResultToManifestReference(result: GitReferenceWorktreeResult): Agent
     repositoryUrl: result.repositoryUrl,
     checkoutRef: result.checkoutRef,
     checkoutSha: result.checkoutSha,
-    refSource: result.refSource
+    refSource: result.refSource,
   };
 }
 
@@ -188,15 +202,17 @@ function gitResultToManifestReference(result: GitReferenceWorktreeResult): Agent
 function mergeUnresolved(
   existing: UnresolvedManifestReference[],
   updates: UnresolvedManifestReference[],
-  references: AgentReferenceManifestReference[]
+  references: AgentReferenceManifestReference[],
 ): UnresolvedManifestReference[] {
   const resolvedNames = new Set(
-    references.filter((reference) => reference.kind === 'package').map((reference) => reference.name)
+    references
+      .filter((reference) => reference.kind === 'package')
+      .map((reference) => reference.name),
   );
   const updatedNames = new Set(updates.map((entry) => entry.name));
 
   return [
     ...existing.filter((entry) => !updatedNames.has(entry.name) && !resolvedNames.has(entry.name)),
-    ...updates.filter((entry) => !resolvedNames.has(entry.name))
+    ...updates.filter((entry) => !resolvedNames.has(entry.name)),
   ].toSorted((a, b) => a.name.localeCompare(b.name));
 }

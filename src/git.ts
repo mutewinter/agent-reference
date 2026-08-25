@@ -15,7 +15,7 @@ import type {
   GitReferenceWorktreeResult,
   GitWorktreeOptions,
   GitWorktreeResult,
-  PackageRefSource
+  PackageRefSource,
 } from './types.ts';
 
 const execFileAsync = promisify(execFile);
@@ -49,12 +49,7 @@ const MAX_TAG_SEARCH_CANDIDATES = 10;
  * them. `file` stays at `user`, which is git's own default and what direct `file:` support
  * needs, while still refusing file transports reached indirectly.
  */
-const GIT_SAFETY_CONFIG = [
-  '-c',
-  'protocol.ext.allow=never',
-  '-c',
-  'protocol.file.allow=user'
-];
+const GIT_SAFETY_CONFIG = ['-c', 'protocol.ext.allow=never', '-c', 'protocol.file.allow=user'];
 
 /**
  * The only argv any git invocation is built from. Every path that reaches git goes through
@@ -77,7 +72,7 @@ export class UnsafeGitValueError extends Error {}
 export function assertSafeGitValue(value: string, what: string): string {
   if (value.startsWith('-')) {
     throw new UnsafeGitValueError(
-      `${what} may not begin with "-". git would read ${JSON.stringify(value)} as an option rather than a value.`
+      `${what} may not begin with "-". git would read ${JSON.stringify(value)} as an option rather than a value.`,
     );
   }
   return value;
@@ -97,7 +92,7 @@ export function assertSafeRepositoryUrl(url: string, what: string): string {
 
   if (!ALLOWED_GIT_PROTOCOLS.has(protocol)) {
     throw new UnsafeGitValueError(
-      `${what} uses the ${protocol} transport, which agent-reference will not run. Use https, ssh, git, or a local path.`
+      `${what} uses the ${protocol} transport, which agent-reference will not run. Use https, ssh, git, or a local path.`,
     );
   }
   return url;
@@ -126,17 +121,20 @@ interface MaterializedWorktree<RefSource extends string> {
 export async function ensureDependencyWorktree(
   dependency: PackageReference,
   metadata: DependencyMetadata,
-  options: GitWorktreeOptions
+  options: GitWorktreeOptions,
 ): Promise<GitWorktreeResult> {
   if (!metadata.repositoryUrl) {
     throw new Error(`No repository URL found for ${dependency.name}@${dependency.version}`);
   }
 
   const locator = createPackageLocator(dependency, metadata, options.pinnedDirectory ?? null);
-  const materialized = await ensureWorktree(options.storeDir, metadata.repositoryUrl, (bareRepositoryPath) =>
-    options.pinnedRef
-      ? resolvePinnedCheckout(bareRepositoryPath, dependency, options.pinnedRef, locator)
-      : resolvePackageCheckout(bareRepositoryPath, dependency, metadata, locator)
+  const materialized = await ensureWorktree(
+    options.storeDir,
+    metadata.repositoryUrl,
+    (bareRepositoryPath) =>
+      options.pinnedRef
+        ? resolvePinnedCheckout(bareRepositoryPath, dependency, options.pinnedRef, locator)
+        : resolvePackageCheckout(bareRepositoryPath, dependency, metadata, locator),
   );
 
   const packageDirectory = locator.directory() ?? normalizeDirectory(metadata.repositoryDirectory);
@@ -146,7 +144,7 @@ export async function ensureDependencyWorktree(
     ...materialized,
     nameOnlyDirectory: packageDirectory ? null : locator.nameOnly(),
     pinnedRef: options.pinnedRef ?? null,
-    packagePath: await resolvePackagePath(materialized.worktreePath, packageDirectory)
+    packagePath: await resolvePackagePath(materialized.worktreePath, packageDirectory),
   };
 }
 
@@ -154,12 +152,14 @@ export async function ensureGitReferenceWorktree(
   name: string,
   spec: string,
   directory: string | null,
-  options: GitWorktreeOptions
+  options: GitWorktreeOptions,
 ): Promise<GitReferenceWorktreeResult> {
   const parsed = parseGitReferenceSpec(spec, options.projectRoot);
   const refName = parsed.ref ?? 'HEAD';
-  const materialized = await ensureWorktree(options.storeDir, parsed.repositoryUrl, (bareRepositoryPath) =>
-    resolveConfiguredRef(bareRepositoryPath, refName)
+  const materialized = await ensureWorktree(
+    options.storeDir,
+    parsed.repositoryUrl,
+    (bareRepositoryPath) => resolveConfiguredRef(bareRepositoryPath, refName),
   );
 
   // Resolved against the checkout every time rather than recorded: the subtree is a view of
@@ -178,7 +178,7 @@ export async function ensureGitReferenceWorktree(
     checkoutRef: materialized.checkoutRef,
     checkoutSha: materialized.checkoutSha,
     refSource: materialized.refSource,
-    mirrorStale: materialized.mirrorStale
+    mirrorStale: materialized.mirrorStale,
   };
 }
 
@@ -194,7 +194,7 @@ export function bareRepositoryPathFor(storeDir: string, repositoryUrl: string): 
 
 export function manifestReferencePath(
   storeDir: string,
-  reference: AgentReferenceManifestReference
+  reference: AgentReferenceManifestReference,
 ): string {
   return sharedWorktreePath(storeDir, reference.repositoryUrl, reference.checkoutSha);
 }
@@ -211,7 +211,7 @@ export interface SubpathResolution {
 
 export async function resolveSubpath(
   worktreePath: string,
-  requested: string | null | undefined
+  requested: string | null | undefined,
 ): Promise<SubpathResolution> {
   const directory = normalizeDirectory(requested);
   if (!directory || directory === '.') return { path: worktreePath, missing: false };
@@ -237,7 +237,7 @@ export async function resolveSubpath(
  */
 export async function resolvePackagePath(
   worktreePath: string,
-  packageDirectory: string | null | undefined
+  packageDirectory: string | null | undefined,
 ): Promise<string> {
   return (await resolveSubpath(worktreePath, packageDirectory)).path;
 }
@@ -245,7 +245,7 @@ export async function resolvePackagePath(
 async function ensureWorktree<RefSource extends string>(
   storeDir: string,
   repositoryUrl: string,
-  resolveCheckout: (bareRepositoryPath: string) => Promise<CheckoutRef<RefSource>>
+  resolveCheckout: (bareRepositoryPath: string) => Promise<CheckoutRef<RefSource>>,
 ): Promise<MaterializedWorktree<RefSource>> {
   await ensureGitAvailable();
 
@@ -265,7 +265,7 @@ async function ensureWorktree<RefSource extends string>(
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     const added = await runGit(
       ['-C', bareRepositoryPath, 'worktree', 'add', '--detach', worktreePath, checkout.sha],
-      { allowFailure: true }
+      { allowFailure: true },
     );
     if (added.exitCode !== 0 && !(await pathExists(worktreePath))) {
       throw new Error(`git worktree add failed: ${added.stderr.trim() || 'unknown git failure'}`);
@@ -278,23 +278,23 @@ async function ensureWorktree<RefSource extends string>(
     checkoutSha: checkout.sha,
     refSource: checkout.source,
     confidence: checkout.confidence,
-    mirrorStale: !updated
+    mirrorStale: !updated,
   };
 }
 
 export async function runGit(
   args: string[],
-  options: { allowFailure?: boolean } = {}
+  options: { allowFailure?: boolean } = {},
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   try {
     const result = await execFileAsync('git', gitArgv(args), {
       encoding: 'utf8',
-      maxBuffer: 1024 * 1024 * 64
+      maxBuffer: 1024 * 1024 * 64,
     });
     return {
       stdout: result.stdout,
       stderr: result.stderr,
-      exitCode: 0
+      exitCode: 0,
     };
   } catch (error) {
     const failed = error as {
@@ -307,7 +307,7 @@ export async function runGit(
       return {
         stdout: failed.stdout ?? '',
         stderr: failed.stderr ?? failed.message ?? '',
-        exitCode: typeof failed.code === 'number' ? failed.code : 1
+        exitCode: typeof failed.code === 'number' ? failed.code : 1,
       };
     }
 
@@ -346,7 +346,10 @@ async function runGitPreflight(): Promise<void> {
   } catch (error) {
     const failed = error as { code?: number | string; message?: string; stderr?: string };
     if (failed.code === 'ENOENT') throw new Error(GIT_MISSING_MESSAGE, { cause: error });
-    throw new Error(`Could not run "git --version": ${failed.stderr || failed.message || 'unknown failure'}`, { cause: error });
+    throw new Error(
+      `Could not run "git --version": ${failed.stderr || failed.message || 'unknown failure'}`,
+      { cause: error },
+    );
   }
 
   const version = output.match(/(\d+)\.(\d+)(?:\.(\d+))?/);
@@ -355,7 +358,7 @@ async function runGitPreflight(): Promise<void> {
   const parsed = [Number(version[1]), Number(version[2]), Number(version[3] ?? 0)];
   if (compareVersions(parsed, MINIMUM_GIT_VERSION) < 0) {
     throw new Error(
-      `git ${parsed.join('.')} is too old. agent-reference needs git ${MINIMUM_GIT_VERSION.join('.')} or newer for partial clones and worktrees.`
+      `git ${parsed.join('.')} is too old. agent-reference needs git ${MINIMUM_GIT_VERSION.join('.')} or newer for partial clones and worktrees.`,
     );
   }
 }
@@ -368,20 +371,23 @@ function compareVersions(a: readonly number[], b: readonly number[]): number {
   return 0;
 }
 
-async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string): Promise<{ updated: boolean }> {
+async function ensureBareRepository(
+  repoUrl: string,
+  bareRepositoryPath: string,
+): Promise<{ updated: boolean }> {
   if (await pathExists(bareRepositoryPath)) {
     await ensureFetchRefspec(bareRepositoryPath);
     const updated = await reportProgress(
       ['-C', bareRepositoryPath, 'fetch', '--tags', '--prune', '--filter=blob:none', 'origin'],
       `updating ${describeRepository(repoUrl)}`,
-      { allowFailure: true }
+      { allowFailure: true },
     );
     // A mirror that cannot be refreshed still answers, out of whatever it last held. Said
     // out loud, because the alternative is a ref that is simply not here yet being reported
     // as a tag this tool cannot spell, which sends an agent to pin something that exists.
     if (!updated) {
       process.stderr.write(
-        `agent-reference: could not update ${describeRepository(repoUrl)}; reading what the mirror already holds\n`
+        `agent-reference: could not update ${describeRepository(repoUrl)}; reading what the mirror already holds\n`,
       );
     }
     return { updated };
@@ -390,7 +396,7 @@ async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string)
   await fs.mkdir(path.dirname(bareRepositoryPath), { recursive: true });
   await reportProgress(
     ['clone', '--bare', '--filter=blob:none', repoUrl, bareRepositoryPath],
-    `cloning ${describeRepository(repoUrl)}`
+    `cloning ${describeRepository(repoUrl)}`,
   );
   await ensureFetchRefspec(bareRepositoryPath);
   return { updated: true };
@@ -398,7 +404,12 @@ async function ensureBareRepository(repoUrl: string, bareRepositoryPath: string)
 
 function describeRepository(repositoryUrl: string): string {
   const parts = repositoryCacheParts(repositoryUrl);
-  return parts.slice(1).join('/').replace(/\.git$/, '') || repositoryUrl;
+  return (
+    parts
+      .slice(1)
+      .join('/')
+      .replace(/\.git$/, '') || repositoryUrl
+  );
 }
 
 /**
@@ -409,7 +420,7 @@ function describeRepository(repositoryUrl: string): string {
 async function reportProgress(
   args: string[],
   label: string,
-  options: { allowFailure?: boolean } = {}
+  options: { allowFailure?: boolean } = {},
 ): Promise<boolean> {
   process.stderr.write(`agent-reference: ${label}\n`);
 
@@ -421,7 +432,7 @@ async function reportProgress(
     // The same policy runGit applies. Drawing progress is a display choice, and a display
     // choice must not decide which transports git will speak.
     const child = spawn('git', gitArgv([...args, '--progress']), {
-      stdio: ['ignore', 'ignore', 'inherit']
+      stdio: ['ignore', 'ignore', 'inherit'],
     });
     child.on('error', (error: NodeJS.ErrnoException) => {
       reject(error.code === 'ENOENT' ? new Error(GIT_MISSING_MESSAGE) : error);
@@ -439,14 +450,20 @@ async function reportProgress(
  * moves tags and FETCH_HEAD and the cached branch refs never advance.
  */
 async function ensureFetchRefspec(bareRepositoryPath: string): Promise<void> {
-  await runGit(['-C', bareRepositoryPath, 'config', 'remote.origin.fetch', '+refs/heads/*:refs/heads/*'], {
-    allowFailure: true
-  });
+  await runGit(
+    ['-C', bareRepositoryPath, 'config', 'remote.origin.fetch', '+refs/heads/*:refs/heads/*'],
+    {
+      allowFailure: true,
+    },
+  );
 }
 
 interface PackageLocator {
   /** The target package's version at a commit, plus where in the tree it was found. */
-  inspect: (bareRepositoryPath: string, sha: string) => Promise<{ directory: string | null; version: string | null }>;
+  inspect: (
+    bareRepositoryPath: string,
+    sha: string,
+  ) => Promise<{ directory: string | null; version: string | null }>;
   directory: () => string | null;
   /** A directory claiming the package's name that never confirmed its version. */
   nameOnly: () => string | null;
@@ -455,7 +472,7 @@ interface PackageLocator {
 function createPackageLocator(
   dependency: PackageReference,
   metadata: DependencyMetadata,
-  pinnedDirectory: string | null
+  pinnedDirectory: string | null,
 ): PackageLocator {
   const pinned = normalizeDirectory(pinnedDirectory);
   // Two different questions. `probe` is where to read a manifest while deciding whether a
@@ -469,11 +486,11 @@ function createPackageLocator(
   const readManifest = async (
     bareRepositoryPath: string,
     sha: string,
-    directory: string
+    directory: string,
   ): Promise<{ name?: string; version?: string } | null> => {
     const file = directory === '.' ? 'package.json' : `${directory}/package.json`;
     const result = await runGit(['-C', bareRepositoryPath, 'cat-file', 'blob', `${sha}:${file}`], {
-      allowFailure: true
+      allowFailure: true,
     });
     if (result.exitCode !== 0) return null;
 
@@ -486,10 +503,10 @@ function createPackageLocator(
 
   const search = async (
     bareRepositoryPath: string,
-    sha: string
+    sha: string,
   ): Promise<{ directory: string; version: string | null } | null> => {
     const listing = await runGit(['-C', bareRepositoryPath, 'ls-tree', '-r', '--name-only', sha], {
-      allowFailure: true
+      allowFailure: true,
     });
     if (listing.exitCode !== 0) return null;
 
@@ -504,7 +521,10 @@ function createPackageLocator(
   };
 
   let nameOnly: string | null = null;
-  const record = (directory: string, version: string | null): { directory: string; version: string | null } => {
+  const record = (
+    directory: string,
+    version: string | null,
+  ): { directory: string; version: string | null } => {
     probe = directory;
     if (version === dependency.version) confirmed = directory;
     else if (directory !== '.') nameOnly = directory;
@@ -527,7 +547,11 @@ function createPackageLocator(
         return { directory: pinned, version: version === dependency.version ? version : null };
       }
 
-      const candidates = uniqueStrings([probe, normalizeDirectory(metadata.repositoryDirectory), '.']);
+      const candidates = uniqueStrings([
+        probe,
+        normalizeDirectory(metadata.repositoryDirectory),
+        '.',
+      ]);
       for (const directory of candidates) {
         const manifest = await readManifest(bareRepositoryPath, sha, directory);
         if (manifest?.name === dependency.name) return record(directory, manifest.version ?? null);
@@ -542,16 +566,22 @@ function createPackageLocator(
       }
 
       return { directory: null, version: null };
-    }
+    },
   };
 }
 
 function rankCandidateDirectories(listing: string, packageName: string): string[] {
-  const leaf = packageName.includes('/') ? (packageName.split('/').at(-1) ?? packageName) : packageName;
+  const leaf = packageName.includes('/')
+    ? (packageName.split('/').at(-1) ?? packageName)
+    : packageName;
   const directories = listing
     .split('\n')
     .filter((file) => file.endsWith('package.json'))
-    .filter((file) => !file.includes('node_modules/') && !/(^|\/)(fixtures|__fixtures__|test|tests|examples)\//.test(file))
+    .filter(
+      (file) =>
+        !file.includes('node_modules/') &&
+        !/(^|\/)(fixtures|__fixtures__|test|tests|examples)\//.test(file),
+    )
     .filter((file) => file.split('/').length <= 5)
     .map((file) => path.posix.dirname(file))
     .filter((directory) => directory !== '.');
@@ -580,7 +610,7 @@ async function resolvePackageCheckout(
   bareRepositoryPath: string,
   dependency: PackageReference,
   metadata: DependencyMetadata,
-  locator: PackageLocator
+  locator: PackageLocator,
 ): Promise<CheckoutRef<PackageCheckoutSource>> {
   const seenShas = new Set<string>();
   const unverified: Array<CheckoutRef<PackageCheckoutSource>> = [];
@@ -588,7 +618,7 @@ async function resolvePackageCheckout(
   const consider = async (
     label: string,
     revision: string,
-    source: PackageCheckoutSource
+    source: PackageCheckoutSource,
   ): Promise<CheckoutRef<PackageCheckoutSource> | null> => {
     const resolved = await resolveGitRevision(bareRepositoryPath, revision);
     if (!resolved || seenShas.has(resolved.sha)) return null;
@@ -624,7 +654,9 @@ async function resolvePackageCheckout(
 
   const head = await resolveGitRevision(bareRepositoryPath, 'HEAD');
   if (!head) {
-    throw new Error(`Unable to resolve a checkout ref for ${dependency.name}@${dependency.version}`);
+    throw new Error(
+      `Unable to resolve a checkout ref for ${dependency.name}@${dependency.version}`,
+    );
   }
 
   return { ref: 'HEAD', sha: head.sha, source: 'defaultBranch', confidence: 'fallback' };
@@ -639,13 +671,13 @@ async function resolvePinnedCheckout(
   bareRepositoryPath: string,
   dependency: PackageReference,
   pinnedRef: string,
-  locator: PackageLocator
+  locator: PackageLocator,
 ): Promise<CheckoutRef<PackageCheckoutSource>> {
   const candidates = [
     `${pinnedRef}^{commit}`,
     `refs/tags/${pinnedRef}^{commit}`,
     `refs/heads/${pinnedRef}^{commit}`,
-    `refs/remotes/origin/${pinnedRef}^{commit}`
+    `refs/remotes/origin/${pinnedRef}^{commit}`,
   ];
 
   for (const candidate of candidates) {
@@ -665,22 +697,28 @@ async function resolvePinnedCheckout(
   }
 
   throw new Error(
-    `packages.${dependency.name}.ref is "${pinnedRef}", which is not a commit, tag, or branch in ${bareRepositoryPath}.`
+    `packages.${dependency.name}.ref is "${pinnedRef}", which is not a commit, tag, or branch in ${bareRepositoryPath}.`,
   );
 }
 
 /** Catches release tags this tool does not know how to spell, such as `release-1.2.3`. */
 async function searchTagsForVersion(
   bareRepositoryPath: string,
-  version: string
+  version: string,
 ): Promise<string[]> {
   assertSafeGitValue(version, 'A version');
-  const result = await runGit(['-C', bareRepositoryPath, 'tag', '--list', `*${version}`, `*${version}*`], {
-    allowFailure: true
-  });
+  const result = await runGit(
+    ['-C', bareRepositoryPath, 'tag', '--list', `*${version}`, `*${version}*`],
+    {
+      allowFailure: true,
+    },
+  );
   if (result.exitCode !== 0) return [];
 
-  const tags = result.stdout.split('\n').map((tag) => tag.trim()).filter(Boolean);
+  const tags = result.stdout
+    .split('\n')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
   const suffixMatches = tags.filter((tag) => tag.endsWith(version));
   const rest = tags.filter((tag) => !tag.endsWith(version));
 
@@ -689,14 +727,14 @@ async function searchTagsForVersion(
 
 async function ensureCommitAvailable(
   bareRepositoryPath: string,
-  commitSha: string
+  commitSha: string,
 ): Promise<boolean> {
   const local = await resolveGitRevision(bareRepositoryPath, `${commitSha}^{commit}`);
   if (local) return true;
 
   assertSafeGitValue(commitSha, 'A ref or commit');
   await runGit(['-C', bareRepositoryPath, 'fetch', '--filter=blob:none', 'origin', commitSha], {
-    allowFailure: true
+    allowFailure: true,
   });
 
   return Boolean(await resolveGitRevision(bareRepositoryPath, `${commitSha}^{commit}`));
@@ -704,12 +742,15 @@ async function ensureCommitAvailable(
 
 async function resolveGitRevision(
   bareRepositoryPath: string,
-  revision: string
+  revision: string,
 ): Promise<{ ref: string; sha: string } | null> {
   if (revision.startsWith('-')) return null;
-  const result = await runGit(['-C', bareRepositoryPath, 'rev-parse', '--verify', '--quiet', revision], {
-    allowFailure: true
-  });
+  const result = await runGit(
+    ['-C', bareRepositoryPath, 'rev-parse', '--verify', '--quiet', revision],
+    {
+      allowFailure: true,
+    },
+  );
   const sha = result.stdout.trim();
   return result.exitCode === 0 && sha ? { ref: revision, sha } : null;
 }
@@ -727,11 +768,18 @@ export function defaultStoreDir(): string {
  * then the default. Every command has to answer this the same way, or one of them reads a
  * store the others never write to.
  */
-export function resolveStoreDir(projectRoot: string, cwd: string, configured: string | undefined): string {
+export function resolveStoreDir(
+  projectRoot: string,
+  cwd: string,
+  configured: string | undefined,
+): string {
   return configured ? resolveConfigPath(projectRoot, cwd, configured) : defaultStoreDir();
 }
 
-function parseGitReferenceSpec(spec: string, projectRoot: string): { repositoryUrl: string; ref: string | null } {
+function parseGitReferenceSpec(
+  spec: string,
+  projectRoot: string,
+): { repositoryUrl: string; ref: string | null } {
   const hashIndex = spec.lastIndexOf('#');
   const rawUrl = hashIndex === -1 ? spec : spec.slice(0, hashIndex);
   const ref = hashIndex === -1 ? null : spec.slice(hashIndex + 1);
@@ -744,16 +792,17 @@ function parseGitReferenceSpec(spec: string, projectRoot: string): { repositoryU
 
 async function resolveConfiguredRef(
   bareRepositoryPath: string,
-  refName: string
+  refName: string,
 ): Promise<CheckoutRef<GitReferenceCheckoutSource>> {
-  const candidates = refName === 'HEAD'
-    ? ['HEAD']
-    : [
-        `${refName}^{commit}`,
-        `refs/tags/${refName}^{commit}`,
-        `refs/heads/${refName}^{commit}`,
-        `refs/remotes/origin/${refName}^{commit}`
-      ];
+  const candidates =
+    refName === 'HEAD'
+      ? ['HEAD']
+      : [
+          `${refName}^{commit}`,
+          `refs/tags/${refName}^{commit}`,
+          `refs/heads/${refName}^{commit}`,
+          `refs/remotes/origin/${refName}^{commit}`,
+        ];
 
   for (const candidate of candidates) {
     const resolved = await resolveGitRevision(bareRepositoryPath, candidate);
@@ -762,7 +811,7 @@ async function resolveConfiguredRef(
         ref: refName,
         sha: resolved.sha,
         source: refName === 'HEAD' ? 'defaultBranch' : 'configured',
-        confidence: 'verified'
+        confidence: 'verified',
       };
     }
   }

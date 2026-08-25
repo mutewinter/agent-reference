@@ -42,7 +42,7 @@ export async function inspectStore(options: StoreOptions = {}): Promise<StoreRep
     repositories,
     totalBytes: repositories.reduce((total, repository) => total + repository.totalBytes, 0),
     removed: [],
-    reclaimedBytes: 0
+    reclaimedBytes: 0,
   };
 
   if (!options.prune) return report;
@@ -65,7 +65,9 @@ export async function inspectStore(options: StoreOptions = {}): Promise<StoreRep
         report.reclaimedBytes += repository.bareBytes;
       }
     } else if (stale.length > 0 && repository.bareRepositoryPath) {
-      await runGit(['-C', repository.bareRepositoryPath, 'worktree', 'prune'], { allowFailure: true });
+      await runGit(['-C', repository.bareRepositoryPath, 'worktree', 'prune'], {
+        allowFailure: true,
+      });
     }
   }
 
@@ -95,14 +97,18 @@ async function collectRepositories(storeDir: string, now: number): Promise<Store
       bareBytes: 0,
       checkouts: [],
       checkoutBytes: 0,
-      totalBytes: 0
+      totalBytes: 0,
     };
     byName.set(name, created);
     return created;
   };
 
-  for (const bare of await findLeaves(path.join(storeDir, BARE_DIR), (entry) => entry.endsWith('.git'))) {
-    const repository = repositoryFor(storeName(path.join(storeDir, BARE_DIR), bare).replace(/\.git$/, ''));
+  for (const bare of await findLeaves(path.join(storeDir, BARE_DIR), (entry) =>
+    entry.endsWith('.git'),
+  )) {
+    const repository = repositoryFor(
+      storeName(path.join(storeDir, BARE_DIR), bare).replace(/\.git$/, ''),
+    );
     repository.bareRepositoryPath = bare;
     repository.bareBytes = await directorySize(bare);
   }
@@ -110,7 +116,10 @@ async function collectRepositories(storeDir: string, now: number): Promise<Store
   // A checkout is recognized by its commit-shaped name rather than by how deep it sits: a
   // remote whose path carries a subgroup nests one level further than github does, and
   // counting levels reported the repository directory itself as a single huge checkout.
-  for (const checkout of await findLeaves(path.join(storeDir, CHECKOUT_DIR), isCheckoutDirectoryName)) {
+  for (const checkout of await findLeaves(
+    path.join(storeDir, CHECKOUT_DIR),
+    isCheckoutDirectoryName,
+  )) {
     const relative = storeName(path.join(storeDir, CHECKOUT_DIR), checkout);
     const segments = relative.split(path.sep);
     const commit = segments.pop() ?? '';
@@ -120,18 +129,23 @@ async function collectRepositories(storeDir: string, now: number): Promise<Store
       path: checkout,
       commit,
       bytes: await directorySize(checkout),
-      ageDays: stat ? Math.floor((now - stat.mtimeMs) / DAY_MS) : 0
+      ageDays: stat ? Math.floor((now - stat.mtimeMs) / DAY_MS) : 0,
     });
   }
 
   const repositories = [...byName.values()];
   for (const repository of repositories) {
-    repository.checkoutBytes = repository.checkouts.reduce((total, checkout) => total + checkout.bytes, 0);
+    repository.checkoutBytes = repository.checkouts.reduce(
+      (total, checkout) => total + checkout.bytes,
+      0,
+    );
     repository.totalBytes = repository.bareBytes + repository.checkoutBytes;
     repository.checkouts.sort((a, b) => a.commit.localeCompare(b.commit));
   }
 
-  return repositories.toSorted((a, b) => b.totalBytes - a.totalBytes || a.name.localeCompare(b.name));
+  return repositories.toSorted(
+    (a, b) => b.totalBytes - a.totalBytes || a.name.localeCompare(b.name),
+  );
 }
 
 /**

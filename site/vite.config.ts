@@ -1,23 +1,23 @@
-import { readFileSync } from 'node:fs'
+import { readFileSync } from 'node:fs';
 
-import { cloudflare } from '@cloudflare/vite-plugin'
-import tailwindcss from '@tailwindcss/vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import viteReact from '@vitejs/plugin-react'
-import { createHighlighter } from 'shiki'
-import type { ThemeRegistrationRaw } from 'shiki'
-import { defineConfig } from 'vite'
+import { cloudflare } from '@cloudflare/vite-plugin';
+import tailwindcss from '@tailwindcss/vite';
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
+import viteReact from '@vitejs/plugin-react';
+import { createHighlighter } from 'shiki';
+import type { ThemeRegistrationRaw } from 'shiki';
+import { defineConfig } from 'vite';
 
-import { renderCliReference } from './cli-reference.mjs'
-import { samples } from './code-samples.mjs'
+import { renderCliReference } from './cli-reference.mjs';
+import { samples } from './code-samples.mjs';
 
 // The site states the version of the CLI it documents, read from the package
 // at the repository root rather than restated here, so the two cannot disagree.
 const cliVersion = (
   JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
-    version: string
+    version: string;
   }
-).version
+).version;
 
 // Jellybeans+ by Simon Watts, MIT, vendored from siwatts/jellybeans-theme-vscode
 // because a build in CI cannot fetch it. The page palette in styles.css is
@@ -26,7 +26,7 @@ const cliVersion = (
 // theme in every `codeToHtml` call.
 const THEME = JSON.parse(
   readFileSync(new URL('./jellybeans-plus.json', import.meta.url), 'utf8'),
-) as ThemeRegistrationRaw & { name: string }
+) as ThemeRegistrationRaw & { name: string };
 
 /**
  * Highlights every snippet once, in Node, and serves the HTML as a virtual
@@ -34,20 +34,20 @@ const THEME = JSON.parse(
  * or to the Worker, and a prerendered page needs no highlighting at runtime.
  */
 function highlightedSnippets() {
-  const id = 'virtual:highlighted'
-  const resolved = '\0' + id
+  const id = 'virtual:highlighted';
+  const resolved = '\0' + id;
 
   return {
     name: 'highlighted-snippets',
     resolveId(source: string) {
-      return source === id ? resolved : undefined
+      return source === id ? resolved : undefined;
     },
     async load(loaded: string) {
-      if (loaded !== resolved) return
+      if (loaded !== resolved) return;
       const highlighter = await createHighlighter({
         themes: [THEME],
         langs: [...new Set(Object.values(samples).map((s) => s.lang))],
-      })
+      });
       // The raw source travels with the rendered HTML: the page offers these
       // for copying, and a clipboard wants the text, not the markup.
       const rendered = Object.fromEntries(
@@ -58,10 +58,10 @@ function highlightedSnippets() {
             code: sample.code,
           },
         ]),
-      )
-      return `export default ${JSON.stringify(rendered)}`
+      );
+      return `export default ${JSON.stringify(rendered)}`;
     },
-  }
+  };
 }
 
 /**
@@ -70,19 +70,19 @@ function highlightedSnippets() {
  * pastes the same transcripts.
  */
 function cliReference() {
-  const id = 'virtual:cli-reference'
-  const resolved = '\0' + id
+  const id = 'virtual:cli-reference';
+  const resolved = '\0' + id;
 
   return {
     name: 'cli-reference',
     resolveId(source: string) {
-      return source === id ? resolved : undefined
+      return source === id ? resolved : undefined;
     },
     load(loaded: string) {
-      if (loaded !== resolved) return
-      return `export default ${JSON.stringify(renderCliReference())}`
+      if (loaded !== resolved) return;
+      return `export default ${JSON.stringify(renderCliReference())}`;
     },
-  }
+  };
 }
 
 export default defineConfig({
@@ -99,4 +99,4 @@ export default defineConfig({
     tanstackStart({ prerender: { enabled: true, crawlLinks: true } }),
     viteReact(),
   ],
-})
+});

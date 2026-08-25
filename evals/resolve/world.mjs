@@ -28,44 +28,45 @@ export const EXPECTED = {
       failure: 'none',
       reach: 'a checkout at 1.4.0, the version apps/studio installs',
       via: 'nothing: `get plainpkg` should just work from the repository root',
-      confidence: 'verified'
+      confidence: 'verified',
     },
     {
       name: 'splitpkg',
       failure: 'installed at two versions in two workspace packages',
       reach: 'a checkout at one of 2.0.0 or 1.0.0, chosen deliberately',
       via: 'an explicit coordinate, splitpkg@2.0.0 or splitpkg@1.0.0',
-      confidence: 'verified'
+      confidence: 'verified',
     },
     {
       name: 'shellpkg',
-      failure: 'the repository root manifest has another name, and a decoy subdirectory claims this one',
+      failure:
+        'the repository root manifest has another name, and a decoy subdirectory claims this one',
       reach: 'the repository root at the 3.1.0 tag, not the decoy directory',
       via: 'nothing, or packages.shellpkg.directory to say so explicitly',
-      confidence: 'unverified'
+      confidence: 'unverified',
     },
     {
       name: 'oddpkg',
       failure: 'releases are tagged by date, so no tag mentions the version at all',
       reach: 'the commit tagged release-20260410, which really is oddpkg@1.2.3',
       via: 'packages.oddpkg.ref, found by listing tags in the mirror the failure names',
-      confidence: 'pinned'
+      confidence: 'pinned',
     },
     {
       name: 'movedpkg',
       failure: 'registry metadata points at a repository that does not exist',
       reach: 'the repository that does exist, at 5.0.0',
       via: 'packages.movedpkg.repository',
-      confidence: 'verified'
+      confidence: 'verified',
     },
     {
       name: '@acme/internal',
       failure: 'a workspace package, already in the repository',
       reach: 'nothing fetched; the agent should say it is already on disk at packages/internal',
       via: 'no config at all',
-      confidence: null
-    }
-  ]
+      confidence: null,
+    },
+  ],
 };
 
 export async function buildWorld(runDir) {
@@ -79,7 +80,7 @@ export async function buildWorld(runDir) {
     splitpkg: await twoVersionRepo(upstream, 'splitpkg'),
     shellpkg: await shellRepo(upstream, 'shellpkg', '3.1.0'),
     oddpkg: await oddTagRepo(upstream, 'oddpkg', '1.2.3'),
-    movedpkg: await plainRepo(upstream, 'movedpkg', '5.0.0')
+    movedpkg: await plainRepo(upstream, 'movedpkg', '5.0.0'),
   };
 
   await writeProject(projectRoot);
@@ -96,11 +97,13 @@ export async function startRegistry(repos) {
     plainpkg: { '1.4.0': { repository: { type: 'git', url: repos.plainpkg.path } } },
     splitpkg: {
       '2.0.0': { repository: { type: 'git', url: repos.splitpkg.path } },
-      '1.0.0': { repository: { type: 'git', url: repos.splitpkg.path } }
+      '1.0.0': { repository: { type: 'git', url: repos.splitpkg.path } },
     },
     shellpkg: { '3.1.0': { repository: { type: 'git', url: repos.shellpkg.path } } },
     oddpkg: { '1.2.3': { repository: { type: 'git', url: repos.oddpkg.path } } },
-    movedpkg: { '5.0.0': { repository: { type: 'git', url: `${repos.movedpkg.path}-renamed-and-gone` } } }
+    movedpkg: {
+      '5.0.0': { repository: { type: 'git', url: `${repos.movedpkg.path}-renamed-and-gone` } },
+    },
   };
 
   const server = http.createServer((request, response) => {
@@ -116,9 +119,15 @@ export async function startRegistry(repos) {
 
     const body = rawVersion
       ? { name, version: rawVersion, ...versions[rawVersion] }
-      : { name, versions: Object.fromEntries(Object.keys(versions).map((v) => [v, {}])), 'dist-tags': { latest: Object.keys(versions)[0] } };
+      : {
+          name,
+          versions: Object.fromEntries(Object.keys(versions).map((v) => [v, {}])),
+          'dist-tags': { latest: Object.keys(versions)[0] },
+        };
 
-    response.writeHead(rawVersion && !versions[rawVersion] ? 404 : 200, { 'content-type': 'application/json' });
+    response.writeHead(rawVersion && !versions[rawVersion] ? 404 : 200, {
+      'content-type': 'application/json',
+    });
     response.end(JSON.stringify(body));
   });
 
@@ -136,7 +145,7 @@ async function writeProject(projectRoot) {
   await write(projectRoot, 'package.json', {
     name: 'acme-studio-workspace',
     private: true,
-    devDependencies: { typescript: '5.9.2' }
+    devDependencies: { typescript: '5.9.2' },
   });
   await write(projectRoot, 'apps/studio/package.json', {
     name: '@acme/studio',
@@ -146,22 +155,31 @@ async function writeProject(projectRoot) {
       shellpkg: '^3.1.0',
       oddpkg: '1.2.3',
       movedpkg: '^5.0.0',
-      '@acme/internal': 'workspace:*'
-    }
+      '@acme/internal': 'workspace:*',
+    },
   });
   await write(projectRoot, 'apps/legacy/package.json', {
     name: '@acme/legacy',
-    dependencies: { splitpkg: '^1.0.0' }
+    dependencies: { splitpkg: '^1.0.0' },
   });
-  await write(projectRoot, 'packages/internal/package.json', { name: '@acme/internal', version: '0.0.0' });
+  await write(projectRoot, 'packages/internal/package.json', {
+    name: '@acme/internal',
+    version: '0.0.0',
+  });
 
-  await fs.writeFile(path.join(projectRoot, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n  - packages/*\n');
+  await fs.writeFile(
+    path.join(projectRoot, 'pnpm-workspace.yaml'),
+    'packages:\n  - apps/*\n  - packages/*\n',
+  );
   await fs.writeFile(path.join(projectRoot, 'pnpm-lock.yaml'), LOCKFILE);
   await fs.writeFile(
     path.join(projectRoot, 'AGENTS.md'),
-    '# acme studio\n\nA pnpm workspace. The desktop app is apps/studio; apps/legacy is the old build.\n'
+    '# acme studio\n\nA pnpm workspace. The desktop app is apps/studio; apps/legacy is the old build.\n',
   );
-  await fs.writeFile(path.join(projectRoot, '.gitignore'), 'node_modules\nagent-reference.local.json\n');
+  await fs.writeFile(
+    path.join(projectRoot, '.gitignore'),
+    'node_modules\nagent-reference.local.json\n',
+  );
 }
 
 const LOCKFILE = `lockfileVersion: '9.0'
@@ -222,7 +240,7 @@ async function plainRepo(parent, name, version) {
   await writeFiles(repoPath, {
     'package.json': JSON.stringify({ name, version }),
     'src/index.js': `export const ${name.replaceAll(/\W/g, '')} = ${JSON.stringify(version)};\n`,
-    'test/index.test.js': `// the tests that never ship to node_modules\n`
+    'test/index.test.js': `// the tests that never ship to node_modules\n`,
   });
   await commit(repoPath, `${name} ${version}`);
   await tag(repoPath, `v${version}`);
@@ -235,7 +253,7 @@ async function twoVersionRepo(parent, name) {
   for (const version of ['1.0.0', '2.0.0']) {
     await writeFiles(repoPath, {
       'package.json': JSON.stringify({ name, version }),
-      'src/index.js': `export const version = ${JSON.stringify(version)};\n`
+      'src/index.js': `export const version = ${JSON.stringify(version)};\n`,
     });
     await commit(repoPath, `${name} ${version}`);
     await tag(repoPath, `v${version}`);
@@ -252,7 +270,7 @@ async function shellRepo(parent, name, version) {
     'lib/browser/init.js': '// the real implementation\n',
     'spec/window-spec.js': "// the maintainers' tests\n",
     'default_app/package.json': JSON.stringify({ name, main: 'main.js' }),
-    'default_app/main.js': '// a two-file splash screen, not the package\n'
+    'default_app/main.js': '// a two-file splash screen, not the package\n',
   });
   await commit(repoPath, `${name} ${version}`);
   await tag(repoPath, `v${version}`);
@@ -266,16 +284,25 @@ async function shellRepo(parent, name, version) {
  */
 async function oddTagRepo(parent, name, version) {
   const repoPath = await initRepo(parent, name);
-  await writeFiles(repoPath, { 'package.json': JSON.stringify({ name, version: '0.9.0' }), 'src/index.js': '// old\n' });
+  await writeFiles(repoPath, {
+    'package.json': JSON.stringify({ name, version: '0.9.0' }),
+    'src/index.js': '// old\n',
+  });
   await commit(repoPath, `${name} 0.9.0`);
   await tag(repoPath, 'release-20251117');
 
-  await writeFiles(repoPath, { 'package.json': JSON.stringify({ name, version }), 'src/index.js': '// the release\n' });
+  await writeFiles(repoPath, {
+    'package.json': JSON.stringify({ name, version }),
+    'src/index.js': '// the release\n',
+  });
   await commit(repoPath, `${name} ${version}`);
   await tag(repoPath, 'release-20260410');
 
   // The default branch moves past the release, so a fallback checkout is visibly not it.
-  await writeFiles(repoPath, { 'package.json': JSON.stringify({ name, version: '1.3.0-dev' }), 'src/index.js': '// unreleased\n' });
+  await writeFiles(repoPath, {
+    'package.json': JSON.stringify({ name, version: '1.3.0-dev' }),
+    'src/index.js': '// unreleased\n',
+  });
   await commit(repoPath, `${name} back to development`);
   return { path: repoPath };
 }

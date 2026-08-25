@@ -3,7 +3,11 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { DEFAULT_CONFIG_FILE, DEFAULT_LOCAL_CONFIG_FILE, loadAgentReferenceConfig } from './config.ts';
+import {
+  DEFAULT_CONFIG_FILE,
+  DEFAULT_LOCAL_CONFIG_FILE,
+  loadAgentReferenceConfig,
+} from './config.ts';
 import { pathExists } from './fs-utils.ts';
 import { runGit } from './git.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
@@ -72,7 +76,7 @@ const INSTRUCTION_CANDIDATES = [
   '.cursor/rules',
   '.github/copilot-instructions.md',
   '.windsurfrules',
-  '.clinerules'
+  '.clinerules',
 ];
 
 const PROJECT_SKILL_DIRS = ['.agents/skills/agent-reference', '.claude/skills/agent-reference'];
@@ -84,7 +88,7 @@ const PROJECT_SKILL_DIRS = ['.agents/skills/agent-reference', '.claude/skills/ag
  */
 export async function surveyProject(
   projectPath: string | null | undefined,
-  options: SurveyProjectOptions = {}
+  options: SurveyProjectOptions = {},
 ): Promise<InitSurvey> {
   const cwd = options.cwd ?? process.cwd();
   const home = options.home ?? os.homedir();
@@ -103,9 +107,17 @@ export async function surveyProject(
 
   const dependencies = await scanResolvedProject(project).catch(() => []);
   const gitRepository =
-    (await runGit(['-C', projectRoot, 'rev-parse', '--is-inside-work-tree'], { allowFailure: true })).exitCode === 0;
-  const localConfigIgnored = gitRepository ? await isIgnored(projectRoot, DEFAULT_LOCAL_CONFIG_FILE) : false;
-  const localConfigTracked = gitRepository ? await isTracked(projectRoot, DEFAULT_LOCAL_CONFIG_FILE) : false;
+    (
+      await runGit(['-C', projectRoot, 'rev-parse', '--is-inside-work-tree'], {
+        allowFailure: true,
+      })
+    ).exitCode === 0;
+  const localConfigIgnored = gitRepository
+    ? await isIgnored(projectRoot, DEFAULT_LOCAL_CONFIG_FILE)
+    : false;
+  const localConfigTracked = gitRepository
+    ? await isTracked(projectRoot, DEFAULT_LOCAL_CONFIG_FILE)
+    : false;
 
   const instructionFiles = await findInstructionFiles(projectRoot);
 
@@ -124,12 +136,14 @@ export async function surveyProject(
     instructionFiles,
     editTargets: editTargets(instructionFiles),
     skill: await findSkill(projectRoot, home),
-    transcriptStores: await findTranscriptStores(projectRoot, home)
+    transcriptStores: await findTranscriptStores(projectRoot, home),
   };
 }
 
 async function isIgnored(projectRoot: string, file: string): Promise<boolean> {
-  const result = await runGit(['-C', projectRoot, 'check-ignore', '-q', '--', file], { allowFailure: true });
+  const result = await runGit(['-C', projectRoot, 'check-ignore', '-q', '--', file], {
+    allowFailure: true,
+  });
   return result.exitCode === 0;
 }
 
@@ -159,8 +173,8 @@ async function findInstructionFiles(projectRoot: string): Promise<InstructionFil
       file: candidate,
       linkTarget: stat.isSymbolicLink() ? path.relative(realRoot, real) : null,
       mentionsAgentReference: await mentionsAgentReference(real, INSTRUCTION_SCAN_DEPTH, {
-        left: INSTRUCTION_SCAN_FILES
-      })
+        left: INSTRUCTION_SCAN_FILES,
+      }),
     });
   }
 
@@ -180,7 +194,7 @@ async function mentionsAgentReference(
   target: string,
   depth: number,
   /** One counter for the whole walk, decremented by every level below this one. */
-  budget: { left: number }
+  budget: { left: number },
 ): Promise<boolean> {
   if (depth === 0 || budget.left <= 0) return false;
 
@@ -231,7 +245,7 @@ async function findSkill(projectRoot: string, home: string): Promise<SkillInstal
   return {
     installed,
     candidates,
-    source: (await pathExists(shipped)) ? shipped : null
+    source: (await pathExists(shipped)) ? shipped : null,
   };
 }
 
@@ -247,7 +261,7 @@ async function findTranscriptStores(projectRoot: string, home: string): Promise<
     { agent: 'codex', format: 'jsonl', path: path.join(home, '.codex', 'sessions') },
     { agent: 'gemini-cli', format: 'json', path: path.join(home, '.gemini', 'tmp') },
     { agent: 'opencode', format: 'json', path: path.join(dataHome, 'opencode', 'storage') },
-    { agent: 'aider', format: 'markdown', path: path.join(projectRoot, '.aider.chat.history.md') }
+    { agent: 'aider', format: 'markdown', path: path.join(projectRoot, '.aider.chat.history.md') },
   ];
 
   const appData = appDataDir(home);
@@ -255,7 +269,7 @@ async function findTranscriptStores(projectRoot: string, home: string): Promise<
     candidates.push({
       agent: 'cursor',
       format: 'sqlite',
-      path: path.join(appData, 'Cursor', 'User', 'workspaceStorage')
+      path: path.join(appData, 'Cursor', 'User', 'workspaceStorage'),
     });
   }
 
@@ -263,7 +277,9 @@ async function findTranscriptStores(projectRoot: string, home: string): Promise<
   for (const candidate of candidates) {
     const stat = await fs.stat(candidate.path).catch(() => null);
     if (!stat) continue;
-    const sessions = stat.isDirectory() ? await countFiles(candidate.path, 4, { left: SESSION_SCAN_FILES }) : 1;
+    const sessions = stat.isDirectory()
+      ? await countFiles(candidate.path, 4, { left: SESSION_SCAN_FILES })
+      : 1;
     stores.push({ ...candidate, sessions });
   }
 

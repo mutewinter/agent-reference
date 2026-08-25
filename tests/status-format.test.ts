@@ -10,7 +10,14 @@ test('renders scope sections with sets as labeled-list subsections', () => {
   const output = formatStatusReport(
     report(
       [
-        entry({ kind: 'git', name: 'chess-engine', scope: 'shared', status: 'declared', requested: 'github:acme/chess-engine', sets: ['engines'] }),
+        entry({
+          kind: 'git',
+          name: 'chess-engine',
+          scope: 'shared',
+          status: 'declared',
+          requested: 'github:acme/chess-engine',
+          sets: ['engines'],
+        }),
         entry({
           kind: 'path',
           name: 'design-notes',
@@ -18,16 +25,30 @@ test('renders scope sections with sets as labeled-list subsections', () => {
           status: 'ready',
           path: '/refs/design-notes',
           pathType: 'folder',
-          description: 'Sketches and early notes'
-        })
+          description: 'Sketches and early notes',
+        }),
       ],
-      { sets: [{ name: 'engines', description: 'Engines we study upstream', references: ['git:chess-engine'] }] }
+      {
+        sets: [
+          {
+            name: 'engines',
+            description: 'Engines we study upstream',
+            references: ['git:chess-engine'],
+          },
+        ],
+      },
     ),
-    PLAIN
+    PLAIN,
   );
 
-  assert.match(output, /agent-reference\.json \(shared\)\n  Engines we study upstream\n    chess-engine {2,}git · declared · github:acme\/chess-engine/);
-  assert.match(output, /agent-reference\.local\.json \(this machine\)\n  design-notes {2,}folder · ready · \/refs\/design-notes/);
+  assert.match(
+    output,
+    /agent-reference\.json \(shared\)\n  Engines we study upstream\n    chess-engine {2,}git · declared · github:acme\/chess-engine/,
+  );
+  assert.match(
+    output,
+    /agent-reference\.local\.json \(this machine\)\n  design-notes {2,}folder · ready · \/refs\/design-notes/,
+  );
   assert.match(output, /"Sketches and early notes"/);
   assert.doesNotMatch(output, / - /);
   // Counted against the whole list: one of the two references here has not been fetched.
@@ -37,12 +58,32 @@ test('renders scope sections with sets as labeled-list subsections', () => {
 test('a path reference reads as what it turned out to be on disk', () => {
   const output = formatStatusReport(
     report([
-      entry({ kind: 'path', name: 'notes', scope: 'local', status: 'ready', path: '/vault/notes.md', pathType: 'file' }),
-      entry({ kind: 'path', name: 'vault', scope: 'local', status: 'ready', path: '/vault', pathType: 'folder' }),
+      entry({
+        kind: 'path',
+        name: 'notes',
+        scope: 'local',
+        status: 'ready',
+        path: '/vault/notes.md',
+        pathType: 'file',
+      }),
+      entry({
+        kind: 'path',
+        name: 'vault',
+        scope: 'local',
+        status: 'ready',
+        path: '/vault',
+        pathType: 'folder',
+      }),
       // Nothing is there, so there is no shape to report and the kind stands in.
-      entry({ kind: 'path', name: 'gone', scope: 'local', status: 'missing', path: '/vault/gone.md' })
+      entry({
+        kind: 'path',
+        name: 'gone',
+        scope: 'local',
+        status: 'missing',
+        path: '/vault/gone.md',
+      }),
     ]),
-    PLAIN
+    PLAIN,
   );
 
   assert.match(output, /notes {2,}file · ready · \/vault\/notes\.md/);
@@ -60,7 +101,7 @@ test('package lines carry version, confidence, and staleness inline', () => {
         status: 'ready',
         currentVersion: '3.25.76',
         confidence: 'verified',
-        path: '/store/src/zod/9f0c9d1'
+        path: '/store/src/zod/9f0c9d1',
       }),
       entry({
         kind: 'package',
@@ -68,14 +109,17 @@ test('package lines carry version, confidence, and staleness inline', () => {
         scope: 'shared',
         status: 'stale',
         currentVersion: '26.15.7',
-        clonedVersion: '26.14.0'
-      })
+        clonedVersion: '26.14.0',
+      }),
     ]),
-    PLAIN
+    PLAIN,
   );
 
   assert.match(output, /zod .*npm · ready · 3\.25\.76 verified · \/store\/src\/zod\/9f0c9d1/);
-  assert.match(output, /electron-builder {2,}npm · stale · lockfile 26\.15\.7, checkout 26\.14\.0 · agent-reference get electron-builder/);
+  assert.match(
+    output,
+    /electron-builder {2,}npm · stale · lockfile 26\.15\.7, checkout 26\.14\.0 · agent-reference get electron-builder/,
+  );
 });
 
 test('an empty report is an initialization hint, and color stays off when disabled', () => {
@@ -90,8 +134,10 @@ test('an empty report is an initialization hint, and color stays off when disabl
 
 test('color paints statuses only when enabled', () => {
   const colored = formatStatusReport(
-    report([entry({ kind: 'path', name: 'notes', scope: 'shared', status: 'ready', path: '/notes' })]),
-    { color: true, tilde: false }
+    report([
+      entry({ kind: 'path', name: 'notes', scope: 'shared', status: 'ready', path: '/notes' }),
+    ]),
+    { color: true, tilde: false },
   );
   assert.match(colored, /\[32mready\[0m/);
 });
@@ -99,10 +145,22 @@ test('color paints statuses only when enabled', () => {
 test('a package reads as the registry its name lives in, not as the word "package"', () => {
   const output = formatStatusReport(
     report([
-      entry({ kind: 'package', name: 'zod', scope: 'shared', status: 'declared', currentVersion: '3.22.0' }),
-      entry({ kind: 'git', name: 'codex', scope: 'shared', status: 'declared', requested: 'github:openai/codex' })
+      entry({
+        kind: 'package',
+        name: 'zod',
+        scope: 'shared',
+        status: 'declared',
+        currentVersion: '3.22.0',
+      }),
+      entry({
+        kind: 'git',
+        name: 'codex',
+        scope: 'shared',
+        status: 'declared',
+        requested: 'github:openai/codex',
+      }),
     ]),
-    PLAIN
+    PLAIN,
   );
 
   // Every row answers the same question, so the column reads as a set of sources.
@@ -113,10 +171,22 @@ test('a package reads as the registry its name lives in, not as the word "packag
 test('the lockfile package versions came from is named once, not on every line', () => {
   const output = formatStatusReport(
     report([
-      entry({ kind: 'package', name: 'zod', scope: 'shared', status: 'declared', currentVersion: '3.22.0' }),
-      entry({ kind: 'package', name: 'react', scope: 'shared', status: 'declared', currentVersion: '18.2.0' })
+      entry({
+        kind: 'package',
+        name: 'zod',
+        scope: 'shared',
+        status: 'declared',
+        currentVersion: '3.22.0',
+      }),
+      entry({
+        kind: 'package',
+        name: 'react',
+        scope: 'shared',
+        status: 'declared',
+        currentVersion: '18.2.0',
+      }),
     ]),
-    PLAIN
+    PLAIN,
   );
 
   assert.equal(output.match(/pnpm-lock\.yaml/g)?.length, 1);
@@ -125,11 +195,22 @@ test('the lockfile package versions came from is named once, not on every line',
 
 test('with no lockfile the report says what that costs rather than staying quiet', () => {
   const output = formatStatusReport(
-    report([entry({ kind: 'package', name: 'zod', scope: 'shared', status: 'declared', currentVersion: '3.22.0' })], {
-      lockfilePath: null,
-      packageManager: 'unknown'
-    }),
-    PLAIN
+    report(
+      [
+        entry({
+          kind: 'package',
+          name: 'zod',
+          scope: 'shared',
+          status: 'declared',
+          currentVersion: '3.22.0',
+        }),
+      ],
+      {
+        lockfilePath: null,
+        packageManager: 'unknown',
+      },
+    ),
+    PLAIN,
   );
 
   assert.match(output, /no lockfile here.*registry's latest/s);
@@ -137,8 +218,17 @@ test('with no lockfile the report says what that costs rather than staying quiet
 
 test('a project with no package references is not told where package versions come from', () => {
   const output = formatStatusReport(
-    report([entry({ kind: 'path', name: 'notes', scope: 'local', status: 'ready', path: '/vault', pathType: 'folder' })]),
-    PLAIN
+    report([
+      entry({
+        kind: 'path',
+        name: 'notes',
+        scope: 'local',
+        status: 'ready',
+        path: '/vault',
+        pathType: 'folder',
+      }),
+    ]),
+    PLAIN,
   );
 
   assert.doesNotMatch(output, /pnpm-lock\.yaml|no lockfile/);
@@ -146,9 +236,16 @@ test('a project with no package references is not told where package versions co
 
 function report(
   references: AgentReferenceStatusEntry[],
-  overrides: Partial<AgentReferenceStatusReport> = {}
+  overrides: Partial<AgentReferenceStatusReport> = {},
 ): AgentReferenceStatusReport {
-  const summary = { ready: 0, declared: 0, stale: 0, missing: 0, 'not-installed': 0, unresolvable: 0 };
+  const summary = {
+    ready: 0,
+    declared: 0,
+    stale: 0,
+    missing: 0,
+    'not-installed': 0,
+    unresolvable: 0,
+  };
   for (const reference of references) summary[reference.status] += 1;
 
   return {
@@ -165,11 +262,14 @@ function report(
     problems: [],
     nextSteps: [],
     summary,
-    ...overrides
+    ...overrides,
   };
 }
 
-function entry(input: Partial<AgentReferenceStatusEntry> & Pick<AgentReferenceStatusEntry, 'kind' | 'name' | 'status'>): AgentReferenceStatusEntry {
+function entry(
+  input: Partial<AgentReferenceStatusEntry> &
+    Pick<AgentReferenceStatusEntry, 'kind' | 'name' | 'status'>,
+): AgentReferenceStatusEntry {
   return {
     ecosystem: input.kind === 'package' ? 'npm' : null,
     description: null,
@@ -186,6 +286,6 @@ function entry(input: Partial<AgentReferenceStatusEntry> & Pick<AgentReferenceSt
     confidence: null,
     status: input.status,
     action: '',
-    ...input
+    ...input,
   };
 }

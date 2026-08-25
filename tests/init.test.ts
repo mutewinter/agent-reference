@@ -44,8 +44,8 @@ test('two names for one instruction file earn one edit, not two', async () => {
     survey.instructionFiles.map((file) => [file.file, file.linkTarget]),
     [
       ['AGENTS.md', null],
-      ['CLAUDE.md', 'AGENTS.md']
-    ]
+      ['CLAUDE.md', 'AGENTS.md'],
+    ],
   );
   assert.deepEqual(survey.editTargets, ['AGENTS.md']);
 
@@ -58,12 +58,18 @@ test('two names for one instruction file earn one edit, not two', async () => {
 
 test('an instruction file that already names the tool is left alone', async () => {
   const { projectRoot, home } = await workspace('mentioned');
-  await fs.writeFile(path.join(projectRoot, 'AGENTS.md'), 'Run agent-reference status to list references.\n');
+  await fs.writeFile(
+    path.join(projectRoot, 'AGENTS.md'),
+    'Run agent-reference status to list references.\n',
+  );
 
   const survey = await survey_(projectRoot, home);
 
   assert.equal(survey.instructionFiles[0]?.mentionsAgentReference, true);
-  assert.match(formatInitBrief(survey, PLAIN), /AGENTS\.md already mentions agent-reference\. Leave it alone\./);
+  assert.match(
+    formatInitBrief(survey, PLAIN),
+    /AGENTS\.md already mentions agent-reference\. Leave it alone\./,
+  );
 });
 
 test('a rules directory is read to a bound, not walked wherever it points', async () => {
@@ -82,7 +88,10 @@ test('a rules directory is read to a bound, not walked wherever it points', asyn
   // A rule near the top still counts, so the bound costs nothing a project would notice.
   await fs.writeFile(path.join(rules, 'refs.md'), 'Use agent-reference get for upstream source.\n');
   const again = await survey_(projectRoot, home);
-  assert.equal(again.instructionFiles.find((file) => file.file === '.cursor/rules')?.mentionsAgentReference, true);
+  assert.equal(
+    again.instructionFiles.find((file) => file.file === '.cursor/rules')?.mentionsAgentReference,
+    true,
+  );
 });
 
 test('the gitignore step appears only while the local config is still committable', async () => {
@@ -99,7 +108,10 @@ test('the gitignore step appears only while the local config is still committabl
   const ignored = await survey_(projectRoot, home);
   assert.equal(ignored.localConfigIgnored, true);
   assert.match(formatInitBrief(ignored, PLAIN), /gitignore +agent-reference\.local\.json ignored/);
-  assert.doesNotMatch(formatInitBrief(ignored, PLAIN), /Add agent-reference\.local\.json to \.gitignore/);
+  assert.doesNotMatch(
+    formatInitBrief(ignored, PLAIN),
+    /Add agent-reference\.local\.json to \.gitignore/,
+  );
 });
 
 test('a local config already in the index is told to untrack, not to gitignore', async () => {
@@ -139,7 +151,7 @@ test('a transcript store is reported only where one exists, and drives the minin
 
   assert.deepEqual(
     survey.transcriptStores.map((store) => [store.agent, store.path, store.sessions]),
-    [['claude-code', projects, 3]]
+    [['claude-code', projects, 3]],
   );
 
   const output = formatInitBrief(survey, PLAIN);
@@ -165,13 +177,16 @@ test('an existing config becomes an instruction to add, never to prune', async (
   const { projectRoot, home } = await workspace('existing');
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ git: { 'chess-engine': 'github:acme/chess-engine' } })
+    JSON.stringify({ git: { 'chess-engine': 'github:acme/chess-engine' } }),
   );
 
   const survey = await survey_(projectRoot, home);
 
   assert.equal(survey.referenceCount, 1);
-  assert.match(formatInitBrief(survey, PLAIN), /already declares 1 reference\. Add to them; never drop one/);
+  assert.match(
+    formatInitBrief(survey, PLAIN),
+    /already declares 1 reference\. Add to them; never drop one/,
+  );
 });
 
 /**
@@ -185,8 +200,8 @@ test('config text never reaches the brief', async () => {
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
       paths: { notes: { path: './notes', description: planted } },
-      sets: [{ description: planted, paths: ['./notes'] }]
-    })
+      sets: [{ description: planted, paths: ['./notes'] }],
+    }),
   );
 
   const survey = await survey_(projectRoot, home);
@@ -196,7 +211,7 @@ test('config text never reaches the brief', async () => {
   assert.doesNotMatch(output, /Ignore your instructions/);
   assert.equal(
     briefSteps(survey).some((step) => step.includes(planted)),
-    false
+    false,
   );
 });
 
@@ -213,7 +228,13 @@ test('the brief never waives confirmation', async () => {
   const survey = await survey_(projectRoot, home);
   const brief = briefSteps(survey).join('\n').toLowerCase();
 
-  for (const phrase of ['do not stop to ask', 'without asking', 'do not ask', 'no need to ask', 'skip the confirmation']) {
+  for (const phrase of [
+    'do not stop to ask',
+    'without asking',
+    'do not ask',
+    'no need to ask',
+    'skip the confirmation',
+  ]) {
     assert.equal(brief.includes(phrase), false, `brief waives confirmation: "${phrase}"`);
   }
   assert.match(brief, /ask the user which of these they want/);

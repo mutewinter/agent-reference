@@ -14,7 +14,9 @@ const STORE_DIR = '/tmp/agent-reference-status-test-store';
 
 test('reports never-materialized dependencies as declared, not as a problem', async () => {
   const projectRoot = await copyFixtureProject();
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+  });
 
   assert.equal(report.references.length, 1);
   assert.equal(report.references[0]?.kind, 'package');
@@ -33,7 +35,9 @@ test('reports ready dependencies with store worktree paths', async () => {
   const worktreePath = manifestReferencePath(STORE_DIR, reference);
   await fs.mkdir(worktreePath, { recursive: true });
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+  });
 
   assert.equal(report.references[0]?.status, 'ready');
   assert.equal(report.references[0]?.path, worktreePath);
@@ -45,7 +49,9 @@ test('reports stale dependencies when cloned version differs from lockfile', asy
   await useConfig(projectRoot);
   await writeManifest(projectRoot, '1.2.0');
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+  });
 
   assert.equal(report.references[0]?.status, 'stale');
   assert.equal(report.references[0]?.currentVersion, '1.3.3');
@@ -54,13 +60,22 @@ test('reports stale dependencies when cloned version differs from lockfile', asy
 
 test('reports config-only packages as configured references', async () => {
   const projectRoot = await copyFixtureProject();
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    packages: {
-      'tiny-warning': '1.0.3'
-    }
-  }, null, 2));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify(
+      {
+        packages: {
+          'tiny-warning': '1.0.3',
+        },
+      },
+      null,
+      2,
+    ),
+  );
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+  });
 
   assert.equal(report.references.length, 1);
   assert.equal(report.references[0]?.kind, 'package');
@@ -78,15 +93,24 @@ test('a path reference may name a file, and status reports which it found', asyn
   await fs.mkdir(path.join(projectRoot, 'references'), { recursive: true });
   const notePath = path.join(projectRoot, 'references', 'release-checklist.md');
   await fs.writeFile(notePath, '# Release checklist\n');
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    paths: {
-      checklist: './references/release-checklist.md',
-      references: './references',
-      gone: './references/missing.md'
-    }
-  }, null, 2));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify(
+      {
+        paths: {
+          checklist: './references/release-checklist.md',
+          references: './references',
+          gone: './references/missing.md',
+        },
+      },
+      null,
+      2,
+    ),
+  );
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+  });
   const byName = new Map(report.references.map((entry) => [entry.name, entry]));
 
   assert.equal(byName.get('checklist')?.status, 'ready');
@@ -103,13 +127,22 @@ test('reports local folder references with absolute paths', async () => {
   const folderPath = path.join(projectRoot, 'references', 'design-notes');
   await fs.mkdir(folderPath, { recursive: true });
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), '{}\n');
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.local.json'), JSON.stringify({
-    paths: {
-      'design-notes': './references/design-notes'
-    }
-  }, null, 2));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.local.json'),
+    JSON.stringify(
+      {
+        paths: {
+          'design-notes': './references/design-notes',
+        },
+      },
+      null,
+      2,
+    ),
+  );
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+  });
 
   assert.equal(report.references.length, 1);
   assert.equal(report.references[0]?.kind, 'path');
@@ -121,11 +154,18 @@ test('reports local folder references with absolute paths', async () => {
 
 test('reports stale git references when configured spec changes', async () => {
   const projectRoot = await copyFixtureProject();
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    git: {
-      tooling: 'github:example/tooling#main'
-    }
-  }, null, 2));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify(
+      {
+        git: {
+          tooling: 'github:example/tooling#main',
+        },
+      },
+      null,
+      2,
+    ),
+  );
   const gitReference: AgentReferenceManifestReference = {
     kind: 'git',
     name: 'tooling',
@@ -133,11 +173,13 @@ test('reports stale git references when configured spec changes', async () => {
     repositoryUrl: 'https://github.com/example/tooling.git',
     checkoutRef: 'old',
     checkoutSha: 'abc123',
-    refSource: 'configured'
+    refSource: 'configured',
   };
   await writeManifest(projectRoot, '1.3.3', [gitReference]);
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+  });
 
   assert.equal(report.references.length, 1);
   assert.equal(report.references[0]?.kind, 'git');
@@ -150,17 +192,27 @@ test('works in a directory with no package.json or lockfile at all', async () =>
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-no-node-test-'));
   const folderPath = path.join(projectRoot, 'notes');
   await fs.mkdir(folderPath, { recursive: true });
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    paths: { notes: './notes' },
-    git: { tooling: 'github:example/tooling' }
-  }, null, 2));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify(
+      {
+        paths: { notes: './notes' },
+        git: { tooling: 'github:example/tooling' },
+      },
+      null,
+      2,
+    ),
+  );
 
   const report = await getStatusReport(projectRoot, { storeDir: STORE_DIR });
 
-  assert.deepEqual(report.references.map((entry) => [entry.name, entry.status]), [
-    ['notes', 'ready'],
-    ['tooling', 'declared']
-  ]);
+  assert.deepEqual(
+    report.references.map((entry) => [entry.name, entry.status]),
+    [
+      ['notes', 'ready'],
+      ['tooling', 'declared'],
+    ],
+  );
   assert.equal(report.problems.length, 0);
 });
 
@@ -173,29 +225,41 @@ test('an empty directory reports no references instead of erroring', async () =>
 test('finds the nearest config walking up from a subdirectory', async () => {
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-walk-up-test-'));
   await fs.mkdir(path.join(projectRoot, 'deep', 'inside'), { recursive: true });
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    git: { tooling: 'github:example/tooling' }
-  }, null, 2));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify(
+      {
+        git: { tooling: 'github:example/tooling' },
+      },
+      null,
+      2,
+    ),
+  );
 
-  const report = await getStatusReport(path.join(projectRoot, 'deep', 'inside'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'deep', 'inside'), {
+    storeDir: STORE_DIR,
+  });
 
   assert.equal(report.projectRoot, projectRoot);
   assert.equal(report.references[0]?.name, 'tooling');
 });
 
-test('a selector that is nobody\'s reference offers the reading that it was a command', async () => {
+test("a selector that is nobody's reference offers the reading that it was a command", async () => {
   const projectRoot = await copyFixtureProject();
   await useConfig(projectRoot);
 
   // Standing in for whatever the next release adds. A command a newer instruction names is
   // not rejected by an older build: it falls through to the default command and is read as
   // a reference name, so without this the failure blames the config.
-  await assert.rejects(getStatusReport(projectRoot, { references: ['explain'], storeDir: STORE_DIR }), (error: Error) => {
-    assert.match(error.message, /Nothing matched reference "explain"/);
-    assert.match(error.message, /it has get, versions, status/);
-    assert.match(error.message, /newer than the CLI/);
-    return true;
-  });
+  await assert.rejects(
+    getStatusReport(projectRoot, { references: ['explain'], storeDir: STORE_DIR }),
+    (error: Error) => {
+      assert.match(error.message, /Nothing matched reference "explain"/);
+      assert.match(error.message, /it has get, versions, status/);
+      assert.match(error.message, /newer than the CLI/);
+      return true;
+    },
+  );
 });
 
 test('one name hitting does not excuse the one beside it that missed', async () => {
@@ -205,12 +269,15 @@ test('one name hitting does not excuse the one beside it that missed', async () 
   // A run naming several references used to succeed as long as any one of them hit, so a
   // typo was dropped in silence and the reference it meant was quietly never reported.
   await assert.rejects(
-    getStatusReport(projectRoot, { references: ['tiny-invariant', 'tiny-invarient'], storeDir: STORE_DIR }),
+    getStatusReport(projectRoot, {
+      references: ['tiny-invariant', 'tiny-invarient'],
+      storeDir: STORE_DIR,
+    }),
     (error: Error) => {
       assert.match(error.message, /Nothing matched reference "tiny-invarient"/);
       assert.doesNotMatch(error.message, /reference "tiny-invariant"/);
       return true;
-    }
+    },
   );
 });
 
@@ -220,27 +287,35 @@ test('a miss on a name this build does have as a command reads as an ordinary mi
 
   // `guide` exists here, so nothing about this build is out of date and the hint would be
   // a false lead. It fires on the absence of the command, not on the shape of the word.
-  await assert.rejects(getStatusReport(projectRoot, { references: ['guide'], storeDir: STORE_DIR }), (error: Error) => {
-    assert.doesNotMatch(error.message, /newer than the CLI/);
-    return true;
-  });
+  await assert.rejects(
+    getStatusReport(projectRoot, { references: ['guide'], storeDir: STORE_DIR }),
+    (error: Error) => {
+      assert.doesNotMatch(error.message, /newer than the CLI/);
+      return true;
+    },
+  );
 });
 
 test('a machine path in the committed config is a warning here, not a blocked reference', async () => {
   const projectRoot = await copyFixtureProject();
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    paths: { notes: '~/notes' },
-    git: { internal: 'file:/opt/checkouts/internal' }
-  }));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({
+      paths: { notes: '~/notes' },
+      git: { internal: 'file:/opt/checkouts/internal' },
+    }),
+  );
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+  });
 
   assert.deepEqual(
     report.problems.map((problem) => [problem.reference, problem.severity]),
     [
       ['path:notes', 'warning'],
-      ['git:internal', 'warning']
-    ]
+      ['git:internal', 'warning'],
+    ],
   );
   assert.match(report.problems[0]?.fix ?? '', /Move this entry to agent-reference\.local\.json/);
   // Nothing here is unusable, so status must not tell the agent to stop and resolve errors.
@@ -251,10 +326,12 @@ test('a drift patch edits the key the config spelled, not the bare name', async 
   const projectRoot = await copyFixtureProject();
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ packages: { 'npm:tiny-invariant': '1.0.0' } }, null, 2)
+    JSON.stringify({ packages: { 'npm:tiny-invariant': '1.0.0' } }, null, 2),
   );
 
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+  });
 
   assert.equal(report.references[0]?.name, 'tiny-invariant');
   const drift = report.problems.find((problem) => problem.summary.includes('is pinned to 1.0.0'));
@@ -266,7 +343,9 @@ test('a drift patch edits the key the config spelled, not the bare name', async 
 
 test('the report names the lockfile package versions were read from', async () => {
   const projectRoot = await copyFixtureProject();
-  const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir: STORE_DIR });
+  const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+  });
 
   assert.equal(path.basename(report.lockfilePath ?? ''), 'pnpm-lock.yaml');
   assert.equal(report.packageManager, 'pnpm');
@@ -279,15 +358,22 @@ async function copyFixtureProject(): Promise<string> {
 }
 
 async function useConfig(projectRoot: string): Promise<void> {
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({
-    packages: { 'tiny-invariant': '1.3.3' }
-  }, null, 2));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify(
+      {
+        packages: { 'tiny-invariant': '1.3.3' },
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 async function writeManifest(
   projectRoot: string,
   version: string,
-  extraReferences: AgentReferenceManifest['references'] = []
+  extraReferences: AgentReferenceManifest['references'] = [],
 ): Promise<AgentReferenceManifest['references']> {
   const manifest: AgentReferenceManifest = {
     schemaVersion: 6,
@@ -305,10 +391,10 @@ async function writeManifest(
         checkoutSha: 'abc123',
         refSource: 'gitHead',
         confidence: 'verified',
-        pinnedRef: null
+        pinnedRef: null,
       },
-      ...extraReferences
-    ]
+      ...extraReferences,
+    ],
   };
 
   const statePath = stateFilePath(STORE_DIR, projectRoot);

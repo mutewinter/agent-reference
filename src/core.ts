@@ -4,7 +4,7 @@ import {
   ensureGitAvailable,
   ensureGitReferenceWorktree,
   resolveStoreDir,
-  UnsafeGitValueError
+  UnsafeGitValueError,
 } from './git.ts';
 import { missingSelectionMessage, selectionFilter } from './sets.ts';
 import { writeManifest } from './manifest.ts';
@@ -25,18 +25,25 @@ import type {
   PackageReference,
   RegistryOptions,
   UnresolvedManifestReference,
-  UnresolvedReason
+  UnresolvedReason,
 } from './types.ts';
 
 export async function cloneReferences(
   projectPath: string | null | undefined,
-  options: CloneReferencesOptions = {}
+  options: CloneReferencesOptions = {},
 ): Promise<CloneReferencesResult> {
-  const { config, configPackages, cwd, loadedConfig, project } = await loadReferenceContext(projectPath, options);
+  const { config, configPackages, cwd, loadedConfig, project } = await loadReferenceContext(
+    projectPath,
+    options,
+  );
 
   const selection = selectionFilter(config, options);
-  const packages = configPackages.packages.filter((entry) => !selection || selection.matches('package', entry.name));
-  const gitReferences = (config?.git ?? []).filter((entry) => !selection || selection.matches('git', entry.name));
+  const packages = configPackages.packages.filter(
+    (entry) => !selection || selection.matches('package', entry.name),
+  );
+  const gitReferences = (config?.git ?? []).filter(
+    (entry) => !selection || selection.matches('git', entry.name),
+  );
   const paths = (config?.paths ?? [])
     .filter((entry) => !selection || selection.matches('path', entry.name))
     .map((entry) => entry.name);
@@ -48,7 +55,7 @@ export async function cloneReferences(
 
   if (packages.length === 0 && gitReferences.length === 0 && paths.length === 0) {
     throw new Error(
-      `No references configured. Add packages, paths, or git entries to ${loadedConfig?.path ?? DEFAULT_CONFIG_FILE}.`
+      `No references configured. Add packages, paths, or git entries to ${loadedConfig?.path ?? DEFAULT_CONFIG_FILE}.`,
     );
   }
 
@@ -57,11 +64,11 @@ export async function cloneReferences(
   const registryOptions = {
     registry: options.registry ?? config?.registry,
     fetchImpl: options.fetchImpl,
-    metadataMap: options.metadataMap
+    metadataMap: options.metadataMap,
   };
   const worktreeOptions: GitWorktreeOptions = {
     projectRoot: project.projectRoot,
-    storeDir: resolveStoreDir(project.projectRoot, cwd, options.storeDir ?? config?.cacheDir)
+    storeDir: resolveStoreDir(project.projectRoot, cwd, options.storeDir ?? config?.cacheDir),
   };
 
   const cloned: CloneReferencesResult['cloned'] = [];
@@ -71,10 +78,19 @@ export async function cloneReferences(
 
   for (const dependency of packages) {
     // One unresolvable package must not abort the references that would have worked.
-    const outcome = await materializePackage(dependency, overrides.get(dependency.name), registryOptions, worktreeOptions);
+    const outcome = await materializePackage(
+      dependency,
+      overrides.get(dependency.name),
+      registryOptions,
+      worktreeOptions,
+    );
     if ('failure' in outcome) {
       unresolved.push(outcome.failure);
-      skipped.push({ name: dependency.name, version: dependency.version, reason: outcome.failure.detail });
+      skipped.push({
+        name: dependency.name,
+        version: dependency.version,
+        reason: outcome.failure.detail,
+      });
     } else {
       cloned.push(outcome.result);
     }
@@ -87,17 +103,35 @@ export async function cloneReferences(
     // references that already worked, which throwing here would, manifest and all.
     try {
       clonedGit.push(
-        await ensureGitReferenceWorktree(reference.name, reference.spec, reference.directory, worktreeOptions)
+        await ensureGitReferenceWorktree(
+          reference.name,
+          reference.spec,
+          reference.directory,
+          worktreeOptions,
+        ),
       );
     } catch (error) {
       // git's stderr on its way to a terminal, like the package path's detail.
       const detail = sanitizeRelayed(error instanceof Error ? error.message : String(error));
-      gitFailures.push(gitUnresolvedProblem(reference.name, reference.spec, detail, configFileFor(reference.scope)));
+      gitFailures.push(
+        gitUnresolvedProblem(
+          reference.name,
+          reference.spec,
+          detail,
+          configFileFor(reference.scope),
+        ),
+      );
       skipped.push({ name: reference.name, version: null, reason: detail });
     }
   }
 
-  const manifestPath = await writeManifest(project.projectRoot, worktreeOptions.storeDir, cloned, clonedGit, unresolved);
+  const manifestPath = await writeManifest(
+    project.projectRoot,
+    worktreeOptions.storeDir,
+    cloned,
+    clonedGit,
+    unresolved,
+  );
 
   return {
     cloned,
@@ -109,7 +143,11 @@ export async function cloneReferences(
     problems: [
       ...unresolved.map((failure) =>
         // The file this package was declared in, not always the committed one.
-        unresolvedProblem(failure, worktreeOptions.storeDir, configFileFor(overrides.get(failure.name)?.scope ?? 'shared'))
+        unresolvedProblem(
+          failure,
+          worktreeOptions.storeDir,
+          configFileFor(overrides.get(failure.name)?.scope ?? 'shared'),
+        ),
       ),
       ...gitFailures,
       ...gitReferences
@@ -117,9 +155,9 @@ export async function cloneReferences(
           const result = clonedGit.find((entry) => entry.name === reference.name);
           return result ? gitDirectoryProblem(reference, result) : null;
         })
-        .filter((problem): problem is AgentReferenceProblem => problem !== null)
+        .filter((problem): problem is AgentReferenceProblem => problem !== null),
     ],
-    manifestPath
+    manifestPath,
   };
 }
 
@@ -131,9 +169,13 @@ export async function materializePackage(
   dependency: PackageReference,
   override: ConfiguredPackageReference | undefined,
   registryOptions: RegistryOptions,
-  worktreeOptions: GitWorktreeOptions
+  worktreeOptions: GitWorktreeOptions,
 ): Promise<{ result: GitWorktreeResult } | { failure: UnresolvedManifestReference }> {
-  const unresolvable = (reason: UnresolvedReason, detail: string, repositoryUrl: string | null = null) => ({
+  const unresolvable = (
+    reason: UnresolvedReason,
+    detail: string,
+    repositoryUrl: string | null = null,
+  ) => ({
     failure: {
       kind: 'package' as const,
       name: dependency.name,
@@ -143,20 +185,27 @@ export async function materializePackage(
       detail: sanitizeRelayed(detail),
       repositoryUrl,
       pinnedRef: override?.ref ?? null,
-      repository: override?.repository ?? null
-    }
+      repository: override?.repository ?? null,
+    },
   });
 
   let metadata: DependencyMetadata;
   if (override?.repository && override.ref) {
     // Fully pinned: no registry round trip, so unpublished and private packages work.
-    metadata = { repositoryUrl: null, repositoryDirectory: override.directory ?? null, gitHead: null };
+    metadata = {
+      repositoryUrl: null,
+      repositoryDirectory: override.directory ?? null,
+      gitHead: null,
+    };
   } else {
     try {
       metadata = await resolvePackageMetadata(dependency, registryOptions);
     } catch (error) {
       if (!override?.repository) {
-        return unresolvable('registry-error', error instanceof Error ? error.message : String(error));
+        return unresolvable(
+          'registry-error',
+          error instanceof Error ? error.message : String(error),
+        );
       }
       metadata = { repositoryUrl: null, repositoryDirectory: null, gitHead: null };
     }
@@ -166,21 +215,29 @@ export async function materializePackage(
     ? normalizeConfiguredRepository(override.repository, worktreeOptions.projectRoot)
     : metadata.repositoryUrl;
   if (!repositoryUrl) {
-    return unresolvable('no-repository', `npm metadata for ${dependency.name}@${dependency.version} has no repository field.`);
+    return unresolvable(
+      'no-repository',
+      `npm metadata for ${dependency.name}@${dependency.version} has no repository field.`,
+    );
   }
 
   try {
     const result = await ensureDependencyWorktree(
       dependency,
       { ...metadata, repositoryUrl },
-      { ...worktreeOptions, pinnedRef: override?.ref ?? null, pinnedDirectory: override?.directory ?? null }
+      {
+        ...worktreeOptions,
+        pinnedRef: override?.ref ?? null,
+        pinnedDirectory: override?.directory ?? null,
+      },
     );
     return { result };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     // A value refused on safety grounds is its own failure: blaming the ref's existence, or
     // pointing at a mirror that was never created, sends an agent to fix the wrong thing.
-    if (error instanceof UnsafeGitValueError) return unresolvable('rejected', detail, repositoryUrl);
+    if (error instanceof UnsafeGitValueError)
+      return unresolvable('rejected', detail, repositoryUrl);
     return unresolvable(override?.ref ? 'unresolved-ref' : 'clone-failed', detail, repositoryUrl);
   }
 }

@@ -33,7 +33,7 @@ export interface ValidationReport {
  */
 export async function validateConfig(
   projectPath: string | null | undefined,
-  options: { cwd?: string } = {}
+  options: { cwd?: string } = {},
 ): Promise<ValidationReport> {
   const cwd = options.cwd ?? process.cwd();
   const projectRoot = await resolveConfigRoot(projectPath, cwd);
@@ -46,7 +46,7 @@ export async function validateConfig(
     errors: [],
     warnings: [],
     references: [],
-    sets: []
+    sets: [],
   };
 
   let loaded;
@@ -59,7 +59,7 @@ export async function validateConfig(
 
   if (!loaded) {
     report.errors.push(
-      `No agent-reference.json or agent-reference.local.json found in ${projectRoot}. Create one, then run this again.`
+      `No agent-reference.json or agent-reference.local.json found in ${projectRoot}. Create one, then run this again.`,
     );
     return report;
   }
@@ -72,18 +72,20 @@ export async function validateConfig(
     kind: reference.kind,
     name: reference.name,
     description: reference.description,
-    sets: reference.sets
+    sets: reference.sets,
   }));
 
   report.sets = resolveSets(loaded.config).map((set) => ({
     name: set.name,
     description: set.description,
-    references: set.members.map(setMemberKey)
+    references: set.members.map(setMemberKey),
   }));
 
   for (const set of report.sets) {
     if (set.references.length === 0) {
-      report.warnings.push(`Set "${set.description}" has no members. Add paths, git, or packages entries inside it.`);
+      report.warnings.push(
+        `Set "${set.description}" has no members. Add paths, git, or packages entries inside it.`,
+      );
     }
   }
 
@@ -94,7 +96,7 @@ export async function validateConfig(
   for (const [name, kinds] of namesByKind) {
     if (kinds.length > 1) {
       report.warnings.push(
-        `"${name}" is used by ${kinds.join(' and ')} references. Qualify it as ${kinds[0]}:${name} when selecting it.`
+        `"${name}" is used by ${kinds.join(' and ')} references. Qualify it as ${kinds[0]}:${name} when selecting it.`,
       );
     }
   }
@@ -117,13 +119,13 @@ export async function validateConfig(
   if (await isLocalConfigTracked(projectRoot)) {
     report.localConfigTracked = true;
     report.errors.push(
-      `${DEFAULT_LOCAL_CONFIG_FILE} is tracked by git, so it is being committed. Adding it to .gitignore will not help: git ignores nothing it already tracks. Run: git rm --cached ${DEFAULT_LOCAL_CONFIG_FILE}, list it in .gitignore, then commit. Whatever it already carried stays in the history, so treat anything private in it as disclosed.`
+      `${DEFAULT_LOCAL_CONFIG_FILE} is tracked by git, so it is being committed. Adding it to .gitignore will not help: git ignores nothing it already tracks. Run: git rm --cached ${DEFAULT_LOCAL_CONFIG_FILE}, list it in .gitignore, then commit. Whatever it already carried stays in the history, so treat anything private in it as disclosed.`,
     );
   }
 
   if (loaded.config?.allImporters) {
     report.warnings.push(
-      'allImporters no longer does anything: every workspace importer is read now, and a name installed at several versions is reported rather than picked. The key can be removed.'
+      'allImporters no longer does anything: every workspace importer is read now, and a name installed at several versions is reported rather than picked. The key can be removed.',
     );
   }
 
@@ -135,7 +137,10 @@ export async function validateConfig(
   return report;
 }
 
-async function resolveConfigRoot(projectPath: string | null | undefined, cwd: string): Promise<string> {
+async function resolveConfigRoot(
+  projectPath: string | null | undefined,
+  cwd: string,
+): Promise<string> {
   try {
     return (await resolveProjectInput(projectPath, cwd)).projectRoot;
   } catch {
@@ -153,7 +158,7 @@ async function resolveConfigRoot(projectPath: string | null | undefined, cwd: st
  */
 async function isLocalConfigTracked(projectRoot: string): Promise<boolean> {
   const result = await runGit(['-C', projectRoot, 'ls-files', '--', DEFAULT_LOCAL_CONFIG_FILE], {
-    allowFailure: true
+    allowFailure: true,
   });
   return result.exitCode === 0 && result.stdout.trim().length > 0;
 }

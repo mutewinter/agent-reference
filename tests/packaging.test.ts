@@ -65,6 +65,10 @@ test('every shipped skill has frontmatter a real YAML parser accepts', async () 
 
     const fields = parsed as Record<string, unknown>;
     assert.equal(typeof fields.name, 'string', `${skill}/SKILL.md frontmatter has no name`);
-    assert.equal(typeof fields.description, 'string', `${skill}/SKILL.md frontmatter has no description`);
+    assert.equal(
+      typeof fields.description,
+      'string',
+      `${skill}/SKILL.md frontmatter has no description`,
+    );
   }
 });

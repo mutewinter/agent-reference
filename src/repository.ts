@@ -17,7 +17,9 @@ export function repositoryUrlFromManifestRepository(repository: ManifestReposito
   return null;
 }
 
-export function repositoryDirectoryFromManifestRepository(repository: ManifestRepository): string | null {
+export function repositoryDirectoryFromManifestRepository(
+  repository: ManifestRepository,
+): string | null {
   if (repository && typeof repository === 'object' && typeof repository.directory === 'string') {
     return repository.directory;
   }

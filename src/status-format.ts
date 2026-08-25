@@ -6,7 +6,7 @@ import { sanitizeRelayedLine } from './text-utils.ts';
 import type {
   AgentReferenceProblem,
   AgentReferenceStatusEntry,
-  AgentReferenceStatusReport
+  AgentReferenceStatusReport,
 } from './types.ts';
 
 export interface StatusFormatOptions {
@@ -24,7 +24,7 @@ const STATUS_COLORS: Partial<Record<AgentReferenceStatusEntry['status'], AnsiCol
   ready: 'green',
   stale: 'yellow',
   missing: 'red',
-  unresolvable: 'red'
+  unresolvable: 'red',
 };
 
 /**
@@ -32,7 +32,10 @@ const STATUS_COLORS: Partial<Record<AgentReferenceStatusEntry['status'], AnsiCol
  * declared them, one self-describing line each, with fields present only when they carry
  * data. `--json` is the machine format; nothing here needs to be parsed positionally.
  */
-export function formatStatusReport(report: AgentReferenceStatusReport, options: StatusFormatOptions): string {
+export function formatStatusReport(
+  report: AgentReferenceStatusReport,
+  options: StatusFormatOptions,
+): string {
   const sections: string[] = [];
 
   // Anything actionable goes first: a reader that stops early must still see the work.
@@ -57,7 +60,12 @@ export function formatStatusReport(report: AgentReferenceStatusReport, options: 
   const local = report.references.filter((entry) => entry.scope === 'local');
   if (shared.length > 0) {
     sections.push(
-      scopeSection(fileLabel(report.configPath, 'agent-reference.json', 'shared'), shared, report.sets, options)
+      scopeSection(
+        fileLabel(report.configPath, 'agent-reference.json', 'shared'),
+        shared,
+        report.sets,
+        options,
+      ),
     );
   }
   if (local.length > 0) {
@@ -66,8 +74,8 @@ export function formatStatusReport(report: AgentReferenceStatusReport, options: 
         fileLabel(report.localConfigPath, 'agent-reference.local.json', 'this machine'),
         local,
         report.sets,
-        options
-      )
+        options,
+      ),
     );
   }
 
@@ -85,13 +93,19 @@ export function formatStatusReport(report: AgentReferenceStatusReport, options: 
  * stderr cannot be mistaken for the tool's own next line of output.
  */
 function indentWrapped(value: string, indent: string): string {
-  return value.split('\n').map((line, index) => (index === 0 ? line : `${indent}${line.trim()}`)).join('\n');
+  return value
+    .split('\n')
+    .map((line, index) => (index === 0 ? line : `${indent}${line.trim()}`))
+    .join('\n');
 }
 
 export function formatProblem(problem: AgentReferenceProblem): string {
   const lines = [
-    indentWrapped(`  [${problem.severity}] ${problem.reference ? `${problem.reference}: ` : ''}${problem.summary}`, '    '),
-    indentWrapped(`    fix: ${problem.fix}`, '      ')
+    indentWrapped(
+      `  [${problem.severity}] ${problem.reference ? `${problem.reference}: ` : ''}${problem.summary}`,
+      '    ',
+    ),
+    indentWrapped(`    fix: ${problem.fix}`, '      '),
   ];
 
   if (problem.configPatch) {
@@ -114,7 +128,7 @@ function scopeSection(
   header: string,
   entries: AgentReferenceStatusEntry[],
   sets: AgentReferenceStatusReport['sets'],
-  options: StatusFormatOptions
+  options: StatusFormatOptions,
 ): string {
   const lines = [paint(header, 'dim', options.color)];
 
@@ -132,17 +146,27 @@ function scopeSection(
   return `${lines.join('\n')}\n`;
 }
 
-function entryLines(entries: AgentReferenceStatusEntry[], indent: number, options: StatusFormatOptions): string[] {
+function entryLines(
+  entries: AgentReferenceStatusEntry[],
+  indent: number,
+  options: StatusFormatOptions,
+): string[] {
   if (entries.length === 0) return [];
   const width = Math.max(...entries.map((entry) => entry.name.length)) + 2;
   const pad = ' '.repeat(indent);
   const lines: string[] = [];
 
   for (const entry of entries) {
-    const fragments = [kindLabel(entry), paintStatus(entry, options.color), ...primaryFragments(entry, options)];
+    const fragments = [
+      kindLabel(entry),
+      paintStatus(entry, options.color),
+      ...primaryFragments(entry, options),
+    ];
     lines.push(`${pad}${entry.name.padEnd(width)}${fragments.join(' · ')}`);
     if (entry.description) {
-      lines.push(`${pad}${' '.repeat(width)}${paint(`"${sanitizeRelayedLine(entry.description)}"`, 'dim', options.color)}`);
+      lines.push(
+        `${pad}${' '.repeat(width)}${paint(`"${sanitizeRelayedLine(entry.description)}"`, 'dim', options.color)}`,
+      );
     }
   }
 
@@ -169,18 +193,24 @@ function kindLabel(entry: AgentReferenceStatusEntry): string {
  * words, because nothing is installed for a pin to be checked against and a bare
  * `get <name>` then answers from the registry rather than from this project.
  */
-function provenanceLine(report: AgentReferenceStatusReport, options: StatusFormatOptions): string | null {
+function provenanceLine(
+  report: AgentReferenceStatusReport,
+  options: StatusFormatOptions,
+): string | null {
   if (!report.references.some((entry) => entry.kind === 'package')) return null;
 
   const text = report.lockfilePath
     ? `package versions read from ${path.relative(report.projectRoot, report.lockfilePath) || report.lockfilePath}`
-    : 'no lockfile here, so nothing installed is available to check these versions against, and a bare get <name> resolves the registry\'s latest';
+    : "no lockfile here, so nothing installed is available to check these versions against, and a bare get <name> resolves the registry's latest";
 
   return `${paint(text, 'dim', options.color)}\n`;
 }
 
 /** The datum that matters for this entry right now; never a `-` placeholder. */
-function primaryFragments(entry: AgentReferenceStatusEntry, options: StatusFormatOptions): string[] {
+function primaryFragments(
+  entry: AgentReferenceStatusEntry,
+  options: StatusFormatOptions,
+): string[] {
   const shownPath = (): string => displayPath(entry.path, { tilde: options.tilde });
 
   if (entry.kind === 'path') {
@@ -189,15 +219,22 @@ function primaryFragments(entry: AgentReferenceStatusEntry, options: StatusForma
 
   if (entry.kind === 'git') {
     if (entry.status === 'ready') return [shownPath()];
-    if (entry.status === 'stale') return [sanitizeRelayedLine(entry.requested ?? ''), getCommand(entry.name)];
+    if (entry.status === 'stale')
+      return [sanitizeRelayedLine(entry.requested ?? ''), getCommand(entry.name)];
     return [sanitizeRelayedLine(entry.requested ?? '')];
   }
 
   switch (entry.status) {
     case 'ready':
-      return [`${entry.currentVersion}${entry.confidence ? ` ${entry.confidence}` : ''}`, shownPath()];
+      return [
+        `${entry.currentVersion}${entry.confidence ? ` ${entry.confidence}` : ''}`,
+        shownPath(),
+      ];
     case 'stale':
-      return [`lockfile ${entry.currentVersion}, checkout ${entry.clonedVersion}`, getCommand(entry.name)];
+      return [
+        `lockfile ${entry.currentVersion}, checkout ${entry.clonedVersion}`,
+        getCommand(entry.name),
+      ];
     case 'declared':
       return entry.currentVersion ? [entry.currentVersion] : [];
     default:
@@ -205,7 +242,10 @@ function primaryFragments(entry: AgentReferenceStatusEntry, options: StatusForma
   }
 }
 
-function footerLine(report: AgentReferenceStatusReport, options: StatusFormatOptions): string | null {
+function footerLine(
+  report: AgentReferenceStatusReport,
+  options: StatusFormatOptions,
+): string | null {
   const { declared, stale } = report.summary;
   if (declared === 0 && stale === 0) return null;
 
@@ -228,13 +268,13 @@ function emptyStateHint(report: AgentReferenceStatusReport): string {
     'No references configured here.',
     '',
     'agent-reference get <spec> materializes readable source on demand, no config needed:',
-    '  a dependency name, name@version, owner/repo, a git URL, or file:../repo'
+    '  a dependency name, name@version, owner/repo, a git URL, or file:../repo',
   ];
 
   if (report.installedPackageCount > 0) {
     const count = report.installedPackageCount;
     lines.push(
-      `  This project's lockfile holds ${count} ${count === 1 ? 'dependency' : 'dependencies'}; any of their names works.`
+      `  This project's lockfile holds ${count} ${count === 1 ? 'dependency' : 'dependencies'}; any of their names works.`,
     );
   }
 
@@ -242,7 +282,7 @@ function emptyStateHint(report: AgentReferenceStatusReport): string {
     '',
     'Declare durable references in agent-reference.json (committed, shareable) or',
     'agent-reference.local.json (machine paths, gitignored). agent-reference schema prints the format.',
-    ''
+    '',
   );
 
   return lines.join('\n');

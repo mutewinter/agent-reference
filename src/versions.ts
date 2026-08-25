@@ -2,7 +2,11 @@ import path from 'node:path';
 import process from 'node:process';
 
 import { formatCoordinate } from './package-utils.ts';
-import { isWorkspaceVersion, workspaceVersionDirectory, workspaceVersionPath } from './pnpm-lock.ts';
+import {
+  isWorkspaceVersion,
+  workspaceVersionDirectory,
+  workspaceVersionPath,
+} from './pnpm-lock.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
 import type { PackageReference, ProjectContext } from './types.ts';
 
@@ -37,7 +41,7 @@ export interface VersionsReport {
 export async function getVersionsReport(
   projectPath: string | null | undefined,
   name: string,
-  options: { cwd?: string } = {}
+  options: { cwd?: string } = {},
 ): Promise<VersionsReport> {
   // Deliberately no config. The error for an unusable version in `packages` tells the agent
   // to run this command, so this command cannot be one that a broken config takes down with
@@ -53,8 +57,8 @@ export async function getVersionsReport(
     importer: project.importer,
     versions: describeVersions(
       installed.filter((entry) => entry.name === name),
-      project
-    )
+      project,
+    ),
   };
 }
 
@@ -63,8 +67,13 @@ export async function getVersionsReport(
  * each, but workspace links arrive one per importer that wrote a different relative string
  * for the same directory, so those are resolved and regrouped by where they actually point.
  */
-function describeVersions(entries: PackageReference[], project: ProjectContext): InstalledVersion[] {
-  const lockfileDir = project.lockfilePath ? path.dirname(project.lockfilePath) : project.projectRoot;
+function describeVersions(
+  entries: PackageReference[],
+  project: ProjectContext,
+): InstalledVersion[] {
+  const lockfileDir = project.lockfilePath
+    ? path.dirname(project.lockfilePath)
+    : project.projectRoot;
   const versions: InstalledVersion[] = [];
   const byDirectory = new Map<string, InstalledVersion>();
 
@@ -75,7 +84,7 @@ function describeVersions(entries: PackageReference[], project: ProjectContext):
         importers: entry.importers,
         dependencyTypes: entry.dependencyTypes,
         workspace: false,
-        path: null
+        path: null,
       });
       continue;
     }
@@ -96,7 +105,7 @@ function describeVersions(entries: PackageReference[], project: ProjectContext):
         importers: [importer],
         dependencyTypes: [...entry.dependencyTypes],
         workspace: true,
-        path: directory
+        path: directory,
       };
       byDirectory.set(key, created);
       versions.push(created);
@@ -121,13 +130,16 @@ export function formatVersionsReport(report: VersionsReport): string {
       where,
       `Read the version from the project yourself, then ask for it directly:`,
       `  agent-reference get ${formatCoordinate(report.name, '<version>')}`,
-      ''
+      '',
     ].join('\n');
   }
 
   // The lockfile leads, because saying where a number came from is the whole job here: a
   // version with no source attached is one an agent could have guessed.
-  const lines = [`${report.name} \u00b7 ${report.lockfile ? path.basename(report.lockfile) : report.packageManager}`, ''];
+  const lines = [
+    `${report.name} \u00b7 ${report.lockfile ? path.basename(report.lockfile) : report.packageManager}`,
+    '',
+  ];
 
   // Both halves, always. One workspace link used to end the report, hiding the versions
   // other importers install from the registry behind a flat "there is nothing to fetch".
@@ -137,8 +149,8 @@ export function formatVersionsReport(report: VersionsReport): string {
     ...workspace.map((entry) =>
       entry.path
         ? `${report.name} is a workspace package in this repository, at ${entry.path}.`
-        : `${report.name} is a workspace package in this repository. The lockfile records it as ${entry.version}, which does not say where.`
-    )
+        : `${report.name} is a workspace package in this repository. The lockfile records it as ${entry.version}, which does not say where.`,
+    ),
   );
 
   if (registry.length === 0) {
@@ -150,17 +162,23 @@ export function formatVersionsReport(report: VersionsReport): string {
 
   const width = Math.max(...registry.map((entry) => entry.version.length));
   lines.push(
-    ...registry.map((entry) => `  ${entry.version.padEnd(width)}  ${entry.importers.map(importerLabel).join(', ')}`)
+    ...registry.map(
+      (entry) =>
+        `  ${entry.version.padEnd(width)}  ${entry.importers.map(importerLabel).join(', ')}`,
+    ),
   );
 
   if (registry.length > 1) {
     lines.push(
       '',
       `${registry.length} versions, so a bare name is ambiguous here. Ask for one:`,
-      `  agent-reference get ${formatCoordinate(report.name, registry[0]?.version ?? null)}`
+      `  agent-reference get ${formatCoordinate(report.name, registry[0]?.version ?? null)}`,
     );
   } else {
-    lines.push('', `  agent-reference get ${formatCoordinate(report.name, registry[0]?.version ?? null)}`);
+    lines.push(
+      '',
+      `  agent-reference get ${formatCoordinate(report.name, registry[0]?.version ?? null)}`,
+    );
   }
 
   return `${lines.join('\n')}\n`;

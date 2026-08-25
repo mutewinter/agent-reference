@@ -37,7 +37,7 @@ importers:
         version: 7.8.4
 `,
   'notes/brief.md': '# Project brief\n',
-}
+};
 
 /**
  * Run in this order; it reads as somebody finding their way around. The note
@@ -48,8 +48,14 @@ export const commands = [
   { argv: ['help'], note: 'every command, from the version you have installed' },
   { argv: ['status'], note: 'what this project declares, and whether it is on disk yet' },
   { argv: ['get', 'brief'], note: 'a name in, a path out. This is the one agents live in' },
-  { argv: ['versions', 'semver'], note: 'which versions this project installs, and where. Never fetches' },
-  { argv: ['validate'], note: 'check the config, including that no machine path reached the committed file' },
+  {
+    argv: ['versions', 'semver'],
+    note: 'which versions this project installs, and where. Never fetches',
+  },
+  {
+    argv: ['validate'],
+    note: 'check the config, including that no machine path reached the committed file',
+  },
   {
     argv: ['schema'],
     note: 'the JSON Schema for the config, for an editor or an agent writing one',
@@ -57,7 +63,7 @@ export const commands = [
     // that the command exists and what it prints, not the whole document.
     lines: 12,
   },
-]
+];
 
 /**
  * Runs every command above against the fixture and returns what each printed.

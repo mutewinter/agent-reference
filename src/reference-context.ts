@@ -1,4 +1,7 @@
-import { resolveConfigPackageReferences, type ConfigPackageReferences } from './config-dependencies.ts';
+import {
+  resolveConfigPackageReferences,
+  type ConfigPackageReferences,
+} from './config-dependencies.ts';
 import { loadAgentReferenceConfig } from './config.ts';
 import { resolveStoreDir } from './git.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
@@ -7,7 +10,7 @@ import type {
   LoadedAgentReferenceConfig,
   PackageReference,
   ProjectContext,
-  ScanProjectOptions
+  ScanProjectOptions,
 } from './types.ts';
 
 export interface LoadReferenceContextOptions extends ScanProjectOptions {
@@ -26,7 +29,7 @@ export interface LoadedReferenceContext {
 
 export async function loadReferenceContext(
   projectPath: string | null | undefined,
-  options: LoadReferenceContextOptions = {}
+  options: LoadReferenceContextOptions = {},
 ): Promise<LoadedReferenceContext> {
   const cwd = options.cwd ?? process.cwd();
   const project = await resolveProjectInput(projectPath, cwd);
@@ -38,7 +41,7 @@ export async function loadReferenceContext(
   const installedPackages = await scanResolvedProject(project, { ...options, allImporters: true });
   const configPackages = resolveConfigPackageReferences(config, installedPackages, {
     importer: project.importer,
-    packageManager: project.packageManager
+    packageManager: project.packageManager,
   });
 
   return { cwd, project, loadedConfig, config, configPackages, installedPackages };
@@ -52,7 +55,7 @@ export async function loadReferenceContext(
  */
 export async function resolveProjectStoreDir(
   projectPath: string | null | undefined,
-  options: { cwd?: string; storeDir?: string } = {}
+  options: { cwd?: string; storeDir?: string } = {},
 ): Promise<string> {
   const cwd = options.cwd ?? process.cwd();
   const project = await resolveProjectInput(projectPath, cwd);

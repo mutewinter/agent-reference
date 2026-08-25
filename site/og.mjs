@@ -59,7 +59,13 @@ function command(text) {
     span(c.muted, '$ '),
     at > 0 ? span(c.muted, `${words[0]} `) : '',
     span(c.accent, words[at]),
-    span(c.fg, words.slice(at + 1).map((word) => ` ${word}`).join('')),
+    span(
+      c.fg,
+      words
+        .slice(at + 1)
+        .map((word) => ` ${word}`)
+        .join(''),
+    ),
   ].join('');
 }
 
@@ -92,10 +98,7 @@ const card = `<div style="
 // vendored because this runs on somebody's laptop, never in CI.
 const fonts = await googleFonts([{ name: 'Geist Mono', weight: 400 }]);
 
-writeFileSync(
-  new URL('og.png', PUBLIC),
-  await render(card, { width: 1200, height: 630, fonts }),
-);
+writeFileSync(new URL('og.png', PUBLIC), await render(card, { width: 1200, height: 630, fonts }));
 
 // iOS wants a raster icon for a home-screen bookmark and will not take the SVG
 // every browser uses. Same artwork, minus the rounded corner: iOS masks the

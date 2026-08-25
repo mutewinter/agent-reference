@@ -1,24 +1,24 @@
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
+import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
 
-import { copy, quickStart } from '../../code-samples.mjs'
-import appCss from '../styles.css?url'
+import { copy, quickStart } from '../../code-samples.mjs';
+import appCss from '../styles.css?url';
 
-const { title: TITLE, tagline: TAGLINE, description: DESCRIPTION } = copy
+const { title: TITLE, tagline: TAGLINE, description: DESCRIPTION } = copy;
 
 /** Where the page lives, and the two places the thing it documents is published. */
-const SITE = 'https://agent-reference.dev'
-const REPOSITORY = 'https://github.com/mutewinter/agent-reference'
-const NPM = 'https://www.npmjs.com/package/agent-reference'
+const SITE = 'https://agent-reference.dev';
+const REPOSITORY = 'https://github.com/mutewinter/agent-reference';
+const NPM = 'https://www.npmjs.com/package/agent-reference';
 
-const HEADLINE = `${TITLE} \u00B7 ${TAGLINE}`
+const HEADLINE = `${TITLE} \u00B7 ${TAGLINE}`;
 
 /**
  * The link preview, drawn by og.mjs and committed under public/. Absolute,
  * because the crawler that reads it has no page to resolve a relative path
  * against.
  */
-const CARD = `${SITE}/og.png`
-const CARD_ALT = `${TAGLINE}. Under it, the one command that sets a project up: ${quickStart}.`
+const CARD = `${SITE}/og.png`;
+const CARD_ALT = `${TAGLINE}. Under it, the one command that sets a project up: ${quickStart}.`;
 
 export const Route = createRootRoute({
   head: () => ({
@@ -79,7 +79,7 @@ export const Route = createRootRoute({
     ],
   }),
   shellComponent: RootDocument,
-})
+});
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
@@ -96,7 +96,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Scripts />
       </body>
     </html>
-  )
+  );
 }
 
 function Header() {
@@ -117,7 +117,7 @@ function Header() {
         </a>
       </nav>
     </header>
-  )
+  );
 }
 
 /**
@@ -138,5 +138,5 @@ function Footer() {
         </a>
       </nav>
     </footer>
-  )
+  );
 }

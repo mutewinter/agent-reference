@@ -30,17 +30,19 @@ export const EXPECTED = {
   question: 'what wire-format used to do with payloads over 64 KiB, and why it stopped',
   fromTree: {
     cap: '65536 bytes, in src/frame.js',
-    release: '2.3.0, named in CHANGELOG.md'
+    release: '2.3.0, named in CHANGELOG.md',
   },
   onlyFromHistory: {
     commit: 'wire: cap frame payloads at 64 KiB (#214)',
     issue: '#214',
-    priorBehavior: 'oversized payloads were split across continuation frames and reassembled by the reader',
-    reason: 'a peer could pin an unbounded reader buffer by announcing a huge payload, and 64 KiB is the v2 receive window',
-    migration: 'callers should split their own payloads into separate messages'
+    priorBehavior:
+      'oversized payloads were split across continuation frames and reassembled by the reader',
+    reason:
+      'a peer could pin an unbounded reader buffer by announcing a huge payload, and 64 KiB is the v2 receive window',
+    migration: 'callers should split their own payloads into separate messages',
   },
   /** A word that exists nowhere in the HEAD tree, so finding it means history was read. */
-  historyOnlyWord: 'continuation'
+  historyOnlyWord: 'continuation',
 };
 
 export async function buildWorld(runDir) {
@@ -74,10 +76,10 @@ async function buildUpstream(parent) {
       '# wire-format',
       '',
       'A framed binary codec. Every frame is a 8-byte header followed by its payload.',
-      ''
+      '',
     ].join('\n'),
     'src/frame.js': FRAME_V1,
-    'src/index.js': "export { encodeFrame, decodeFrame } from './frame.js';\n"
+    'src/index.js': "export { encodeFrame, decodeFrame } from './frame.js';\n",
   });
   await commit(repoPath, 'wire: first cut of the frame codec');
   await tag(repoPath, 'v1.0.0');
@@ -93,17 +95,18 @@ async function buildUpstream(parent) {
       '',
       'A payload too big for one frame is split across continuation frames and reassembled',
       'by the reader. Callers do not have to think about frame size.',
-      ''
+      '',
     ].join('\n'),
     'src/frame.js': FRAME_CONTINUATIONS,
-    'src/index.js': "export { encodeFrame, decodeFrame, splitIntoContinuations } from './frame.js';\n"
+    'src/index.js':
+      "export { encodeFrame, decodeFrame, splitIntoContinuations } from './frame.js';\n",
   });
   await commit(repoPath, 'wire: split oversized payloads across continuation frames');
   await tag(repoPath, 'v1.4.0');
 
   await writeFiles(repoPath, {
     'package.json': manifest('2.0.0'),
-    'src/handshake.js': HANDSHAKE
+    'src/handshake.js': HANDSHAKE,
   });
   await commit(repoPath, 'wire: add the v2 handshake and its receive window');
   await tag(repoPath, 'v2.0.0');
@@ -112,8 +115,8 @@ async function buildUpstream(parent) {
     'package.json': manifest('2.2.1'),
     'src/frame.js': FRAME_CONTINUATIONS.replace(
       'export function decodeFrame(bytes) {',
-      'export function decodeFrame(bytes) {\n  if (bytes.length > 8 + readLength(bytes)) throw new Error("trailing bytes after frame");'
-    )
+      'export function decodeFrame(bytes) {\n  if (bytes.length > 8 + readLength(bytes)) throw new Error("trailing bytes after frame");',
+    ),
   });
   await commit(repoPath, 'wire: reject trailing garbage after a frame');
   await tag(repoPath, 'v2.2.1');
@@ -129,22 +132,30 @@ async function buildUpstream(parent) {
       '## Large payloads',
       '',
       'A payload over `MAX_PAYLOAD` is refused. Send it as several messages.',
-      ''
+      '',
     ].join('\n'),
     'src/frame.js': FRAME_CAPPED,
-    'src/index.js': "export { encodeFrame, decodeFrame, MAX_PAYLOAD } from './frame.js';\n"
+    'src/index.js': "export { encodeFrame, decodeFrame, MAX_PAYLOAD } from './frame.js';\n",
   });
   await commit(repoPath, CAP_COMMIT_MESSAGE);
 
   await writeFiles(repoPath, {
     'package.json': manifest('2.3.0'),
-    'CHANGELOG.md': ['# Changelog', '', '## 2.3.0', '', '- Reject frames whose payload exceeds 64 KiB.', ''].join('\n')
+    'CHANGELOG.md': [
+      '# Changelog',
+      '',
+      '## 2.3.0',
+      '',
+      '- Reject frames whose payload exceeds 64 KiB.',
+      '',
+    ].join('\n'),
   });
   await commit(repoPath, 'wire: release 2.3.0');
   await tag(repoPath, 'v2.3.0');
 
   await writeFiles(repoPath, {
-    'src/index.js': "export { encodeFrame, decodeFrame, MAX_PAYLOAD } from './frame.js';\nexport { RECEIVE_WINDOW } from './handshake.js';\n"
+    'src/index.js':
+      "export { encodeFrame, decodeFrame, MAX_PAYLOAD } from './frame.js';\nexport { RECEIVE_WINDOW } from './handshake.js';\n",
   });
   await commit(repoPath, 'wire: export the receive window alongside the codec');
 
@@ -160,8 +171,8 @@ async function buildUpstream(parent) {
       '## 2.3.0',
       '',
       '- Reject frames whose payload exceeds 64 KiB.',
-      ''
-    ].join('\n')
+      '',
+    ].join('\n'),
   });
   await commit(repoPath, 'wire: release 2.4.0');
   await tag(repoPath, 'v2.4.0');
@@ -183,7 +194,7 @@ const CAP_COMMIT_MESSAGE = [
   'Callers that relied on continuations should split their own payloads and send them as',
   'separate messages.',
   '',
-  'Closes #214'
+  'Closes #214',
 ].join('\n');
 
 const FRAME_V1 = `export const HEADER_BYTES = 8;
@@ -324,7 +335,9 @@ async function assertHistoryOnly(repoPath) {
   for (const file of files.split('\n').filter(Boolean)) {
     const contents = await fs.readFile(path.join(repoPath, file), 'utf8');
     if (contents.toLowerCase().includes(EXPECTED.historyOnlyWord)) {
-      throw new Error(`${file} mentions "${EXPECTED.historyOnlyWord}" at HEAD; the answer has to live only in history.`);
+      throw new Error(
+        `${file} mentions "${EXPECTED.historyOnlyWord}" at HEAD; the answer has to live only in history.`,
+      );
     }
   }
 }
@@ -344,7 +357,7 @@ async function buildProject(projectRoot, upstreamPath) {
       '',
       'This project declares references in agent-reference.json and agent-reference.local.json,',
       'and agent-reference status lists them.',
-      ''
+      '',
     ].join('\n'),
     'agent-reference.json': `${JSON.stringify(
       {
@@ -352,20 +365,24 @@ async function buildProject(projectRoot, upstreamPath) {
           'wire-format': {
             repository: spec,
             ref: 'main',
-            description: 'The wire protocol the collector speaks. Read it when frames are rejected or the header layout is in question.'
-          }
-        }
+            description:
+              'The wire protocol the collector speaks. Read it when frames are rejected or the header layout is in question.',
+          },
+        },
       },
       null,
-      2
-    )}\n`
+      2,
+    )}\n`,
   });
 
   // The skill as `npx skills add` leaves it, so the run measures the shipped stub rather
   // than whatever the operator happens to have installed globally.
   const skillDir = path.join(projectRoot, '.claude', 'skills', 'agent-reference');
   await fs.mkdir(skillDir, { recursive: true });
-  await fs.copyFile(path.join(repoRoot, 'skills', 'agent-reference', 'SKILL.md'), path.join(skillDir, 'SKILL.md'));
+  await fs.copyFile(
+    path.join(repoRoot, 'skills', 'agent-reference', 'SKILL.md'),
+    path.join(skillDir, 'SKILL.md'),
+  );
 }
 
 const BATCH_SOURCE = `import { send } from './transport.js';

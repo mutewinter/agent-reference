@@ -6,12 +6,14 @@ import type {
   ConfiguredReference,
   ReferenceSelectionOptions,
   ReferenceSet,
-  ReferenceSetMember
+  ReferenceSetMember,
 } from './types.ts';
 
 const KINDS: AgentReferenceKind[] = ['package', 'path', 'git'];
 
-export function configuredReferences(config: AgentReferenceConfig | undefined): ConfiguredReference[] {
+export function configuredReferences(
+  config: AgentReferenceConfig | undefined,
+): ConfiguredReference[] {
   if (!config) return [];
   return [...config.packages, ...config.paths, ...config.git];
 }
@@ -30,7 +32,7 @@ export function resolveSets(config: AgentReferenceConfig | undefined): Reference
     description: set.description,
     members: references
       .filter((reference) => reference.sets.includes(setLabel(set)))
-      .map((reference) => ({ kind: reference.kind, name: reference.name }))
+      .map((reference) => ({ kind: reference.kind, name: reference.name })),
   }));
 }
 
@@ -53,7 +55,7 @@ export interface ReferenceSelection {
 
 export function selectionFilter(
   config: AgentReferenceConfig | undefined,
-  options: ReferenceSelectionOptions
+  options: ReferenceSelectionOptions,
 ): ReferenceSelection | null {
   const setInputs = splitSelectors(options.sets);
   const referenceSelectors = splitSelectors(options.references);
@@ -66,7 +68,9 @@ export function selectionFilter(
   const sets = resolveSets(config);
 
   for (const input of setInputs) {
-    const keys = new Set(matchSet(input, sets).members.map((member) => memberKey(member.kind, member.name)));
+    const keys = new Set(
+      matchSet(input, sets).members.map((member) => memberKey(member.kind, member.name)),
+    );
     selectors.push({ label: `set "${input}"`, input, keys });
   }
 
@@ -88,19 +92,19 @@ export function selectionFilter(
     unmatched: () =>
       selectors
         .filter((selector) => ![...selector.keys].some((key) => hits.has(key)))
-        .map(({ label, input }) => ({ label, input }))
+        .map(({ label, input }) => ({ label, input })),
   };
 }
 
 /** Says which selector missed and what could have been written instead. */
 export function missingSelectionMessage(
   missing: UnmatchedSelector[],
-  config: AgentReferenceConfig | undefined
+  config: AgentReferenceConfig | undefined,
 ): string {
   return [
     `Nothing matched ${missing.map((selector) => selector.label).join(', ')}.`,
     knownSelectorsMessage(config),
-    unknownCommandHint(missing.map((selector) => selector.input))
+    unknownCommandHint(missing.map((selector) => selector.input)),
   ]
     .filter(Boolean)
     .join(' ');
@@ -116,27 +120,29 @@ function matchSet(input: string, sets: ReferenceSet[]): ReferenceSet {
   const candidates =
     exact.length > 0
       ? exact
-      : sets.filter((set) => `${set.name ?? ''} ${set.description}`.toLowerCase().includes(input.toLowerCase()));
+      : sets.filter((set) =>
+          `${set.name ?? ''} ${set.description}`.toLowerCase().includes(input.toLowerCase()),
+        );
 
   if (candidates.length === 1) return candidates[0]!;
   if (candidates.length === 0) {
     throw new Error(`No set matches "${input}". ${knownSetsMessage(sets)}`);
   }
   throw new Error(
-    `"${input}" matches ${candidates.length} sets: ${candidates.map((set) => `"${set.description}"`).join(', ')}. Be more specific.`
+    `"${input}" matches ${candidates.length} sets: ${candidates.map((set) => `"${set.description}"`).join(', ')}. Be more specific.`,
   );
 }
 
 /** Names an agent can actually pass, so a miss is one step from a hit. */
 export function knownSelectorsMessage(
   config: AgentReferenceConfig | undefined,
-  installedNames: string[] = []
+  installedNames: string[] = [],
 ): string {
   const references = referenceLabels(configuredReferences(config));
   const extraPackages = installedNames.filter((name) => !references.includes(`package:${name}`));
 
   const parts = [
-    `Known references: ${[...references, ...extraPackages.map((name) => `package:${name}`)].join(', ') || 'none'}.`
+    `Known references: ${[...references, ...extraPackages.map((name) => `package:${name}`)].join(', ') || 'none'}.`,
   ];
   const sets = resolveSets(config);
   if (sets.length > 0) parts.push(knownSetsMessage(sets));
@@ -151,7 +157,9 @@ export function knownSelectorsMessage(
  * happened, so this offers the other reading rather than asserting it.
  */
 export function unknownCommandHint(selectors: string[]): string | null {
-  const words = selectors.filter((value) => /^[a-z][a-z-]*$/.test(value) && !CLI_COMMANDS.includes(value));
+  const words = selectors.filter(
+    (value) => /^[a-z][a-z-]*$/.test(value) && !CLI_COMMANDS.includes(value),
+  );
   if (words.length === 0) return null;
 
   return `If ${words.map((word) => `"${word}"`).join(' or ')} was meant as a command, this build does not have it; it has ${CLI_COMMANDS.join(', ')}. Instructions naming a command this CLI lacks are newer than the CLI.`;
@@ -166,7 +174,7 @@ export function splitSelectors(values: string[] | undefined): string[] {
     value
       .split(',')
       .map((part) => part.trim())
-      .filter(Boolean)
+      .filter(Boolean),
   );
 }
 

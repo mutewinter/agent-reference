@@ -132,9 +132,7 @@ export interface ReferenceSelectionOptions {
 }
 
 export interface CloneReferencesOptions
-  extends ScanProjectOptions,
-    RegistryOptions,
-    ReferenceSelectionOptions {
+  extends ScanProjectOptions, RegistryOptions, ReferenceSelectionOptions {
   storeDir?: string;
 }
 
@@ -263,12 +261,7 @@ export interface AgentReferenceManifest {
  * nothing has been fetched, because nothing needed it yet. Only path references can be
  * `missing`, since something already on this machine cannot be materialized on demand.
  */
-export type AgentReferenceStatusState =
-  | 'ready'
-  | 'declared'
-  | 'stale'
-  | 'missing'
-  | 'unresolvable';
+export type AgentReferenceStatusState = 'ready' | 'declared' | 'stale' | 'missing' | 'unresolvable';
 
 export interface AgentReferenceStatusEntry {
   kind: AgentReferenceKind;

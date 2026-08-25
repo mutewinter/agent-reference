@@ -10,12 +10,16 @@ interface YarnLockEntry {
   version: string | null;
 }
 
-export async function scanYarnDependencies(context: LockfileProjectContext): Promise<PackageReference[]> {
+export async function scanYarnDependencies(
+  context: LockfileProjectContext,
+): Promise<PackageReference[]> {
   const lockEntries = parseYarnLock(await fs.readFile(context.lockfilePath, 'utf8'));
 
   return dependenciesFromPackageJsonDirectives(context, ({ name, specifier }) => {
     const candidates = yarnDescriptorCandidates(name, specifier);
-    const match = lockEntries.find((entry) => entry.descriptors.some((descriptor) => candidates.has(descriptor)));
+    const match = lockEntries.find((entry) =>
+      entry.descriptors.some((descriptor) => candidates.has(descriptor)),
+    );
     return match?.version && isExactRegistryVersion(match.version) ? match.version : null;
   });
 }
@@ -32,7 +36,7 @@ export function parseYarnLock(text: string): YarnLockEntry[] {
       if (current) entries.push(current);
       current = {
         descriptors: parseYarnDescriptorLine(line.slice(0, -1)),
-        version: null
+        version: null,
       };
       continue;
     }
@@ -53,7 +57,7 @@ function yarnDescriptorCandidates(name: string, specifier: string): Set<string> 
   return new Set([
     `${name}@${specifier}`,
     `${name}@npm:${specifier}`,
-    `${name}@npm:${specifier.replace(/^[~^]/, '')}`
+    `${name}@npm:${specifier.replace(/^[~^]/, '')}`,
   ]);
 }
 

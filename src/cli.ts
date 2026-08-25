@@ -8,13 +8,17 @@ import {
   formatCloneResult,
   formatGetResults,
   formatStoreReport,
-  formatValidationReport
+  formatValidationReport,
 } from './cli-format.ts';
 import { cloneReferences } from './core.ts';
 import { getReferences } from './get.ts';
 import { briefSteps, formatInitBrief } from './init-format.ts';
 import { surveyProject } from './init.ts';
-import { parsePackageCoordinate, SUPPORTED_ECOSYSTEM, unsupportedEcosystemMessage } from './package-utils.ts';
+import {
+  parsePackageCoordinate,
+  SUPPORTED_ECOSYSTEM,
+  unsupportedEcosystemMessage,
+} from './package-utils.ts';
 import { resolveProjectStoreDir } from './reference-context.ts';
 import { formatStatusReport } from './status-format.ts';
 import { getStatusReport } from './status.ts';
@@ -34,26 +38,38 @@ async function main(argv: string[]): Promise<void> {
       process.stdout.write(helpText());
       return;
     case 'version': {
-      const packageJson = JSON.parse(await fs.readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
+      const packageJson = JSON.parse(
+        await fs.readFile(new URL('../package.json', import.meta.url), 'utf8'),
+      ) as {
         version: string;
       };
       process.stdout.write(`${packageJson.version}\n`);
       return;
     }
     case 'schema':
-      process.stdout.write(await fs.readFile(new URL('../schema/agent-reference.schema.json', import.meta.url), 'utf8'));
+      process.stdout.write(
+        await fs.readFile(
+          new URL('../schema/agent-reference.schema.json', import.meta.url),
+          'utf8',
+        ),
+      );
       return;
     // Served rather than installed: the skill file an agent finds on disk was copied into
     // the project once, and nothing updates it. This is the same instructions, read out of
     // the CLI the agent is about to run, so they cannot describe a different version.
     case 'guide':
-      process.stdout.write(await fs.readFile(new URL('../guide/agent-reference.md', import.meta.url), 'utf8'));
+      process.stdout.write(
+        await fs.readFile(new URL('../guide/agent-reference.md', import.meta.url), 'utf8'),
+      );
       return;
     case 'status': {
       const { projectPath, references } = await splitPositionals(options);
       const report = await getStatusReport(projectPath, { references, sets: options.sets });
       write(options, report, (result) =>
-        formatStatusReport(result, { color: humanOutput && !process.env.NO_COLOR, tilde: humanOutput })
+        formatStatusReport(result, {
+          color: humanOutput && !process.env.NO_COLOR,
+          tilde: humanOutput,
+        }),
       );
       return;
     }
@@ -66,9 +82,11 @@ async function main(argv: string[]): Promise<void> {
     }
     case 'versions': {
       const [spec] = options.positionals;
-      if (!spec) throw new Error('versions needs a package name, for example agent-reference versions zod.');
+      if (!spec)
+        throw new Error('versions needs a package name, for example agent-reference versions zod.');
       const { ecosystem, name } = parsePackageCoordinate(spec);
-      if (ecosystem !== SUPPORTED_ECOSYSTEM) throw new Error(unsupportedEcosystemMessage(ecosystem, name));
+      if (ecosystem !== SUPPORTED_ECOSYSTEM)
+        throw new Error(unsupportedEcosystemMessage(ecosystem, name));
       const report = await getVersionsReport(null, name);
       write(options, report, formatVersionsReport);
       return;
@@ -83,7 +101,10 @@ async function main(argv: string[]): Promise<void> {
       const { projectPath } = await splitPositionals(options);
       const survey = await surveyProject(projectPath);
       write(options, { ...survey, brief: briefSteps(survey) }, () =>
-        formatInitBrief(survey, { color: humanOutput && !process.env.NO_COLOR, tilde: humanOutput })
+        formatInitBrief(survey, {
+          color: humanOutput && !process.env.NO_COLOR,
+          tilde: humanOutput,
+        }),
       );
       return;
     }
@@ -97,7 +118,11 @@ async function main(argv: string[]): Promise<void> {
     case 'store': {
       const { projectPath } = await splitPositionals(options);
       const storeDir = await resolveProjectStoreDir(projectPath);
-      const report = await inspectStore({ storeDir, prune: options.prune, days: options.days ?? undefined });
+      const report = await inspectStore({
+        storeDir,
+        prune: options.prune,
+        days: options.days ?? undefined,
+      });
       write(options, report, (result) => formatStoreReport(result, format));
       return;
     }
@@ -108,7 +133,9 @@ async function main(argv: string[]): Promise<void> {
  * `agent-reference clone zod` is what an agent writes first, so a bare name that is not a
  * path on disk is a reference selector rather than a project path.
  */
-async function splitPositionals(options: CliOptions): Promise<{ projectPath: string | null; references: string[] }> {
+async function splitPositionals(
+  options: CliOptions,
+): Promise<{ projectPath: string | null; references: string[] }> {
   let projectPath: string | null = null;
   const references: string[] = [];
 

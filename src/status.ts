@@ -1,11 +1,16 @@
 import { pathExists, pathKind, resolveReferencePath } from './fs-utils.ts';
-import { manifestReferencePath, resolvePackagePath, resolveSubpath, resolveStoreDir } from './git.ts';
+import {
+  manifestReferencePath,
+  resolvePackagePath,
+  resolveSubpath,
+  resolveStoreDir,
+} from './git.ts';
 import {
   configuredReferences,
   missingSelectionMessage,
   resolveSets,
   selectionFilter,
-  setMemberKey
+  setMemberKey,
 } from './sets.ts';
 import { committedPathLeaks } from './config-hygiene.ts';
 import { readManifest } from './manifest.ts';
@@ -29,21 +34,20 @@ import type {
   ReferenceSelectionOptions,
   ScanProjectOptions,
   PackageDrift,
-  UnresolvedManifestReference
+  UnresolvedManifestReference,
 } from './types.ts';
 
 const READY_ACTION = 'Use path for source inspection.';
 
-export type StatusReportOptions = ScanProjectOptions & ReferenceSelectionOptions & { storeDir?: string };
+export type StatusReportOptions = ScanProjectOptions &
+  ReferenceSelectionOptions & { storeDir?: string };
 
 export async function getStatusReport(
   projectPath: string | null | undefined,
-  options: StatusReportOptions = {}
+  options: StatusReportOptions = {},
 ): Promise<AgentReferenceStatusReport> {
-  const { config, configPackages, cwd, installedPackages, loadedConfig, project } = await loadReferenceContext(
-    projectPath,
-    options
-  );
+  const { config, configPackages, cwd, installedPackages, loadedConfig, project } =
+    await loadReferenceContext(projectPath, options);
   const storeDir = resolveStoreDir(project.projectRoot, cwd, options.storeDir ?? config?.cacheDir);
   const loadedManifest = await readManifest(project.projectRoot, storeDir);
   const referencePathFor = (reference: PackageManifestReference | GitManifestReference): string =>
@@ -62,7 +66,7 @@ export async function getStatusReport(
   const annotations = referenceAnnotations(config);
   const pinsByName = new Map((config?.packages ?? []).map((entry) => [entry.name, entry]));
   const unresolvedByName = new Map(
-    (loadedManifest?.manifest.unresolved ?? []).map((entry) => [entry.name, entry])
+    (loadedManifest?.manifest.unresolved ?? []).map((entry) => [entry.name, entry]),
   );
   const entries: AgentReferenceStatusEntry[] = [];
 
@@ -74,13 +78,19 @@ export async function getStatusReport(
         referencePathFor,
         annotations.get(`package:${dependency.name}`),
         pinsByName.get(dependency.name) ?? null,
-        unresolvedByName.get(dependency.name) ?? null
-      )
+        unresolvedByName.get(dependency.name) ?? null,
+      ),
     );
   }
 
   for (const reference of config?.paths ?? []) {
-    entries.push(await buildPathStatus(project.projectRoot, reference, annotations.get(`path:${reference.name}`)));
+    entries.push(
+      await buildPathStatus(
+        project.projectRoot,
+        reference,
+        annotations.get(`path:${reference.name}`),
+      ),
+    );
   }
 
   for (const reference of config?.git ?? []) {
@@ -89,13 +99,15 @@ export async function getStatusReport(
         reference,
         gitManifestByName.get(reference.name) ?? null,
         referencePathFor,
-        annotations.get(`git:${reference.name}`)
-      )
+        annotations.get(`git:${reference.name}`),
+      ),
     );
   }
 
   const selection = selectionFilter(config, options);
-  const references = selection ? entries.filter((entry) => selection.matches(entry.kind, entry.name)) : entries;
+  const references = selection
+    ? entries.filter((entry) => selection.matches(entry.kind, entry.name))
+    : entries;
   // Silently printing a table without a selector's reference in it, or no table at all,
   // would read as "that reference has no problems".
   const missing = selection?.unmatched() ?? [];
@@ -106,7 +118,7 @@ export async function getStatusReport(
     new Set((config?.packages ?? []).filter((entry) => entry.directory).map((entry) => entry.name)),
     configPackages.drift,
     config,
-    storeDir
+    storeDir,
   );
 
   return {
@@ -121,12 +133,12 @@ export async function getStatusReport(
     sets: resolveSets(config).map((set) => ({
       name: set.name,
       description: set.description,
-      references: set.members.map(setMemberKey)
+      references: set.members.map(setMemberKey),
     })),
     references,
     problems,
     nextSteps: nextStepsFor(problems),
-    summary: summarizeStatus(references)
+    summary: summarizeStatus(references),
   };
 }
 
@@ -141,14 +153,16 @@ function collectProblems(
   directoryPinned: Set<string>,
   drift: PackageDrift[],
   config: AgentReferenceConfig | undefined,
-  storeDir: string
+  storeDir: string,
 ): AgentReferenceProblem[] {
   const problems: AgentReferenceProblem[] = [];
   const gitByName = new Map((config?.git ?? []).map((entry) => [entry.name, entry]));
   // A patch has to edit the entry that is there. Keying it by the bare name when the config
   // spelled the key `npm:zod` would add a second entry for the same package, and the two
   // would then disagree about the version, which the parser refuses outright.
-  const configKeyByName = new Map((config?.packages ?? []).map((entry) => [entry.name, entry.configKey]));
+  const configKeyByName = new Map(
+    (config?.packages ?? []).map((entry) => [entry.name, entry.configKey]),
+  );
 
   for (const entry of entries) {
     const reference = `${entry.kind}:${entry.name}`;
@@ -165,8 +179,8 @@ function collectProblems(
             configured.directory,
             configured.ref,
             entry.repositoryPath ?? '',
-            configFileFor(configured.scope)
-          )
+            configFileFor(configured.scope),
+          ),
         );
       }
     }
@@ -186,7 +200,7 @@ function collectProblems(
         summary: `${entry.name} is pinned to ${drifted.pinned}, but this project installs ${drifted.installed.join(' and ')} (${drifted.importers.join(', ')}).`,
         fix: `If the pin is deliberate, say so in packages.${configKey}.description. Otherwise set packages.${configKey} in ${configFile} to ${drifted.installed[0]} and run ${getCommand(entry.name)}.`,
         configPatch: { packages: { [configKey]: drifted.installed[0] } },
-        configFile
+        configFile,
       });
     }
 
@@ -197,19 +211,23 @@ function collectProblems(
         summary: `${entry.name}@${entry.currentVersion} has no matching release commit, so the default branch was checked out. The source at this path is NOT version ${entry.currentVersion}.`,
         fix: pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile),
         configPatch: pinPatch(entry, configKeyByName.get(entry.name) ?? entry.name),
-        configFile
+        configFile,
       });
       continue;
     }
 
-    if (entry.status === 'ready' && entry.confidence === 'unverified' && !directoryPinned.has(entry.name)) {
+    if (
+      entry.status === 'ready' &&
+      entry.confidence === 'unverified' &&
+      !directoryPinned.has(entry.name)
+    ) {
       problems.push({
         reference,
         severity: 'warning',
         summary: `${entry.name}@${entry.currentVersion} was checked out from a plausible ref, but no package.json confirmed the version.`,
         fix: `Spot-check ${entry.path}/package.json. If it is wrong, ${pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile)}`,
         configPatch: pinPatch(entry, configKeyByName.get(entry.name) ?? entry.name),
-        configFile
+        configFile,
       });
     }
   }
@@ -225,7 +243,7 @@ function collectProblems(
       severity: 'warning',
       summary: leak.summary,
       fix: leak.fix,
-      configPatch: null
+      configPatch: null,
     });
   }
 
@@ -245,8 +263,11 @@ function nextStepsFor(problems: AgentReferenceProblem[]): string[] {
 function pinPatch(entry: AgentReferenceStatusEntry, configKey: string): Record<string, unknown> {
   return {
     packages: {
-      [configKey]: { version: entry.requested ?? entry.currentVersion ?? 'installed', ref: '<commit-or-tag>' }
-    }
+      [configKey]: {
+        version: entry.requested ?? entry.currentVersion ?? 'installed',
+        ref: '<commit-or-tag>',
+      },
+    },
   };
 }
 
@@ -257,12 +278,14 @@ interface ReferenceAnnotation {
 }
 
 /** Set membership rides on each parsed reference, so the config is the whole key set. */
-function referenceAnnotations(config: AgentReferenceConfig | undefined): Map<string, ReferenceAnnotation> {
+function referenceAnnotations(
+  config: AgentReferenceConfig | undefined,
+): Map<string, ReferenceAnnotation> {
   return new Map<string, ReferenceAnnotation>(
     configuredReferences(config).map((reference) => [
       `${reference.kind}:${reference.name}`,
-      { description: reference.description, scope: reference.scope, sets: reference.sets }
-    ])
+      { description: reference.description, scope: reference.scope, sets: reference.sets },
+    ]),
   );
 }
 
@@ -287,7 +310,7 @@ function statusEntry(input: StatusEntryInput): AgentReferenceStatusEntry {
     checkoutSha: null,
     confidence: null,
     directoryMissing: false,
-    ...input
+    ...input,
   };
 }
 
@@ -297,7 +320,7 @@ async function buildPackageStatus(
   referencePathFor: (reference: PackageManifestReference | GitManifestReference) => string,
   annotation: ReferenceAnnotation | undefined,
   configEntry: ConfiguredPackageReference | null,
-  unresolved: UnresolvedManifestReference | null
+  unresolved: UnresolvedManifestReference | null,
 ): Promise<AgentReferenceStatusEntry> {
   const worktreePath = manifestEntry ? referencePathFor(manifestEntry) : null;
   const status = getPackageStatusState(
@@ -305,7 +328,7 @@ async function buildPackageStatus(
     manifestEntry,
     worktreePath ? await pathExists(worktreePath) : false,
     configEntry,
-    unresolved
+    unresolved,
   );
 
   return statusEntry({
@@ -319,22 +342,23 @@ async function buildPackageStatus(
     packageManager: dependency.packageManager,
     currentVersion: dependency.version,
     clonedVersion: manifestEntry?.version ?? null,
-    path: worktreePath && manifestEntry
-      ? await resolvePackagePath(worktreePath, manifestEntry.repositoryDirectory)
-      : null,
+    path:
+      worktreePath && manifestEntry
+        ? await resolvePackagePath(worktreePath, manifestEntry.repositoryDirectory)
+        : null,
     repositoryPath: worktreePath,
     repositoryUrl: manifestEntry?.repositoryUrl ?? unresolved?.repositoryUrl ?? null,
     checkoutSha: manifestEntry?.checkoutSha ?? null,
     confidence: manifestEntry?.confidence ?? null,
     status,
-    action: actionForPackageStatus(status, dependency, manifestEntry?.version ?? null)
+    action: actionForPackageStatus(status, dependency, manifestEntry?.version ?? null),
   });
 }
 
 async function buildPathStatus(
   projectRoot: string,
   reference: ConfiguredPathReference,
-  annotation: ReferenceAnnotation | undefined
+  annotation: ReferenceAnnotation | undefined,
 ): Promise<AgentReferenceStatusEntry> {
   const resolvedPath = resolveReferencePath(projectRoot, reference.path);
   const found = await pathKind(resolvedPath);
@@ -350,7 +374,7 @@ async function buildPathStatus(
     requested: reference.path,
     path: resolvedPath,
     status: ready ? 'ready' : 'missing',
-    action: ready ? READY_ACTION : 'Create or correct this reference path.'
+    action: ready ? READY_ACTION : 'Create or correct this reference path.',
   });
 }
 
@@ -358,7 +382,7 @@ async function buildGitStatus(
   reference: ConfiguredGitReference,
   manifestEntry: GitManifestReference | null,
   referencePathFor: (entry: PackageManifestReference | GitManifestReference) => string,
-  annotation: ReferenceAnnotation | undefined
+  annotation: ReferenceAnnotation | undefined,
 ): Promise<AgentReferenceStatusEntry> {
   const worktreePath = manifestEntry ? referencePathFor(manifestEntry) : null;
   const ready = worktreePath ? await pathExists(worktreePath) : false;
@@ -366,7 +390,8 @@ async function buildGitStatus(
 
   // Resolved here rather than read back from the manifest, so a `directory` added or edited
   // since the clone takes effect now and an upstream move is caught on the next status.
-  const subpath = ready && worktreePath ? await resolveSubpath(worktreePath, reference.directory) : null;
+  const subpath =
+    ready && worktreePath ? await resolveSubpath(worktreePath, reference.directory) : null;
 
   return statusEntry({
     kind: 'git',
@@ -384,7 +409,7 @@ async function buildGitStatus(
     action:
       status === 'ready'
         ? READY_ACTION
-        : `Run ${getCommand(reference.name)} when this source is needed.`
+        : `Run ${getCommand(reference.name)} when this source is needed.`,
   });
 }
 
@@ -393,7 +418,7 @@ function getPackageStatusState(
   manifestEntry: PackageManifestReference | null,
   pathExistsNow: boolean,
   configEntry: ConfiguredPackageReference | null,
-  unresolved: UnresolvedManifestReference | null
+  unresolved: UnresolvedManifestReference | null,
 ): AgentReferenceStatusState {
   const pinnedRef = configEntry?.ref ?? null;
   const current = manifestEntry?.version === dependency.version;
@@ -402,7 +427,8 @@ function getPackageStatusState(
   // fail the same way. Editing the overrides it failed on makes it worth retrying.
   if (!current && unresolved && unresolved.version === dependency.version) {
     const retryWorthwhile =
-      unresolved.pinnedRef !== pinnedRef || unresolved.repository !== (configEntry?.repository ?? null);
+      unresolved.pinnedRef !== pinnedRef ||
+      unresolved.repository !== (configEntry?.repository ?? null);
     if (!retryWorthwhile) return 'unresolvable';
   }
 
@@ -418,7 +444,7 @@ function getPackageStatusState(
 function getGitStatusState(
   requested: string,
   manifestEntry: GitManifestReference | null,
-  pathExistsNow: boolean
+  pathExistsNow: boolean,
 ): AgentReferenceStatusState {
   if (!manifestEntry) return 'declared';
   if (manifestEntry.requested !== requested) return 'stale';
@@ -429,7 +455,7 @@ function getGitStatusState(
 function actionForPackageStatus(
   status: AgentReferenceStatusState,
   dependency: PackageReference,
-  clonedVersion: string | null
+  clonedVersion: string | null,
 ): string {
   if (status === 'ready') return READY_ACTION;
   if (status === 'unresolvable') {
@@ -441,13 +467,15 @@ function actionForPackageStatus(
   return `Nothing fetched yet. Run ${getCommand(dependency.name)} when this source is needed.`;
 }
 
-function summarizeStatus(entries: AgentReferenceStatusEntry[]): Record<AgentReferenceStatusState, number> {
+function summarizeStatus(
+  entries: AgentReferenceStatusEntry[],
+): Record<AgentReferenceStatusState, number> {
   const summary: Record<AgentReferenceStatusState, number> = {
     ready: 0,
     declared: 0,
     stale: 0,
     missing: 0,
-    unresolvable: 0
+    unresolvable: 0,
   };
 
   for (const entry of entries) {

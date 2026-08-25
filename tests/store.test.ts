@@ -23,7 +23,10 @@ test('the store lives in one short home directory on every platform', () => {
 });
 
 test('reports each repository with its size and checkout count', async () => {
-  const storeDir = await buildStore({ zod: ['aaaaaaaaaaaa', 'bbbbbbbbbbbb'], table: ['cccccccccccc'] });
+  const storeDir = await buildStore({
+    zod: ['aaaaaaaaaaaa', 'bbbbbbbbbbbb'],
+    table: ['cccccccccccc'],
+  });
 
   const report = await inspectStore({ storeDir });
 
@@ -31,19 +34,22 @@ test('reports each repository with its size and checkout count', async () => {
     report.repositories.map((repository) => [repository.name, repository.checkouts.length]),
     [
       ['github.com/acme/zod', 2],
-      ['github.com/acme/table', 1]
-    ]
+      ['github.com/acme/table', 1],
+    ],
   );
   assert.equal(report.totalBytes > 0, true);
   assert.equal(
     report.totalBytes,
-    report.repositories.reduce((total, repository) => total + repository.totalBytes, 0)
+    report.repositories.reduce((total, repository) => total + repository.totalBytes, 0),
   );
   assert.deepEqual(report.removed, []);
 });
 
 test('prune drops old checkouts and the mirror once nothing is checked out', async () => {
-  const storeDir = await buildStore({ zod: ['aaaaaaaaaaaa', 'bbbbbbbbbbbb'], table: ['cccccccccccc'] });
+  const storeDir = await buildStore({
+    zod: ['aaaaaaaaaaaa', 'bbbbbbbbbbbb'],
+    table: ['cccccccccccc'],
+  });
   const fresh = path.join(storeDir, 'src', 'github.com', 'acme', 'zod', 'bbbbbbbbbbbb');
   const now = Date.now() + 40 * DAY_MS;
   // Keep one checkout inside the window; everything else ages past it.
@@ -52,11 +58,17 @@ test('prune drops old checkouts and the mirror once nothing is checked out', asy
   const report = await inspectStore({ storeDir, prune: true, days: 30, now });
 
   assert.equal(await exists(fresh), true);
-  assert.equal(await exists(path.join(storeDir, 'src', 'github.com', 'acme', 'zod', 'aaaaaaaaaaaa')), false);
+  assert.equal(
+    await exists(path.join(storeDir, 'src', 'github.com', 'acme', 'zod', 'aaaaaaaaaaaa')),
+    false,
+  );
   // zod still has a live checkout, so its mirror stays.
   assert.equal(await exists(path.join(storeDir, 'git', 'github.com', 'acme', 'zod.git')), true);
   // table has none left, so the expensive part goes too.
-  assert.equal(await exists(path.join(storeDir, 'src', 'github.com', 'acme', 'table', 'cccccccccccc')), false);
+  assert.equal(
+    await exists(path.join(storeDir, 'src', 'github.com', 'acme', 'table', 'cccccccccccc')),
+    false,
+  );
   assert.equal(await exists(path.join(storeDir, 'git', 'github.com', 'acme', 'table.git')), false);
   assert.equal(report.reclaimedBytes > 0, true);
 });
@@ -66,7 +78,15 @@ test('a repository under a subgroup is one repository, not two', async () => {
   // levels split this into a phantom repository plus a mirror that looked unused, and prune
   // then deleted a live mirror whatever the age threshold said.
   const storeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-nested-test-'));
-  const checkout = path.join(storeDir, 'src', 'forge.example', 'group', 'sub', 'repo', 'aaaaaaaaaaaa');
+  const checkout = path.join(
+    storeDir,
+    'src',
+    'forge.example',
+    'group',
+    'sub',
+    'repo',
+    'aaaaaaaaaaaa',
+  );
   const bare = path.join(storeDir, 'git', 'forge.example', 'group', 'sub', 'repo.git');
   await fs.mkdir(checkout, { recursive: true });
   await fs.mkdir(bare, { recursive: true });
@@ -81,7 +101,7 @@ test('a repository under a subgroup is one repository, not two', async () => {
   assert.equal(repository?.bareRepositoryPath, bare);
   assert.deepEqual(
     repository?.checkouts.map((entry) => entry.commit),
-    ['aaaaaaaaaaaa']
+    ['aaaaaaaaaaaa'],
   );
 
   const pruned = await inspectStore({ storeDir, prune: true, days: 30 });
@@ -92,12 +112,15 @@ test('a repository under a subgroup is one repository, not two', async () => {
 test('the store a project configures is the store store reads', async () => {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-cachedir-test-'));
   const projectRoot = path.join(tempDir, 'project');
-  await fs.mkdir(path.join(projectRoot, '.cache', 'src', 'github.com', 'acme', 'zod', 'aaaaaaaaaaaa'), {
-    recursive: true
-  });
+  await fs.mkdir(
+    path.join(projectRoot, '.cache', 'src', 'github.com', 'acme', 'zod', 'aaaaaaaaaaaa'),
+    {
+      recursive: true,
+    },
+  );
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ cacheDir: './.cache', packages: { zod: '3.22.0' } })
+    JSON.stringify({ cacheDir: './.cache', packages: { zod: '3.22.0' } }),
   );
 
   // get, clone, and status all honor cacheDir. store reading the default store instead made
@@ -108,7 +131,7 @@ test('the store a project configures is the store store reads', async () => {
   const report = await inspectStore({ storeDir });
   assert.deepEqual(
     report.repositories.map((repository) => repository.name),
-    ['github.com/acme/zod']
+    ['github.com/acme/zod'],
   );
 });
 
@@ -122,7 +145,10 @@ test('home paths shorten only when a human is watching', () => {
   const home = '/Users/dev';
   const stored = '/Users/dev/.agent-reference/src/github.com/acme/zod/abc123def456';
 
-  assert.equal(displayPath(stored, { tilde: true, home }), '~/.agent-reference/src/github.com/acme/zod/abc123def456');
+  assert.equal(
+    displayPath(stored, { tilde: true, home }),
+    '~/.agent-reference/src/github.com/acme/zod/abc123def456',
+  );
   // Piped output feeds agents, which pass the value straight to file APIs.
   assert.equal(displayPath(stored, { tilde: false, home }), stored);
   assert.equal(displayPath('/opt/elsewhere', { tilde: true, home }), '/opt/elsewhere');

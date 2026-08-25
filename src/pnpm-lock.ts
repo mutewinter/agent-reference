@@ -5,11 +5,16 @@ import {
   isExactRegistryVersion,
   mergeDependencyEntries,
   parsePackageAtVersion,
-  stripPnpmPeerSuffix
+  stripPnpmPeerSuffix,
 } from './package-utils.ts';
 import { DEPENDENCY_SECTIONS } from './package-json.ts';
 import { splitOutsideQuotes, stripQuotes } from './text-utils.ts';
-import type { PackageReference, DependencyType, LockfileProjectContext, ScanProjectOptions } from './types.ts';
+import type {
+  PackageReference,
+  DependencyType,
+  LockfileProjectContext,
+  ScanProjectOptions,
+} from './types.ts';
 
 type PnpmScalar = string | boolean | null;
 interface PnpmObject {
@@ -20,10 +25,11 @@ type PnpmDependencyValue = string | { version?: string; specifier?: string };
 
 export async function scanPnpmDependencies(
   context: LockfileProjectContext,
-  options: ScanProjectOptions = {}
+  options: ScanProjectOptions = {},
 ): Promise<PackageReference[]> {
   const text = await fs.readFile(context.lockfilePath, 'utf8');
-  const importers = (parsePnpmLockText(text).importers as Record<string, PnpmImporterSnapshot> | undefined) ?? {};
+  const importers =
+    (parsePnpmLockText(text).importers as Record<string, PnpmImporterSnapshot> | undefined) ?? {};
   const selectedImporters: Array<[string, PnpmImporterSnapshot | undefined]> = options.allImporters
     ? Object.entries(importers)
     : [[context.importer, importers[context.importer]]];
@@ -46,7 +52,7 @@ export async function scanPnpmDependencies(
           specifier: resolved.specifier,
           packageManager: 'pnpm',
           dependencyTypes: [dependencyType],
-          importers: [importer]
+          importers: [importer],
         });
       }
     }
@@ -98,7 +104,7 @@ export function parsePnpmLockText(text: string): PnpmObject {
 
 function normalizePnpmDependencyValue(
   name: string,
-  value: PnpmDependencyValue
+  value: PnpmDependencyValue,
 ): { name: string; version: string | null; specifier: string | null } {
   if (typeof value === 'string') {
     return normalizeVersionValue(name, value, null);
@@ -114,7 +120,7 @@ function normalizePnpmDependencyValue(
 function normalizeVersionValue(
   name: string,
   rawVersion: string | undefined,
-  specifier: string | null
+  specifier: string | null,
 ): { name: string; version: string | null; specifier: string | null } {
   if (!rawVersion) return { name, version: null, specifier };
 
@@ -156,12 +162,12 @@ function splitYamlMapping(content: string): { key: string; value: string } | nul
   for (let index = 0; index < content.length; index += 1) {
     const char = content[index];
     if ((char === '"' || char === "'") && content[index - 1] !== '\\') {
-      quote = quote === char ? null : quote ?? char;
+      quote = quote === char ? null : (quote ?? char);
     }
     if (char === ':' && !quote) {
       return {
         key: content.slice(0, index).trim(),
-        value: content.slice(index + 1).trim()
+        value: content.slice(index + 1).trim(),
       };
     }
   }
@@ -205,9 +211,13 @@ function stripYamlComment(line: string): string {
     const char = line[index];
     const previous = line[index - 1];
     if ((char === '"' || char === "'") && line[index - 1] !== '\\') {
-      quote = quote === char ? null : quote ?? char;
+      quote = quote === char ? null : (quote ?? char);
     }
-    if (char === '#' && !quote && (index === 0 || (previous !== undefined && /\s/.test(previous)))) {
+    if (
+      char === '#' &&
+      !quote &&
+      (index === 0 || (previous !== undefined && /\s/.test(previous)))
+    ) {
       return line.slice(0, index);
     }
   }
@@ -241,7 +251,7 @@ export function workspaceVersionPath(version: string): string {
 export function workspaceVersionDirectory(
   lockfileDir: string,
   importer: string,
-  version: string
+  version: string,
 ): string | null {
   const target = workspaceVersionPath(version);
   const protocol = version.slice(0, version.indexOf(':'));

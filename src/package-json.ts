@@ -5,7 +5,7 @@ import type { DependencyType, PackageReference, ProjectContext } from './types.t
 export const DEPENDENCY_SECTIONS: DependencyType[] = [
   'dependencies',
   'devDependencies',
-  'optionalDependencies'
+  'optionalDependencies',
 ];
 
 export interface PackageJsonDependency {
@@ -37,7 +37,7 @@ export function directPackageJsonDependencies(packageJson: PackageJson): Package
 
 export async function dependenciesFromPackageJsonDirectives(
   context: ProjectContext,
-  resolveVersion: (dependency: PackageJsonDependency) => string | null
+  resolveVersion: (dependency: PackageJsonDependency) => string | null,
 ): Promise<PackageReference[]> {
   // These scanners read the lockfile through package.json's direct dependencies, so a
   // lockfile with no package.json next to it yields nothing rather than an error.
@@ -55,7 +55,7 @@ export async function dependenciesFromPackageJsonDirectives(
       specifier: dependency.specifier,
       packageManager: context.packageManager,
       dependencyTypes: [dependency.dependencyType],
-      importers: [context.importer]
+      importers: [context.importer],
     });
   }
 

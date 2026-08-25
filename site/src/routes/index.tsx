@@ -1,6 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router';
 
-import cliReference from 'virtual:cli-reference'
+import cliReference from 'virtual:cli-reference';
 
 import {
   agents,
@@ -13,18 +13,18 @@ import {
   setupPrompt,
   terminals,
   trees,
-} from '../../code-samples.mjs'
-import { Highlighted, Panel, Session, Term, Tree, source } from '../components/panels'
-import { ForYou, ForYourAgent, Or } from '../components/start'
+} from '../../code-samples.mjs';
+import { Highlighted, Panel, Session, Term, Tree, source } from '../components/panels';
+import { ForYou, ForYourAgent, Or } from '../components/start';
 
-export const Route = createFileRoute('/')({ component: Home })
+export const Route = createFileRoute('/')({ component: Home });
 
 // An example names its tree and its terminal by key, and those keys arrive as
 // data. The maps themselves are object literals, so TypeScript knows their exact
 // keys and refuses a lookup by plain string; this is the widening that says the
 // lookup really is by name.
-const treeText: Record<string, string> = trees
-const terminalText: Record<string, string> = terminals
+const treeText: Record<string, string> = trees;
+const terminalText: Record<string, string> = terminals;
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -35,7 +35,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
       <h2 className="rule mb-6">{label}</h2>
       {children}
     </section>
-  )
+  );
 }
 
 function Example({
@@ -46,14 +46,14 @@ function Example({
   file,
   sample,
 }: {
-  title: string
-  note?: string
-  tree?: string
-  terminal?: string
-  file: string
-  sample: string
+  title: string;
+  note?: string;
+  tree?: string;
+  terminal?: string;
+  file: string;
+  sample: string;
 }) {
-  const paired = Boolean(tree ?? terminal)
+  const paired = Boolean(tree ?? terminal);
   return (
     <div className="mt-12 first:mt-0">
       <h3 className="text-fg">{title}</h3>
@@ -74,7 +74,7 @@ function Example({
         ) : null}
       </div>
     </div>
-  )
+  );
 }
 
 /**
@@ -100,7 +100,7 @@ function HowItWorks() {
       </div>
       <p className="mt-6 max-w-3xl text-muted">{howItWorks.cache}</p>
     </>
-  )
+  );
 }
 
 function Home() {
@@ -149,5 +149,5 @@ function Home() {
         </div>
       </Section>
     </>
-  )
+  );
 }

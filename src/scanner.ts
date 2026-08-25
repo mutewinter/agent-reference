@@ -12,7 +12,7 @@ import type {
   PackageManager,
   PackageReference,
   ProjectContext,
-  ScanProjectOptions
+  ScanProjectOptions,
 } from './types.ts';
 
 const LOCKFILE_CANDIDATES: Array<{ file: string; packageManager: PackageManager }> = [
@@ -20,18 +20,18 @@ const LOCKFILE_CANDIDATES: Array<{ file: string; packageManager: PackageManager 
   { file: 'package-lock.json', packageManager: 'npm' },
   { file: 'bun.lock', packageManager: 'bun' },
   { file: 'bun.lockb', packageManager: 'bun' },
-  { file: 'yarn.lock', packageManager: 'yarn' }
+  { file: 'yarn.lock', packageManager: 'yarn' },
 ];
 
 export async function resolveProjectInput(
   projectPath: string | null | undefined,
-  cwd: string = process.cwd()
+  cwd: string = process.cwd(),
 ): Promise<ProjectContext> {
   const input = path.resolve(cwd, projectPath ?? '.');
   const inputStat = await fs.stat(input).catch(() => null);
   if (!inputStat) {
     throw new Error(
-      `No such project path: ${projectPath}. Pass a directory or package.json, or name a reference.`
+      `No such project path: ${projectPath}. Pass a directory or package.json, or name a reference.`,
     );
   }
 
@@ -43,7 +43,9 @@ export async function resolveProjectInput(
     packageJsonPath = (await pathExists(candidate)) ? candidate : null;
   } else {
     if (path.basename(input) !== 'package.json') {
-      throw new Error(`Expected a project directory or package.json path, got ${projectPath ?? '.'}`);
+      throw new Error(
+        `Expected a project directory or package.json path, got ${projectPath ?? '.'}`,
+      );
     }
     packageJsonPath = input;
     packageDir = path.dirname(input);
@@ -64,13 +66,13 @@ export async function resolveProjectInput(
     // has to be rejoined rather than used as the OS wrote it.
     importer: lockfile
       ? path.relative(path.dirname(lockfile.path), packageDir).split(path.sep).join('/') || '.'
-      : '.'
+      : '.',
   };
 }
 
 export async function scanProject(
   projectPath: string | null | undefined,
-  options: ScanProjectOptions = {}
+  options: ScanProjectOptions = {},
 ): Promise<PackageReference[]> {
   const context = await resolveProjectInput(projectPath, options.cwd);
   return scanResolvedProject(context, options);
@@ -78,10 +80,13 @@ export async function scanProject(
 
 export async function scanResolvedProject(
   context: ProjectContext,
-  options: ScanProjectOptions = {}
+  options: ScanProjectOptions = {},
 ): Promise<PackageReference[]> {
   if (context.lockfilePath === null) return [];
-  const lockfileContext: LockfileProjectContext = { ...context, lockfilePath: context.lockfilePath };
+  const lockfileContext: LockfileProjectContext = {
+    ...context,
+    lockfilePath: context.lockfilePath,
+  };
 
   switch (lockfileContext.packageManager) {
     case 'pnpm':
@@ -111,7 +116,9 @@ async function findNearestConfigDir(startDir: string): Promise<string | null> {
   }
 }
 
-async function findNearestLockfile(startDir: string): Promise<{ path: string; packageManager: PackageManager } | null> {
+async function findNearestLockfile(
+  startDir: string,
+): Promise<{ path: string; packageManager: PackageManager } | null> {
   let current = startDir;
 
   while (true) {

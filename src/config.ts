@@ -8,7 +8,7 @@ import {
   parsePackageKey,
   SUPPORTED_ECOSYSTEM,
   unknownEcosystemMessage,
-  unsupportedEcosystemMessage
+  unsupportedEcosystemMessage,
 } from './package-utils.ts';
 import { repositoryNameFromSpec } from './repository.ts';
 import type {
@@ -18,7 +18,7 @@ import type {
   ConfiguredPackageReference,
   ConfiguredReference,
   ConfiguredSet,
-  LoadedAgentReferenceConfig
+  LoadedAgentReferenceConfig,
 } from './types.ts';
 
 export const DEFAULT_CONFIG_FILE = 'agent-reference.json';
@@ -32,7 +32,7 @@ const TOP_LEVEL_KEYS = [
   'sets',
   'allImporters',
   'registry',
-  'cacheDir'
+  'cacheDir',
 ];
 /**
  * A package entry is a coordinate, not a question. `installed` used to mean "whatever the
@@ -52,18 +52,20 @@ const VERSION_HELP =
 function parsePackageIdentity(
   key: string,
   configPath: string,
-  field: string
+  field: string,
 ): { ecosystem: string; name: string } {
   const { ecosystem, name, version } = parsePackageKey(key);
 
   if (version !== null) {
     fail(
       configPath,
-      `${field} carries a version in the key. The key is the package, the value is the version: write "${ecosystem === SUPPORTED_ECOSYSTEM ? name : `${ecosystem}:${name}`}": "${version}".`
+      `${field} carries a version in the key. The key is the package, the value is the version: write "${ecosystem === SUPPORTED_ECOSYSTEM ? name : `${ecosystem}:${name}`}": "${version}".`,
     );
   }
-  if (!KNOWN_ECOSYSTEMS.includes(ecosystem)) fail(configPath, `${field}: ${unknownEcosystemMessage(ecosystem)}`);
-  if (ecosystem !== SUPPORTED_ECOSYSTEM) fail(configPath, `${field}: ${unsupportedEcosystemMessage(ecosystem, name)}`);
+  if (!KNOWN_ECOSYSTEMS.includes(ecosystem))
+    fail(configPath, `${field}: ${unknownEcosystemMessage(ecosystem)}`);
+  if (ecosystem !== SUPPORTED_ECOSYSTEM)
+    fail(configPath, `${field}: ${unsupportedEcosystemMessage(ecosystem, name)}`);
   requireNonEmpty(name, configPath, field);
 
   return { ecosystem, name };
@@ -71,14 +73,17 @@ function parsePackageIdentity(
 
 function requirePackageVersion(value: unknown, configPath: string, field: string): string {
   if (value === undefined || value === null) {
-    fail(configPath, `${field} is required and must be an exact version such as "1.2.3". ${VERSION_HELP}`);
+    fail(
+      configPath,
+      `${field} is required and must be an exact version such as "1.2.3". ${VERSION_HELP}`,
+    );
   }
 
   const version = requireNonEmpty(expectString(value, configPath, field), configPath, field);
   if (!isExactRegistryVersion(version)) {
     fail(
       configPath,
-      `${field} is "${version}", which is not an exact version. Ranges, dist-tags, and "installed" are not accepted: a config entry has to mean the same thing on every machine and next month. ${VERSION_HELP}`
+      `${field} is "${version}", which is not an exact version. Ranges, dist-tags, and "installed" are not accepted: a config entry has to mean the same thing on every machine and next month. ${VERSION_HELP}`,
     );
   }
 
@@ -97,14 +102,20 @@ function emptyConfig(): AgentReferenceConfig {
   return { packages: [], paths: [], git: [], sets: [] };
 }
 
-export async function loadAgentReferenceConfig(projectRoot: string): Promise<LoadedAgentReferenceConfig | null> {
+export async function loadAgentReferenceConfig(
+  projectRoot: string,
+): Promise<LoadedAgentReferenceConfig | null> {
   const configPath = await findConfigFile(projectRoot, DEFAULT_CONFIG_FILE);
   const localPath = await findConfigFile(projectRoot, DEFAULT_LOCAL_CONFIG_FILE);
 
   if (!configPath && !localPath) return null;
 
-  const baseConfig = configPath ? parseConfig(await readConfigJson(configPath), configPath) : emptyConfig();
-  const localConfig = localPath ? parseConfig(await readConfigJson(localPath), localPath) : emptyConfig();
+  const baseConfig = configPath
+    ? parseConfig(await readConfigJson(configPath), configPath)
+    : emptyConfig();
+  const localConfig = localPath
+    ? parseConfig(await readConfigJson(localPath), localPath)
+    : emptyConfig();
   for (const reference of [...localConfig.packages, ...localConfig.paths, ...localConfig.git]) {
     reference.scope = 'local';
   }
@@ -112,7 +123,7 @@ export async function loadAgentReferenceConfig(projectRoot: string): Promise<Loa
   return {
     path: configPath,
     localPath,
-    config: mergeConfigs(baseConfig, localConfig)
+    config: mergeConfigs(baseConfig, localConfig),
   };
 }
 
@@ -123,7 +134,7 @@ async function readConfigJson(configPath: string): Promise<unknown> {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
       `${configPath} is not valid JSON: ${message}. Comments and trailing commas are accepted here, so the problem is something else.`,
-      { cause: error }
+      { cause: error },
     );
   }
 }
@@ -147,9 +158,12 @@ export function parseConfig(value: unknown, configPath: string): AgentReferenceC
   parseSets(object.sets, configPath, config);
   mergeDuplicateReferences(config, configPath);
 
-  if (object.allImporters !== undefined) config.allImporters = expectBoolean(object.allImporters, configPath, 'allImporters');
-  if (object.registry !== undefined) config.registry = expectString(object.registry, configPath, 'registry');
-  if (object.cacheDir !== undefined) config.cacheDir = expectString(object.cacheDir, configPath, 'cacheDir');
+  if (object.allImporters !== undefined)
+    config.allImporters = expectBoolean(object.allImporters, configPath, 'allImporters');
+  if (object.registry !== undefined)
+    config.registry = expectString(object.registry, configPath, 'registry');
+  if (object.cacheDir !== undefined)
+    config.cacheDir = expectString(object.cacheDir, configPath, 'cacheDir');
 
   return config;
 }
@@ -169,13 +183,16 @@ function parseSets(value: unknown, configPath: string, config: AgentReferenceCon
     assertRenamedKeys(object, configPath, field);
     assertKnownKeys(object, SET_KEYS, configPath, field);
     if (object.description === undefined) {
-      fail(configPath, `${field}.description is required: it is the heading that says what this set is for.`);
+      fail(
+        configPath,
+        `${field}.description is required: it is the heading that says what this set is for.`,
+      );
     }
 
     const description = requireNonEmpty(
       expectString(object.description, configPath, `${field}.description`),
       configPath,
-      `${field}.description`
+      `${field}.description`,
     );
     const name = optionalString(object.name, configPath, `${field}.name`);
     const set: ConfiguredSet = { name, description };
@@ -188,8 +205,14 @@ function parseSets(value: unknown, configPath: string, config: AgentReferenceCon
     for (const [itemIndex, item] of memberEntries(object.git, configPath, `${field}.git`)) {
       config.git.push(parseSetGit(item, configPath, `${field}.git[${itemIndex}]`, label));
     }
-    for (const [itemIndex, item] of memberEntries(object.packages, configPath, `${field}.packages`)) {
-      config.packages.push(parseSetPackage(item, configPath, `${field}.packages[${itemIndex}]`, label));
+    for (const [itemIndex, item] of memberEntries(
+      object.packages,
+      configPath,
+      `${field}.packages`,
+    )) {
+      config.packages.push(
+        parseSetPackage(item, configPath, `${field}.packages[${itemIndex}]`, label),
+      );
     }
   }
 }
@@ -202,7 +225,7 @@ function parseSetPath(
   item: unknown,
   configPath: string,
   field: string,
-  label: string
+  label: string,
 ): ConfiguredPathReference {
   if (typeof item === 'string') {
     const declared = requireNonEmpty(item, configPath, field);
@@ -212,14 +235,18 @@ function parseSetPath(
       scope: 'shared',
       path: declared,
       description: null,
-      sets: [label]
+      sets: [label],
     };
   }
 
   const object = expectObject(item, configPath, field, 'a path string or an object');
   assertKnownKeys(object, SET_PATH_KEYS, configPath, field);
   if (object.path === undefined) fail(configPath, `${field}.path is required.`);
-  const declared = requireNonEmpty(expectString(object.path, configPath, `${field}.path`), configPath, `${field}.path`);
+  const declared = requireNonEmpty(
+    expectString(object.path, configPath, `${field}.path`),
+    configPath,
+    `${field}.path`,
+  );
 
   return {
     kind: 'path',
@@ -227,14 +254,27 @@ function parseSetPath(
     scope: 'shared',
     path: declared,
     description: parseDescription(object.description, configPath, field),
-    sets: [label]
+    sets: [label],
   };
 }
 
-function parseSetGit(item: unknown, configPath: string, field: string, label: string): ConfiguredGitReference {
+function parseSetGit(
+  item: unknown,
+  configPath: string,
+  field: string,
+  label: string,
+): ConfiguredGitReference {
   if (typeof item === 'string') {
     const spec = requireNonEmpty(item, configPath, field);
-    const reference = gitReference(repositoryNameFromSpec(spec), spec, null, null, null, configPath, field);
+    const reference = gitReference(
+      repositoryNameFromSpec(spec),
+      spec,
+      null,
+      null,
+      null,
+      configPath,
+      field,
+    );
     reference.sets = [label];
     return reference;
   }
@@ -242,22 +282,27 @@ function parseSetGit(item: unknown, configPath: string, field: string, label: st
   const object = expectObject(item, configPath, field, 'a repository string or an object');
   assertKnownKeys(object, SET_GIT_KEYS, configPath, field);
   if (object.repository === undefined) {
-    fail(configPath, `${field}.repository is required. Use github:owner/repo, a git URL, or file:../repo.`);
+    fail(
+      configPath,
+      `${field}.repository is required. Use github:owner/repo, a git URL, or file:../repo.`,
+    );
   }
   const repository = requireNonEmpty(
     expectString(object.repository, configPath, `${field}.repository`),
     configPath,
-    `${field}.repository`
+    `${field}.repository`,
   );
 
   const reference = gitReference(
     optionalString(object.name, configPath, `${field}.name`) ?? repositoryNameFromSpec(repository),
     repository,
-    object.ref === undefined || object.ref === null ? null : expectString(object.ref, configPath, `${field}.ref`),
+    object.ref === undefined || object.ref === null
+      ? null
+      : expectString(object.ref, configPath, `${field}.ref`),
     optionalString(object.directory, configPath, `${field}.directory`),
     parseDescription(object.description, configPath, field),
     configPath,
-    field
+    field,
   );
   reference.sets = [label];
   return reference;
@@ -267,12 +312,15 @@ function parseSetPackage(
   item: unknown,
   configPath: string,
   field: string,
-  label: string
+  label: string,
 ): ConfiguredPackageReference {
   if (typeof item === 'string') {
     const parsed = parsePackageAtVersion(requireNonEmpty(item, configPath, field));
     if (!parsed) {
-      fail(configPath, `${field} must be "name@version" with an exact version, such as "react@18.2.0". ${VERSION_HELP}`);
+      fail(
+        configPath,
+        `${field} must be "name@version" with an exact version, such as "react@18.2.0". ${VERSION_HELP}`,
+      );
     }
     const identity = parsePackageIdentity(parsed.name, configPath, field);
     return {
@@ -286,7 +334,7 @@ function parseSetPackage(
       repository: null,
       directory: null,
       description: null,
-      sets: [label]
+      sets: [label],
     };
   }
 
@@ -296,7 +344,7 @@ function parseSetPackage(
   const declared = requireNonEmpty(
     expectString(object.name, configPath, `${field}.name`),
     configPath,
-    `${field}.name`
+    `${field}.name`,
   );
   const identity = parsePackageIdentity(declared, configPath, `${field}.name`);
 
@@ -311,7 +359,7 @@ function parseSetPackage(
     repository: optionalString(object.repository, configPath, `${field}.repository`),
     directory: optionalString(object.directory, configPath, `${field}.directory`),
     description: parseDescription(object.description, configPath, field),
-    sets: [label]
+    sets: [label],
   };
 }
 
@@ -327,17 +375,19 @@ function mergeDuplicateReferences(config: AgentReferenceConfig, configPath: stri
     config.packages,
     configPath,
     (entry) => [entry.version, entry.ref, entry.repository, entry.directory].join('\u0000'),
-    (entry) => `${entry.ecosystem} ${entry.name}`
+    (entry) => `${entry.ecosystem} ${entry.name}`,
   );
   config.paths = mergeKind(config.paths, configPath, (entry) => entry.path);
-  config.git = mergeKind(config.git, configPath, (entry) => [entry.spec, entry.directory].join('\u0000'));
+  config.git = mergeKind(config.git, configPath, (entry) =>
+    [entry.spec, entry.directory].join('\u0000'),
+  );
 }
 
 function mergeKind<T extends ConfiguredReference>(
   entries: T[],
   configPath: string,
   identity: (entry: T) => string,
-  keyOf: (entry: T) => string = (entry) => entry.name
+  keyOf: (entry: T) => string = (entry) => entry.name,
 ): T[] {
   const byName = new Map<string, T>();
 
@@ -351,10 +401,13 @@ function mergeKind<T extends ConfiguredReference>(
     if (identity(existing) !== identity(entry)) {
       fail(
         configPath,
-        `${entry.kind} "${entry.name}" is declared more than once with different targets. Give one of them an explicit "name".`
+        `${entry.kind} "${entry.name}" is declared more than once with different targets. Give one of them an explicit "name".`,
       );
     }
-    existing.sets = [...existing.sets, ...entry.sets.filter((label) => !existing.sets.includes(label))];
+    existing.sets = [
+      ...existing.sets,
+      ...entry.sets.filter((label) => !existing.sets.includes(label)),
+    ];
     existing.description ??= entry.description;
   }
 
@@ -367,13 +420,21 @@ function basenameOf(declaredPath: string): string {
   return base && base !== '.' && base !== '~' ? base : normalized;
 }
 
-function memberEntries(value: unknown, configPath: string, field: string): Array<[number, unknown]> {
+function memberEntries(
+  value: unknown,
+  configPath: string,
+  field: string,
+): Array<[number, unknown]> {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value)) fail(configPath, `${field} must be an array.`);
   return value.map((item, index) => [index, item]);
 }
 
-function parsePackageEntry(key: string, entry: unknown, configPath: string): ConfiguredPackageReference {
+function parsePackageEntry(
+  key: string,
+  entry: unknown,
+  configPath: string,
+): ConfiguredPackageReference {
   const field = `packages.${key}`;
   const { ecosystem, name } = parsePackageIdentity(key, configPath, field);
 
@@ -389,7 +450,7 @@ function parsePackageEntry(key: string, entry: unknown, configPath: string): Con
       repository: null,
       directory: null,
       description: null,
-      sets: []
+      sets: [],
     };
   }
 
@@ -407,14 +468,21 @@ function parsePackageEntry(key: string, entry: unknown, configPath: string): Con
     repository: optionalString(object.repository, configPath, `${field}.repository`),
     directory: optionalString(object.directory, configPath, `${field}.directory`),
     description: parseDescription(object.description, configPath, field),
-    sets: []
+    sets: [],
   };
 }
 
 function parsePathEntry(name: string, entry: unknown, configPath: string): ConfiguredPathReference {
   const field = `paths.${name}`;
   if (typeof entry === 'string') {
-    return { kind: 'path', name, scope: 'shared', path: requireNonEmpty(entry, configPath, field), description: null, sets: [] };
+    return {
+      kind: 'path',
+      name,
+      scope: 'shared',
+      path: requireNonEmpty(entry, configPath, field),
+      description: null,
+      sets: [],
+    };
   }
 
   const object = expectObject(entry, configPath, field, 'a path string or an object');
@@ -427,32 +495,53 @@ function parsePathEntry(name: string, entry: unknown, configPath: string): Confi
     kind: 'path',
     name,
     scope: 'shared',
-    path: requireNonEmpty(expectString(object.path, configPath, `${field}.path`), configPath, `${field}.path`),
+    path: requireNonEmpty(
+      expectString(object.path, configPath, `${field}.path`),
+      configPath,
+      `${field}.path`,
+    ),
     description: parseDescription(object.description, configPath, field),
-    sets: []
+    sets: [],
   };
 }
 
 function parseGitEntry(name: string, entry: unknown, configPath: string): ConfiguredGitReference {
   const field = `git.${name}`;
   if (typeof entry === 'string') {
-    return gitReference(name, requireNonEmpty(entry, configPath, field), null, null, null, configPath, field);
+    return gitReference(
+      name,
+      requireNonEmpty(entry, configPath, field),
+      null,
+      null,
+      null,
+      configPath,
+      field,
+    );
   }
 
   const object = expectObject(entry, configPath, field, 'a repository string or an object');
   assertKnownKeys(object, GIT_KEYS, configPath, field);
   if (object.repository === undefined) {
-    fail(configPath, `${field}.repository is required. Use github:owner/repo, a git URL, or file:../repo.`);
+    fail(
+      configPath,
+      `${field}.repository is required. Use github:owner/repo, a git URL, or file:../repo.`,
+    );
   }
 
   return gitReference(
     name,
-    requireNonEmpty(expectString(object.repository, configPath, `${field}.repository`), configPath, `${field}.repository`),
-    object.ref === undefined || object.ref === null ? null : expectString(object.ref, configPath, `${field}.ref`),
+    requireNonEmpty(
+      expectString(object.repository, configPath, `${field}.repository`),
+      configPath,
+      `${field}.repository`,
+    ),
+    object.ref === undefined || object.ref === null
+      ? null
+      : expectString(object.ref, configPath, `${field}.ref`),
     optionalString(object.directory, configPath, `${field}.directory`),
     parseDescription(object.description, configPath, field),
     configPath,
-    field
+    field,
   );
 }
 
@@ -463,21 +552,34 @@ function gitReference(
   directory: string | null,
   description: string | null,
   configPath: string,
-  field: string
+  field: string,
 ): ConfiguredGitReference {
   const hashIndex = repositorySpec.lastIndexOf('#');
   const repository = hashIndex === -1 ? repositorySpec : repositorySpec.slice(0, hashIndex);
   const inlineRef = hashIndex === -1 ? null : repositorySpec.slice(hashIndex + 1) || null;
 
   if (explicitRef && inlineRef && explicitRef !== inlineRef) {
-    fail(configPath, `${field} sets ref "${explicitRef}" but repository already pins "#${inlineRef}". Use one or the other.`);
+    fail(
+      configPath,
+      `${field} sets ref "${explicitRef}" but repository already pins "#${inlineRef}". Use one or the other.`,
+    );
   }
   if (!repository) {
     fail(configPath, `${field} needs a repository before the "#" ref.`);
   }
 
   const ref = explicitRef ?? inlineRef;
-  return { kind: 'git', name, scope: 'shared', repository, ref, spec: gitSpec(repository, ref), directory, description, sets: [] };
+  return {
+    kind: 'git',
+    name,
+    scope: 'shared',
+    repository,
+    ref,
+    spec: gitSpec(repository, ref),
+    directory,
+    description,
+    sets: [],
+  };
 }
 
 function gitSpec(repository: string, ref: string | null): string {
@@ -494,7 +596,10 @@ function optionalString(value: unknown, configPath: string, field: string): stri
   return expectString(value, configPath, field).trim() || null;
 }
 
-function mergeConfigs(base: AgentReferenceConfig, local: AgentReferenceConfig): AgentReferenceConfig {
+function mergeConfigs(
+  base: AgentReferenceConfig,
+  local: AgentReferenceConfig,
+): AgentReferenceConfig {
   const sets = [...base.sets];
   for (const set of local.sets) {
     if (!sets.some((existing) => setLabel(existing) === setLabel(set))) sets.push(set);
@@ -510,7 +615,8 @@ function mergeConfigs(base: AgentReferenceConfig, local: AgentReferenceConfig): 
     allImporters: local.allImporters ?? base.allImporters,
     registry: local.registry ?? base.registry,
     cacheDir,
-    cacheDirScope: cacheDir === undefined ? undefined : local.cacheDir === undefined ? 'shared' : 'local'
+    cacheDirScope:
+      cacheDir === undefined ? undefined : local.cacheDir === undefined ? 'shared' : 'local',
   };
 }
 
@@ -522,7 +628,11 @@ function mergeByName<T extends { name: string }>(base: T[], local: T[]): T[] {
   return [...byName.values()];
 }
 
-function recordEntries(value: unknown, configPath: string, field: string): Array<[string, unknown]> {
+function recordEntries(
+  value: unknown,
+  configPath: string,
+  field: string,
+): Array<[string, unknown]> {
   if (value === undefined || value === null) return [];
   const object = expectObject(value, configPath, field, 'an object mapping names to references');
   for (const name of Object.keys(object)) {
@@ -535,7 +645,7 @@ function expectObject(
   value: unknown,
   configPath: string,
   field: string | null,
-  expectation = 'a JSON object'
+  expectation = 'a JSON object',
 ): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     fail(configPath, `${field ? `${field} must be` : 'the file must contain'} ${expectation}.`);
@@ -564,16 +674,20 @@ function requireNonEmpty(value: string, configPath: string, field: string): stri
  * guess which of the valid keys replaced it.
  */
 const RENAMED_KEYS: Record<string, string> = {
-  folders: 'paths'
+  folders: 'paths',
 };
 
-function assertRenamedKeys(object: Record<string, unknown>, configPath: string, field: string | null): void {
+function assertRenamedKeys(
+  object: Record<string, unknown>,
+  configPath: string,
+  field: string | null,
+): void {
   for (const [previous, replacement] of Object.entries(RENAMED_KEYS)) {
     if (object[previous] === undefined) continue;
     const location = field ? `${field}.${previous}` : previous;
     fail(
       configPath,
-      `${location} was renamed to ${replacement}, which holds a folder or a file. Rename the key; every entry inside it is unchanged.`
+      `${location} was renamed to ${replacement}, which holds a folder or a file. Rename the key; every entry inside it is unchanged.`,
     );
   }
 }
@@ -582,7 +696,7 @@ function assertKnownKeys(
   object: Record<string, unknown>,
   known: string[],
   configPath: string,
-  field: string | null
+  field: string | null,
 ): void {
   for (const key of Object.keys(object)) {
     if (known.includes(key)) continue;
@@ -590,7 +704,7 @@ function assertKnownKeys(
     const suggestion = closestKey(key, known);
     fail(
       configPath,
-      `unknown key ${location}.${suggestion ? ` Did you mean "${suggestion}"?` : ''} Valid keys: ${known.join(', ')}.`
+      `unknown key ${location}.${suggestion ? ` Did you mean "${suggestion}"?` : ''} Valid keys: ${known.join(', ')}.`,
     );
   }
 }
@@ -601,7 +715,10 @@ function closestKey(key: string, known: string[]): string | null {
 
   for (const candidate of known) {
     const distance = editDistance(lower, candidate.toLowerCase());
-    if (distance <= Math.max(2, Math.floor(candidate.length / 3)) && (!best || distance < best.distance)) {
+    if (
+      distance <= Math.max(2, Math.floor(candidate.length / 3)) &&
+      (!best || distance < best.distance)
+    ) {
       best = { key: candidate, distance };
     }
   }

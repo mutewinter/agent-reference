@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react'
+import type { ReactNode } from 'react';
 
-import highlighted from 'virtual:highlighted'
+import highlighted from 'virtual:highlighted';
 
-import { IconCopy } from './copy'
+import { IconCopy } from './copy';
 
 /** A framed block. The label is a filename or a command, never a description. */
 export function Panel({
@@ -13,12 +13,12 @@ export function Panel({
   copy,
   children,
 }: {
-  label?: string
-  note?: string
-  dim?: boolean
-  tone?: 'panel' | 'term'
-  copy?: string
-  children: ReactNode
+  label?: string;
+  note?: string;
+  dim?: boolean;
+  tone?: 'panel' | 'term';
+  copy?: string;
+  children: ReactNode;
 }) {
   return (
     <div
@@ -41,7 +41,7 @@ export function Panel({
       ) : null}
       <div className="flex-1 overflow-x-auto p-4 text-sm leading-code">{children}</div>
     </div>
-  )
+  );
 }
 
 /**
@@ -53,19 +53,19 @@ export function Panel({
  */
 export function Tree({ text }: { text: string }) {
   const rows = text.split('\n').map((line) => {
-    const at = line.indexOf(' # ')
-    const body = at === -1 ? line : line.slice(0, at)
-    const match = body.match(/^([\u2500-\u257F ]*)(.*)$/u)
+    const at = line.indexOf(' # ');
+    const body = at === -1 ? line : line.slice(0, at);
+    const match = body.match(/^([\u2500-\u257F ]*)(.*)$/u);
     return {
       branch: match ? match[1] : '',
       name: match ? match[2] : body,
       note: at === -1 ? null : line.slice(at + 1),
       width: body.length,
-    }
-  })
+    };
+  });
   // Only the annotated lines set the column, so a long path further down runs
   // past the notes instead of pushing every one of them off the panel.
-  const column = Math.max(0, ...rows.filter((row) => row.note).map((row) => row.width))
+  const column = Math.max(0, ...rows.filter((row) => row.note).map((row) => row.width));
 
   return (
     // The one block that does not wrap: a wrapped continuation lands under the
@@ -85,28 +85,28 @@ export function Tree({ text }: { text: string }) {
         </div>
       ))}
     </pre>
-  )
+  );
 }
 
 /** Shiki output for JSON, rendered in Node at build time. */
 export function Highlighted({ name }: { name: string }) {
   return (
     <div className="shiki-block" dangerouslySetInnerHTML={{ __html: highlighted[name].html }} />
-  )
+  );
 }
 
 /** The source behind a snippet, for the clipboard. */
 export function source(name: string) {
-  return highlighted[name].code
+  return highlighted[name].code;
 }
 
-const RUNNERS = new Set(['npx', 'pnpx', 'bunx', 'dlx'])
+const RUNNERS = new Set(['npx', 'pnpx', 'bunx', 'dlx']);
 
 const STATE_TONE: Record<string, string> = {
   ready: 'text-ok',
   declared: 'text-muted',
   unresolvable: 'text-accent',
-}
+};
 
 /**
  * Terminal output painted the way the CLI paints it, rather than the way a
@@ -115,10 +115,10 @@ const STATE_TONE: Record<string, string> = {
  * blue got in.
  */
 function Line({ text, inline = false }: { text: string; inline?: boolean }) {
-  const Wrap = inline ? 'span' : 'div'
-  if (text === '') return <div>&nbsp;</div>
+  const Wrap = inline ? 'span' : 'div';
+  if (text === '') return <div>&nbsp;</div>;
 
-  if (text.startsWith('# ')) return <div className="text-dim">{text}</div>
+  if (text.startsWith('# ')) return <div className="text-dim">{text}</div>;
 
   // A command with no prompt in front of it: the agent ran this, not a person,
   // so there is no shell for the dollar sign to belong to.
@@ -128,14 +128,14 @@ function Line({ text, inline = false }: { text: string; inline?: boolean }) {
         <span className="text-accent">agent-reference</span>
         {text.slice('agent-reference'.length)}
       </div>
-    )
+    );
   }
 
   if (text.startsWith('$ ')) {
-    const words = text.slice(2).split(' ')
+    const words = text.slice(2).split(' ');
     // A runner is not the command. `npx agent-reference init` should put the
     // emphasis on the tool being run, the way reading it aloud would.
-    const at = RUNNERS.has(words[0]) ? 1 : 0
+    const at = RUNNERS.has(words[0]) ? 1 : 0;
     return (
       <div>
         <span className="text-muted select-none">$ </span>
@@ -143,21 +143,21 @@ function Line({ text, inline = false }: { text: string; inline?: boolean }) {
         <span className="text-accent">{words[at]}</span>
         {words.length > at + 1 ? ` ${words.slice(at + 1).join(' ')}` : null}
       </div>
-    )
+    );
   }
 
-  const scope = text.match(/^(\S+) (\(.+\))$/u)
+  const scope = text.match(/^(\S+) (\(.+\))$/u);
   if (scope) {
     return (
       <div>
         {scope[1]} <span className="text-muted">{scope[2]}</span>
       </div>
-    )
+    );
   }
 
-  const row = text.match(/^(\s*)(\S+)(\s+)(.*·.*)$/u)
+  const row = text.match(/^(\s*)(\S+)(\s+)(.*·.*)$/u);
   if (row) {
-    const [, indent, name, gap, facts] = row
+    const [, indent, name, gap, facts] = row;
     return (
       <Wrap>
         {indent}
@@ -170,10 +170,10 @@ function Line({ text, inline = false }: { text: string; inline?: boolean }) {
           </span>
         ))}
       </Wrap>
-    )
+    );
   }
 
-  return <Wrap>{text}</Wrap>
+  return <Wrap>{text}</Wrap>;
 }
 
 /**
@@ -185,7 +185,7 @@ export function Session({ text }: { text: string }) {
   return (
     <pre className="code-wrap leading-code">
       {text.split('\n').map((line, i) => {
-        if (line === '') return <div key={i}>&nbsp;</div>
+        if (line === '') return <div key={i}>&nbsp;</div>;
 
         if (line.startsWith('> ')) {
           return (
@@ -193,12 +193,12 @@ export function Session({ text }: { text: string }) {
               <span className="select-none">{'> '}</span>
               {line.slice(2)}
             </div>
-          )
+          );
         }
 
         if (line.startsWith('* ')) {
-          const call = line.slice(2)
-          const open = call.indexOf('(')
+          const call = line.slice(2);
+          const open = call.indexOf('(');
           return (
             <div key={i}>
               <span className="text-ok select-none">{'\u23FA '}</span>
@@ -211,25 +211,25 @@ export function Session({ text }: { text: string }) {
                 </>
               )}
             </div>
-          )
+          );
         }
 
-        const result = line.match(/^(\s+)(\u23BF )?(.*)$/u)
+        const result = line.match(/^(\s+)(\u23BF )?(.*)$/u);
         if (result) {
-          const [, indent, elbow, rest] = result
+          const [, indent, elbow, rest] = result;
           return (
             <div key={i}>
               {indent}
               <span className="text-line select-none">{elbow ? '\u23BF ' : ''}</span>
               <Line text={rest} inline />
             </div>
-          )
+          );
         }
 
-        return <Line key={i} text={line} />
+        return <Line key={i} text={line} />;
       })}
     </pre>
-  )
+  );
 }
 
 export function Term({ text }: { text: string }) {
@@ -239,5 +239,5 @@ export function Term({ text }: { text: string }) {
         <Line key={`${i}-${line}`} text={line} />
       ))}
     </pre>
-  )
+  );
 }

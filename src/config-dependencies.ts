@@ -1,5 +1,10 @@
 import { mergeDependencyEntries, selectInstalledPackage } from './package-utils.ts';
-import type { AgentReferenceConfig, PackageDrift, PackageManager, PackageReference } from './types.ts';
+import type {
+  AgentReferenceConfig,
+  PackageDrift,
+  PackageManager,
+  PackageReference,
+} from './types.ts';
 
 export interface ConfigPackageReferences {
   packages: PackageReference[];
@@ -19,7 +24,7 @@ export interface ConfigPackageReferences {
 export function resolveConfigPackageReferences(
   config: AgentReferenceConfig | undefined,
   installedPackages: PackageReference[],
-  options: { importer?: string; packageManager?: PackageManager } = {}
+  options: { importer?: string; packageManager?: PackageManager } = {},
 ): ConfigPackageReferences {
   if (!config || config.packages.length === 0) {
     return { packages: [], drift: [] };
@@ -38,17 +43,21 @@ export function resolveConfigPackageReferences(
       // answers it.
       packageManager: options.packageManager ?? 'unknown',
       dependencyTypes: [],
-      importers: ['agent-reference.json']
+      importers: ['agent-reference.json'],
     });
 
-    const installed = selectInstalledPackage(entry.name, installedPackages, options.importer ?? '.');
+    const installed = selectInstalledPackage(
+      entry.name,
+      installedPackages,
+      options.importer ?? '.',
+    );
     const versions = [...new Set(installed.candidates.map((candidate) => candidate.version))];
     if (versions.length > 0 && !versions.includes(entry.version)) {
       drift.push({
         name: entry.name,
         pinned: entry.version,
         installed: versions,
-        importers: [...new Set(installed.candidates.flatMap((candidate) => candidate.importers))]
+        importers: [...new Set(installed.candidates.flatMap((candidate) => candidate.importers))],
       });
     }
   }

@@ -24,7 +24,7 @@ export function splitOutsideQuotes(value: string, separator: string): string[] {
   for (let index = 0; index < value.length; index += 1) {
     const char = value[index];
     if ((char === '"' || char === "'") && value[index - 1] !== '\\') {
-      quote = quote === char ? null : quote ?? char;
+      quote = quote === char ? null : (quote ?? char);
     }
     if (char === separator && !quote) {
       parts.push(value.slice(start, index));
@@ -37,7 +37,10 @@ export function splitOutsideQuotes(value: string, separator: string): string[] {
 }
 
 export function stripQuotes(value: string): string {
-  if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+  if (
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'"))
+  ) {
     return value.slice(1, -1);
   }
 

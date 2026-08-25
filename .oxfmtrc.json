@@ -1,0 +1,42 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  // The width the code was already written to: the 95th percentile line in
+  // `src/` and `tests/` sits at 96 characters.
+  "printWidth": 100,
+  // Semicolons and single quotes were already the repository's habit everywhere
+  // except `site/src/`, which is the split this file exists to end.
+  "semi": true,
+  "singleQuote": true,
+  // Tailwind class order is already checked by `tailwindcss/enforce-sort-order`
+  // in site/.oxlintrc.json, which resolves classes against the design system in
+  // src/styles.css. Two tools sorting the same classes from different sources
+  // would fight over every save.
+  "sortTailwindcss": false,
+  "overrides": [
+    {
+      // `singleQuote` covers CSS as well as JS, and CSS is written with double
+      // quotes everywhere including the `@theme` block, which is generated
+      // elsewhere and synced in between markers.
+      "files": ["**/*.css"],
+      "options": { "singleQuote": false }
+    }
+  ],
+  "ignorePatterns": [
+    "dist/",
+    "node_modules/",
+    "fixtures/",
+    // Skill content rather than source, and synced from its own upstream.
+    ".agents/",
+    ".claude/",
+    "site/.wrangler/",
+    "site/src/routeTree.gen.ts",
+    // Prose is written one line per paragraph and stays that way.
+    "**/*.md",
+    "docs/",
+    // A dated single-use deck, and the only Vue in the repository.
+    "talks/",
+    // Vendored: the syntax theme, the lockfiles, and the fixture manifests.
+    "**/*.json",
+    "pnpm-lock.yaml"
+  ]
+}

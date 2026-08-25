@@ -22,7 +22,7 @@ test('a dependency held by a workspace package resolves from the repository root
 
   const [result] = await getReferences(projectRoot, ['tiny-invariant'], {
     metadataMap: metadataFor(source, 'tiny-invariant', '1.3.1'),
-    storeDir
+    storeDir,
   });
 
   // Reading only the importer nearest the working directory made this resolve as though the
@@ -33,13 +33,15 @@ test('a dependency held by a workspace package resolves from the repository root
 });
 
 test('two importers at different versions is reported, never guessed', async () => {
-  const { projectRoot, storeDir, tempDir } = await workspace('ambiguous', { legacyVersion: '1.2.0' });
+  const { projectRoot, storeDir, tempDir } = await workspace('ambiguous', {
+    legacyVersion: '1.2.0',
+  });
   const source = await sourceRepo(tempDir, 'tiny-invariant', '1.3.1');
 
   await assert.rejects(
     getReferences(projectRoot, ['tiny-invariant'], {
       metadataMap: metadataFor(source, 'tiny-invariant', '1.3.1'),
-      storeDir
+      storeDir,
     }),
     (error: Error) => {
       assert.match(error.message, /installed at 2 versions/);
@@ -48,17 +50,19 @@ test('two importers at different versions is reported, never guessed', async () 
       assert.match(error.message, /1\.2\.0\s+apps\/legacy/);
       assert.match(error.message, /agent-reference get tiny-invariant@/);
       return true;
-    }
+    },
   );
 });
 
 test('running inside a workspace package picks that package version', async () => {
-  const { projectRoot, storeDir, tempDir } = await workspace('local-wins', { legacyVersion: '1.2.0' });
+  const { projectRoot, storeDir, tempDir } = await workspace('local-wins', {
+    legacyVersion: '1.2.0',
+  });
   const source = await sourceRepo(tempDir, 'tiny-invariant', '1.3.1');
 
   const [result] = await getReferences(path.join(projectRoot, 'apps/web'), ['tiny-invariant'], {
     metadataMap: metadataFor(source, 'tiny-invariant', '1.3.1'),
-    storeDir
+    storeDir,
   });
 
   assert.equal(result?.version, '1.3.1');
@@ -70,7 +74,7 @@ test('a package this project does not install says the version came from the reg
 
   const [result] = await getReferences(projectRoot, ['tiny-warning@1.0.3'], {
     metadataMap: metadataFor(source, 'tiny-warning', '1.0.3'),
-    storeDir
+    storeDir,
   });
 
   // Looking at a library before adopting it is a supported use, so this is a note rather
@@ -84,11 +88,13 @@ test('status reports a pin that no longer matches what the project installs', as
   const { projectRoot, storeDir } = await workspace('drift');
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ packages: { 'tiny-invariant': '1.2.0' } })
+    JSON.stringify({ packages: { 'tiny-invariant': '1.2.0' } }),
   );
 
   const report = await getStatusReport(projectRoot, { storeDir });
-  const problem = report.problems.find((candidate) => candidate.reference === 'package:tiny-invariant');
+  const problem = report.problems.find(
+    (candidate) => candidate.reference === 'package:tiny-invariant',
+  );
 
   // A report, never a correction: somebody pinned 1.2.0 on purpose, and the fix names both
   // ways out rather than assuming the newer number is the wanted one.
@@ -103,7 +109,7 @@ test('a pin that still matches the lockfile is not reported as drift', async () 
   const { projectRoot, storeDir } = await workspace('no-drift');
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ packages: { 'tiny-invariant': '1.3.1' } })
+    JSON.stringify({ packages: { 'tiny-invariant': '1.3.1' } }),
   );
 
   const report = await getStatusReport(projectRoot, { storeDir });
@@ -114,7 +120,7 @@ test('versions still answers when the config it would have loaded is unusable', 
   const { projectRoot } = await workspace('versions-broken-config');
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ packages: { 'tiny-invariant': 'installed' } })
+    JSON.stringify({ packages: { 'tiny-invariant': 'installed' } }),
   );
 
   // The error for an unusable version points at this command, so a broken config must not
@@ -122,7 +128,7 @@ test('versions still answers when the config it would have loaded is unusable', 
   const report = await getVersionsReport(projectRoot, 'tiny-invariant');
   assert.deepEqual(
     report.versions.map((entry) => entry.version),
-    ['1.3.1']
+    ['1.3.1'],
   );
 });
 
@@ -130,7 +136,7 @@ test('a config version that is not an exact coordinate is refused with the way o
   for (const version of ['installed', '^1.3.0', 'latest']) {
     assert.throws(
       () => parseConfig({ packages: { 'tiny-invariant': version } }, 'agent-reference.json'),
-      /not an exact version[\s\S]*agent-reference versions/
+      /not an exact version[\s\S]*agent-reference versions/,
     );
   }
 });
@@ -142,7 +148,13 @@ test('a decoy directory never outranks the repository root', async () => {
   const source = await decoyRepo(tempDir, 'fakepkg', '1.0.0');
 
   // No gitHead, so resolution goes through the tag shapes the way electron's does.
-  const metadataMap = { 'fakepkg@1.0.0': { name: 'fakepkg', version: '1.0.0', repository: { type: 'git', url: source.path } } };
+  const metadataMap = {
+    'fakepkg@1.0.0': {
+      name: 'fakepkg',
+      version: '1.0.0',
+      repository: { type: 'git', url: source.path },
+    },
+  };
 
   const [loose] = await getReferences(projectRoot, ['fakepkg@1.0.0'], { metadataMap, storeDir });
   // default_app is named fakepkg and carries no version, so it identifies itself as the
@@ -154,7 +166,11 @@ test('a decoy directory never outranks the repository root', async () => {
 
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ packages: { fakepkg: { version: '1.0.0', repository: `file:${source.path}`, directory: '.' } } })
+    JSON.stringify({
+      packages: {
+        fakepkg: { version: '1.0.0', repository: `file:${source.path}`, directory: '.' },
+      },
+    }),
   );
   const [pinned] = await getReferences(projectRoot, ['fakepkg'], { metadataMap, storeDir });
 
@@ -170,7 +186,9 @@ test('get reports a fallback checkout as the problem it is', async () => {
   const source = await sourceRepo(tempDir, 'oddtags', '1.0.0');
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ packages: { oddtags: { version: '9.9.9', repository: `file:${source.path}` } } })
+    JSON.stringify({
+      packages: { oddtags: { version: '9.9.9', repository: `file:${source.path}` } },
+    }),
   );
 
   const [result] = await getReferences(projectRoot, ['oddtags'], { storeDir });
@@ -188,8 +206,10 @@ test('a repository that cannot be read names the repository, not a ref', async (
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      packages: { ghost: { version: '1.0.0', repository: `file:${path.join(tempDir, 'nowhere.git')}` } }
-    })
+      packages: {
+        ghost: { version: '1.0.0', repository: `file:${path.join(tempDir, 'nowhere.git')}` },
+      },
+    }),
   );
 
   await assert.rejects(getReferences(projectRoot, ['ghost'], { storeDir }), (error: Error) => {
@@ -212,16 +232,21 @@ test('relayed text cannot move a terminal cursor or repaint a line', () => {
 
 async function workspace(
   label: string,
-  options: { legacyVersion?: string } = {}
+  options: { legacyVersion?: string } = {},
 ): Promise<{ projectRoot: string; storeDir: string; tempDir: string }> {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `agent-reference-workspace-${label}-test-`));
+  const tempDir = await fs.mkdtemp(
+    path.join(os.tmpdir(), `agent-reference-workspace-${label}-test-`),
+  );
   const projectRoot = path.join(tempDir, 'project');
   await fs.mkdir(path.join(projectRoot, 'apps/web'), { recursive: true });
-  await fs.writeFile(path.join(projectRoot, 'package.json'), JSON.stringify({ name: 'root', private: true }));
+  await fs.writeFile(
+    path.join(projectRoot, 'package.json'),
+    JSON.stringify({ name: 'root', private: true }),
+  );
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({}));
   await fs.writeFile(
     path.join(projectRoot, 'apps/web/package.json'),
-    JSON.stringify({ name: '@mono/web', dependencies: { 'tiny-invariant': '1.3.1' } })
+    JSON.stringify({ name: '@mono/web', dependencies: { 'tiny-invariant': '1.3.1' } }),
   );
 
   const legacy = options.legacyVersion
@@ -229,12 +254,15 @@ async function workspace(
     : '';
   if (options.legacyVersion) {
     await fs.mkdir(path.join(projectRoot, 'apps/legacy'), { recursive: true });
-    await fs.writeFile(path.join(projectRoot, 'apps/legacy/package.json'), JSON.stringify({ name: '@mono/legacy' }));
+    await fs.writeFile(
+      path.join(projectRoot, 'apps/legacy/package.json'),
+      JSON.stringify({ name: '@mono/legacy' }),
+    );
   }
 
   await fs.writeFile(
     path.join(projectRoot, 'pnpm-lock.yaml'),
-    `lockfileVersion: '9.0'\n\nimporters:\n  .: {}\n  apps/web:\n    dependencies:\n      tiny-invariant:\n        specifier: 1.3.1\n        version: 1.3.1\n${legacy}\npackages:\n  tiny-invariant@1.3.1:\n    resolution: {integrity: sha512-a}\n`
+    `lockfileVersion: '9.0'\n\nimporters:\n  .: {}\n  apps/web:\n    dependencies:\n      tiny-invariant:\n        specifier: 1.3.1\n        version: 1.3.1\n${legacy}\npackages:\n  tiny-invariant@1.3.1:\n    resolution: {integrity: sha512-a}\n`,
   );
 
   return { projectRoot, storeDir: path.join(tempDir, 'store'), tempDir };
@@ -243,22 +271,22 @@ async function workspace(
 function metadataFor(
   source: { path: string; commit: string },
   name: string,
-  version: string
+  version: string,
 ): Record<string, object> {
   return {
     [`${name}@${version}`]: {
       name,
       version,
       repository: { type: 'git', url: source.path },
-      gitHead: source.commit
-    }
+      gitHead: source.commit,
+    },
   };
 }
 
 async function sourceRepo(
   parentDir: string,
   name: string,
-  version: string
+  version: string,
 ): Promise<{ path: string; commit: string }> {
   const repoPath = await initRepo(parentDir, name);
   await fs.writeFile(path.join(repoPath, 'package.json'), JSON.stringify({ name, version }));
@@ -270,11 +298,14 @@ async function sourceRepo(
 async function decoyRepo(
   parentDir: string,
   name: string,
-  version: string
+  version: string,
 ): Promise<{ path: string; commit: string }> {
   const repoPath = await initRepo(parentDir, name);
   await fs.mkdir(path.join(repoPath, 'default_app'), { recursive: true });
-  await fs.writeFile(path.join(repoPath, 'package.json'), JSON.stringify({ name: '@fake-ci/dev-root', version: '0.0.0' }));
+  await fs.writeFile(
+    path.join(repoPath, 'package.json'),
+    JSON.stringify({ name: '@fake-ci/dev-root', version: '0.0.0' }),
+  );
   await fs.writeFile(path.join(repoPath, 'default_app/package.json'), JSON.stringify({ name }));
   await git(['add', '-A'], repoPath);
   await git(['commit', '-m', `${name} ${version}`], repoPath);
@@ -310,10 +341,10 @@ test('a value git would read as an option never reaches git', async () => {
           repository: `file:${source.path}`,
           // git parses options positioned after `origin`, so this is code execution rather
           // than a ref, and a shared config file is how it would travel.
-          ref: `--upload-pack=touch ${marker};true`
-        }
-      }
-    })
+          ref: `--upload-pack=touch ${marker};true`,
+        },
+      },
+    }),
   );
 
   await assert.rejects(getReferences(projectRoot, ['victimpkg'], { storeDir }), (error: Error) => {
@@ -322,7 +353,13 @@ test('a value git would read as an option never reaches git', async () => {
     assert.match(error.message, /refused this value/);
     return true;
   });
-  assert.equal(await fs.stat(marker).then(() => true).catch(() => false), false);
+  assert.equal(
+    await fs
+      .stat(marker)
+      .then(() => true)
+      .catch(() => false),
+    false,
+  );
 });
 
 test('a transport git should not be asked to speak is refused', async () => {
@@ -330,8 +367,8 @@ test('a transport git should not be asked to speak is refused', async () => {
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      packages: { victimpkg: { version: '1.0.0', repository: 'ext::sh -c whoami', ref: 'main' } }
-    })
+      packages: { victimpkg: { version: '1.0.0', repository: 'ext::sh -c whoami', ref: 'main' } },
+    }),
   );
 
   await assert.rejects(getReferences(projectRoot, ['victimpkg'], { storeDir }), (error: Error) => {
@@ -347,7 +384,7 @@ test('a repository that is not a URL is refused, not reported as a failed clone'
     // A scheme left off, which is a typo rather than an attack. Deriving the store path
     // parses the URL, so this used to surface as `TypeError: Invalid URL` from inside path
     // construction, and then as a clone failure blaming the network.
-    JSON.stringify({ git: { internal: 'forge.example/team/repo' } })
+    JSON.stringify({ git: { internal: 'forge.example/team/repo' } }),
   );
 
   await assert.rejects(getReferences(projectRoot, ['internal'], { storeDir }), (error: Error) => {
@@ -366,7 +403,7 @@ test('the transport policy rides on the argv, not on how git is started', async 
     '-c',
     'protocol.ext.allow=never',
     '-c',
-    'protocol.file.allow=user'
+    'protocol.file.allow=user',
   ]);
   assert.deepEqual(argv.slice(4), ['clone', '--bare', 'https://example.invalid/repo.git']);
 });
@@ -382,10 +419,10 @@ test('a package directory cannot climb out of the checkout', async () => {
       'tiny-invariant@1.3.1': {
         name: 'tiny-invariant',
         version: '1.3.1',
-        repository: { type: 'git', url: source.path, directory: '../../../../../../etc' }
-      }
+        repository: { type: 'git', url: source.path, directory: '../../../../../../etc' },
+      },
     },
-    storeDir
+    storeDir,
   });
 
   assert.equal(result?.path, result?.repositoryPath);
@@ -413,10 +450,16 @@ test('one workspace package linked from two importers is one place, stated once'
 test('get sends an agent to a workspace package by a path it can open', async () => {
   const { projectRoot, storeDir } = await linkedWorkspace('links-get');
 
-  await assert.rejects(getReferences(projectRoot, ['@mono/shared'], { storeDir }), (error: Error) => {
-    assert.match(error.message, new RegExp(escapeRegExp(path.join(projectRoot, 'packages', 'shared'))));
-    return true;
-  });
+  await assert.rejects(
+    getReferences(projectRoot, ['@mono/shared'], { storeDir }),
+    (error: Error) => {
+      assert.match(
+        error.message,
+        new RegExp(escapeRegExp(path.join(projectRoot, 'packages', 'shared'))),
+      );
+      return true;
+    },
+  );
 });
 
 test('a workspace link does not hide the versions other importers install', () => {
@@ -429,9 +472,21 @@ test('a workspace link does not hide the versions other importers install', () =
     packageManager: 'pnpm',
     importer: '.',
     versions: [
-      { version: 'link:../shared', importers: ['apps/web'], dependencyTypes: [], workspace: true, path: '/repo/shared' },
-      { version: '1.2.3', importers: ['apps/legacy'], dependencyTypes: [], workspace: false, path: null }
-    ]
+      {
+        version: 'link:../shared',
+        importers: ['apps/web'],
+        dependencyTypes: [],
+        workspace: true,
+        path: '/repo/shared',
+      },
+      {
+        version: '1.2.3',
+        importers: ['apps/legacy'],
+        dependencyTypes: [],
+        workspace: false,
+        path: null,
+      },
+    ],
   });
 
   assert.match(text, /is a workspace package in this repository, at \/repo\/shared\./);
@@ -443,8 +498,14 @@ test('a workspace link does not hide the versions other importers install', () =
 test('a workspace range names the package as local without inventing a path', async () => {
   assert.equal(workspaceVersionDirectory('/repo', 'apps/web', 'workspace:*'), null);
   assert.equal(workspaceVersionDirectory('/repo', 'apps/web', 'workspace:^1.2.0'), null);
-  assert.equal(workspaceVersionDirectory('/repo', 'apps/web', 'link:../../packages/shared'), '/repo/packages/shared');
-  assert.equal(workspaceVersionDirectory('/repo', '.', 'file:./vendor/thing'), '/repo/vendor/thing');
+  assert.equal(
+    workspaceVersionDirectory('/repo', 'apps/web', 'link:../../packages/shared'),
+    '/repo/packages/shared',
+  );
+  assert.equal(
+    workspaceVersionDirectory('/repo', '.', 'file:./vendor/thing'),
+    '/repo/vendor/thing',
+  );
 });
 
 /** Two importers depending on one in-repo package, each by its own relative link. */
@@ -455,13 +516,16 @@ async function linkedWorkspace(label: string): Promise<{ projectRoot: string; st
   for (const [dir, name] of [
     ['apps/web', '@mono/web'],
     ['packages/tools', '@mono/tools'],
-    ['packages/shared', '@mono/shared']
+    ['packages/shared', '@mono/shared'],
   ]) {
     await fs.mkdir(path.join(projectRoot, dir), { recursive: true });
     await fs.writeFile(path.join(projectRoot, dir, 'package.json'), JSON.stringify({ name }));
   }
 
-  await fs.writeFile(path.join(projectRoot, 'package.json'), JSON.stringify({ name: 'root', private: true }));
+  await fs.writeFile(
+    path.join(projectRoot, 'package.json'),
+    JSON.stringify({ name: 'root', private: true }),
+  );
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), JSON.stringify({}));
   await fs.writeFile(
     path.join(projectRoot, 'pnpm-lock.yaml'),
@@ -482,8 +546,8 @@ async function linkedWorkspace(label: string): Promise<{ projectRoot: string; st
       '        version: link:../shared',
       '',
       'packages: {}',
-      ''
-    ].join('\n')
+      '',
+    ].join('\n'),
   );
 
   return { projectRoot, storeDir: path.join(tempDir, 'store') };

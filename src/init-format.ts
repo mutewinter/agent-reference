@@ -25,7 +25,7 @@ export function briefSteps(survey: InitSurvey): string[] {
     proposeStep(),
     writeStep(survey),
     showStep(),
-    instructionStep(survey)
+    instructionStep(survey),
   ];
 }
 
@@ -37,14 +37,20 @@ export function formatInitBrief(survey: InitSurvey, options: InitFormatOptions):
     const rows = survey.transcriptStores.map((store) => [
       store.agent,
       show(store.path),
-      `${store.sessions} ${store.sessions === 1 ? 'session' : 'sessions'}, ${store.format}`
+      `${store.sessions} ${store.sessions === 1 ? 'session' : 'sessions'}, ${store.format}`,
     ]);
-    sections.push(`${[dim('transcript stores on this machine', options.color), ...columns(rows, 2)].join('\n')}\n`);
+    sections.push(
+      `${[dim('transcript stores on this machine', options.color), ...columns(rows, 2)].join('\n')}\n`,
+    );
   }
 
   const note = standingReferencesNote(survey);
   const steps = briefSteps(survey).map((step, index) => indentStep(index + 1, step));
-  sections.push([dim('brief for the agent', options.color), ...(note ? [`  ${note}`, ''] : []), ...steps].join('\n'));
+  sections.push(
+    [dim('brief for the agent', options.color), ...(note ? [`  ${note}`, ''] : []), ...steps].join(
+      '\n',
+    ),
+  );
 
   return `${sections.join('\n')}\n`;
 }
@@ -57,14 +63,16 @@ function surveySection(survey: InitSurvey, options: InitFormatOptions): string[]
     ['lockfile', lockfileSummary(survey)],
     ['gitignore', gitignoreSummary(survey)],
     ['instructions', instructionSummary(survey)],
-    ['skill', skillSummary(survey, show)]
+    ['skill', skillSummary(survey, show)],
   ];
 
   return [dim('this project', options.color), ...columns(rows, 2)];
 }
 
 function configSummary(survey: InitSurvey): string {
-  const files = [survey.configPath, survey.localConfigPath].filter((file): file is string => file !== null);
+  const files = [survey.configPath, survey.localConfigPath].filter(
+    (file): file is string => file !== null,
+  );
   if (files.length === 0) return 'none';
 
   const names = files.map((file) => path.basename(file)).join(', ');
@@ -82,7 +90,9 @@ function gitignoreSummary(survey: InitSurvey): string {
   if (!survey.gitRepository) return 'not a git repository';
   // Tracked outranks ignored: a committed file is the state .gitignore cannot fix.
   if (survey.localConfigTracked) return 'agent-reference.local.json COMMITTED; it needs untracking';
-  return survey.localConfigIgnored ? 'agent-reference.local.json ignored' : 'agent-reference.local.json NOT ignored';
+  return survey.localConfigIgnored
+    ? 'agent-reference.local.json ignored'
+    : 'agent-reference.local.json NOT ignored';
 }
 
 function instructionSummary(survey: InitSurvey): string {
@@ -118,7 +128,7 @@ function skillStep(survey: InitSurvey): string {
     // Installed rather than copied, wherever it can be: the installer records where the
     // file came from, so a later `skills update` refreshes it. A copy has no such record,
     // and the skill is the artifact that changes most.
-    'Install it with: npx skills add mutewinter/agent-reference'
+    'Install it with: npx skills add mutewinter/agent-reference',
   ];
 
   if (survey.skill.source) {
@@ -134,7 +144,7 @@ function miningStep(survey: InitSurvey): string {
     return [
       `No transcript store turned up under ${survey.home}`,
       'Check whether the agent you are running keeps one elsewhere. Failing that, ask the user which',
-      'repositories, folders, and documents they point agents at from this project, then go to step 3.'
+      'repositories, folders, and documents they point agents at from this project, then go to step 3.',
     ].join('\n');
   }
 
@@ -147,7 +157,7 @@ function miningStep(survey: InitSurvey): string {
     'targets outside this project, owner/repo mentions, and git URLs.',
     'Rank by how many distinct sessions name a target, not by how often it appears within any one.',
     'Rank a target up when a session shows the agent guessing at where it lives, or reaching it in',
-    'more than one attempt. An ambiguous name is exactly what a declared reference resolves.'
+    'more than one attempt. An ambiguous name is exactly what a declared reference resolves.',
   ].join('\n');
 }
 
@@ -163,21 +173,21 @@ function proposeStep(): string {
     'committed agent-reference.json.',
     'Do not propose paths inside this project unless the mining shows the user pointing agents at',
     'that subtree again and again. An in-repo path earns a reference when the description carries',
-    'the value, not the path.'
+    'the value, not the path.',
   ].join('\n');
 }
 
 function writeStep(survey: InitSurvey): string {
   const lines = [
     'Write the JSON yourself; there are no commands that edit config. agent-reference schema prints',
-    'the format.'
+    'the format.',
   ];
 
   if (survey.localConfigTracked) {
     lines.push(
       'agent-reference.local.json is committed. Adding it to .gitignore will not help, because git',
       'ignores nothing it already tracks. Run: git rm --cached agent-reference.local.json, list it in',
-      '.gitignore, then commit. Tell the user that what it already held is in the history regardless.'
+      '.gitignore, then commit. Tell the user that what it already held is in the history regardless.',
     );
   } else if (survey.gitRepository && !survey.localConfigIgnored) {
     lines.push('Add agent-reference.local.json to .gitignore; it is not ignored yet.');
@@ -193,7 +203,7 @@ function showStep(): string {
     'Quote that output verbatim in your reply, not a summary of it and not a claim that it ran.',
     'The user may never see a tool result, and this is the point of the exercise: they see',
     'exactly what their agent will see from here on. Then ask which entries belong in the',
-    'shared file.'
+    'shared file.',
   ].join('\n');
 }
 
@@ -202,12 +212,14 @@ function instructionStep(survey: InitSurvey): string {
     return [
       'No agent instruction file here. Ask the user which file their agent reads, or create AGENTS.md',
       'holding one sentence: this project declares references in agent-reference.json and',
-      'agent-reference.local.json, and agent-reference status lists them.'
+      'agent-reference.local.json, and agent-reference status lists them.',
     ].join('\n');
   }
 
   const written = new Set(
-    survey.instructionFiles.filter((file) => file.mentionsAgentReference).map((file) => file.linkTarget ?? file.file)
+    survey.instructionFiles
+      .filter((file) => file.mentionsAgentReference)
+      .map((file) => file.linkTarget ?? file.file),
   );
   const unwritten = survey.editTargets.filter((target) => !written.has(target));
 
@@ -218,11 +230,13 @@ function instructionStep(survey: InitSurvey): string {
   const lines = [
     `Add one sentence to ${unwritten.join(', ')}: this project declares references in`,
     'agent-reference.json and agent-reference.local.json, and agent-reference status lists them.',
-    'One sentence, not a section. It is what finds the tool in a session where the skill never loads.'
+    'One sentence, not a section. It is what finds the tool in a session where the skill never loads.',
   ];
 
   for (const link of survey.instructionFiles.filter((file) => file.linkTarget)) {
-    lines.push(`${link.file} is a symlink to ${link.linkTarget}; edit the target once, not both names.`);
+    lines.push(
+      `${link.file} is a symlink to ${link.linkTarget}; edit the target once, not both names.`,
+    );
   }
 
   return lines.join('\n');
@@ -232,7 +246,9 @@ function instructionStep(survey: InitSurvey): string {
 function indentStep(step: number, text: string): string {
   const [first, ...rest] = text.split('\n');
   const label = `  ${step}. `;
-  return [`${label}${first}`, ...rest.map((line) => `${' '.repeat(label.length)}${line}`)].join('\n');
+  return [`${label}${first}`, ...rest.map((line) => `${' '.repeat(label.length)}${line}`)].join(
+    '\n',
+  );
 }
 
 function columns(rows: string[][], indent: number): string[] {

@@ -32,7 +32,7 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
  * repository knows and the bundle does not, and a user asking it is not unusual.
  */
 const DEFAULT_TURNS = [
-  'The country field in src/ShippingForm.tsx is a plain select and there are far too many countries to scroll through. Swap it for acme-ui\'s searchable combobox, matching the way the rest of the form is built. Tell me what you changed, and anything I should know about the API you used.'
+  "The country field in src/ShippingForm.tsx is a plain select and there are far too many countries to scroll through. Swap it for acme-ui's searchable combobox, matching the way the rest of the form is built. Tell me what you changed, and anything I should know about the API you used.",
 ];
 const TIMEOUT_MS = 15 * 60 * 1000;
 
@@ -47,7 +47,7 @@ const INHERITED_SESSION_VARS = [
   'CLAUDE_CODE_EXECPATH',
   'CLAUDE_PID',
   'CLAUDE_EFFORT',
-  'CLAUDE_AGENT_SDK_VERSION'
+  'CLAUDE_AGENT_SDK_VERSION',
 ];
 
 const options = parseArgs(process.argv.slice(2));
@@ -61,7 +61,7 @@ const registry = await startRegistry(upstreamPath);
 const storeDir = path.join(runDir, 'store');
 await fs.writeFile(
   path.join(projectRoot, 'agent-reference.local.json'),
-  `${JSON.stringify({ registry: registry.url, cacheDir: storeDir }, null, 2)}\n`
+  `${JSON.stringify({ registry: registry.url, cacheDir: storeDir }, null, 2)}\n`,
 );
 
 await execFileAsync('git', ['init', '-q', projectRoot]);
@@ -75,7 +75,7 @@ await execFileAsync('git', [
   'user.name=Eval',
   'commit',
   '-qm',
-  'checkout: initial'
+  'checkout: initial',
 ]);
 
 const binDir = await writeShims(runDir, home);
@@ -100,17 +100,26 @@ await fs.writeFile(path.join(runDir, 'result.json'), `${JSON.stringify(result, n
 await snapshot(projectRoot, path.join(runDir, 'after'));
 
 const transcript = result?.session_id
-  ? path.join(os.homedir(), '.claude', 'projects', projectRoot.replaceAll(/[^A-Za-z0-9]/g, '-'), `${result.session_id}.jsonl`)
+  ? path.join(
+      os.homedir(),
+      '.claude',
+      'projects',
+      projectRoot.replaceAll(/[^A-Za-z0-9]/g, '-'),
+      `${result.session_id}.jsonl`,
+    )
   : null;
 await fs.writeFile(
   path.join(runDir, 'run.json'),
-  `${JSON.stringify({ runDir, home, projectRoot, storeDir, upstreamPath, transcript, model: options.model, turns: options.turns }, null, 2)}\n`
+  `${JSON.stringify({ runDir, home, projectRoot, storeDir, upstreamPath, transcript, model: options.model, turns: options.turns }, null, 2)}\n`,
 );
 
 console.log(`\ndone in ${elapsed}s, ${result?.num_turns ?? '?'} turns`);
-if (typeof result?.total_cost_usd === 'number') console.log(`cost: $${result.total_cost_usd.toFixed(4)}`);
+if (typeof result?.total_cost_usd === 'number')
+  console.log(`cost: $${result.total_cost_usd.toFixed(4)}`);
 console.log(`transcript: ${transcript ?? 'unknown'}`);
-console.log(`\nonly the repository answers: ${Object.values(EXPECTED.onlyFromRepository).join('; ')}`);
+console.log(
+  `\nonly the repository answers: ${Object.values(EXPECTED.onlyFromRepository).join('; ')}`,
+);
 console.log(`grade with: node evals/adopt/grade.mjs`);
 
 async function runAgent({ binDir, projectRoot, model, turns }) {
@@ -130,10 +139,23 @@ async function runAgent({ binDir, projectRoot, model, turns }) {
 }
 
 async function oneTurn({ env, projectRoot, model, turn, resume }) {
-  const args = [...resume, '--print', '--model', model, '--dangerously-skip-permissions', '--output-format', 'json', turn];
+  const args = [
+    ...resume,
+    '--print',
+    '--model',
+    model,
+    '--dangerously-skip-permissions',
+    '--output-format',
+    'json',
+    turn,
+  ];
 
   return await new Promise((resolve, reject) => {
-    const child = spawn('claude', args, { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'inherit'] });
+    const child = spawn('claude', args, {
+      cwd: projectRoot,
+      env,
+      stdio: ['ignore', 'pipe', 'inherit'],
+    });
     const chunks = [];
     const timer = setTimeout(() => child.kill('SIGKILL'), TIMEOUT_MS);
 
@@ -165,7 +187,7 @@ async function writeShims(runDir, home) {
   await fs.writeFile(
     path.join(binDir, 'agent-reference'),
     `#!/bin/sh\nHOME=${JSON.stringify(home)} exec node ${JSON.stringify(path.join(repoRoot, 'dist', 'cli.js'))} "$@"\n`,
-    { mode: 0o755 }
+    { mode: 0o755 },
   );
   await fs.writeFile(
     path.join(binDir, 'npx'),
@@ -175,9 +197,9 @@ async function writeShims(runDir, home) {
       'while [ "$1" = "-y" ] || [ "$1" = "--yes" ]; do shift; done',
       'cmd=$(printf %s "$1" | sed "s/@[^@]*$//"); shift',
       'exec "$cmd" "$@"',
-      ''
+      '',
     ].join('\n'),
-    { mode: 0o755 }
+    { mode: 0o755 },
   );
 
   return binDir;
@@ -191,7 +213,7 @@ async function snapshot(projectRoot, destination) {
     filter: (source) =>
       !source.includes(`${path.sep}.git${path.sep}`) &&
       !source.endsWith(`${path.sep}.git`) &&
-      !source.includes(`${path.sep}node_modules`)
+      !source.includes(`${path.sep}node_modules`),
   });
 }
 
@@ -206,5 +228,8 @@ function parseArgs(argv) {
 }
 
 function stamp() {
-  return new Date().toISOString().replaceAll(/[-:]/g, '').replace(/\.\d+Z$/, '');
+  return new Date()
+    .toISOString()
+    .replaceAll(/[-:]/g, '')
+    .replace(/\.\d+Z$/, '');
 }

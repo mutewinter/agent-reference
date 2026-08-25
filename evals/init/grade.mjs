@@ -30,38 +30,65 @@ const transcriptGrep = commands.filter((command) => /\.claude\/projects|\.jsonl/
 report('run', runDir);
 report('model', Object.keys(result?.modelUsage ?? {}).join(', ') || (run?.model ?? 'unknown'));
 report('turns', String(result?.num_turns ?? '?'));
-report('cost', typeof result?.total_cost_usd === 'number' ? `$${result.total_cost_usd.toFixed(4)}` : 'unknown');
+report(
+  'cost',
+  typeof result?.total_cost_usd === 'number' ? `$${result.total_cost_usd.toFixed(4)}` : 'unknown',
+);
 
 section('did the brief get carried out');
 check('wrote agent-reference.local.json', local !== null);
-check('left agent-reference.json alone', shared === null, 'anything shared should have been asked about first');
-check('added the gitignore line', ((await read(path.join(projectRoot, '.gitignore'))) ?? '').includes('agent-reference.local.json'));
-check('ran validate', commands.some((command) => /agent-reference\S*\s+validate/.test(command)));
-check('ran status', commands.some((command) => /agent-reference\S*\s+status/.test(command)));
+check(
+  'left agent-reference.json alone',
+  shared === null,
+  'anything shared should have been asked about first',
+);
+check(
+  'added the gitignore line',
+  ((await read(path.join(projectRoot, '.gitignore'))) ?? '').includes('agent-reference.local.json'),
+);
+check(
+  'ran validate',
+  commands.some((command) => /agent-reference\S*\s+validate/.test(command)),
+);
+check(
+  'ran status',
+  commands.some((command) => /agent-reference\S*\s+status/.test(command)),
+);
 check(
   'quoted status output in the reply',
-  /agent-reference\.local\.json \(this machine\)|nothing fetched until needed/.test(result?.result ?? ''),
-  'a tool result is not something the user sees'
+  /agent-reference\.local\.json \(this machine\)|nothing fetched until needed/.test(
+    result?.result ?? '',
+  ),
+  'a tool result is not something the user sees',
 );
 // Either location satisfies the brief; which one is the user's answer, not a grade.
 const skillPaths = [
   path.join(home, '.claude', 'skills', 'agent-reference'),
-  path.join(projectRoot, '.agents', 'skills', 'agent-reference')
+  path.join(projectRoot, '.agents', 'skills', 'agent-reference'),
 ];
 const skillAt = [];
 for (const candidate of skillPaths) if (await exists(candidate)) skillAt.push(candidate);
-check(`installed the skill${skillAt.length > 0 ? ` (${skillAt.join(', ')})` : ''}`, skillAt.length > 0);
+check(
+  `installed the skill${skillAt.length > 0 ? ` (${skillAt.join(', ')})` : ''}`,
+  skillAt.length > 0,
+);
 // The skill on disk is a stub by design, so a run that installs it and stops has only done
 // half of step one; the rest of the instructions come from the CLI.
-check('read the served guide', commands.some((command) => /agent-reference\S*\s+guide/.test(command)));
+check(
+  'read the served guide',
+  commands.some((command) => /agent-reference\S*\s+guide/.test(command)),
+);
 check(
   'added one sentence to AGENTS.md',
-  ((await read(path.join(projectRoot, 'AGENTS.md'))) ?? '').includes('agent-reference')
+  ((await read(path.join(projectRoot, 'AGENTS.md'))) ?? '').includes('agent-reference'),
 );
 
 section('ranking: expected to surface');
 for (const entry of EXPECTED.strong) {
-  check(`${entry.name} (${entry.sessions} sessions, ${entry.kind})`, configText.includes(entry.name));
+  check(
+    `${entry.name} (${entry.sessions} sessions, ${entry.kind})`,
+    configText.includes(entry.name),
+  );
 }
 
 section('ranking: expected to skip');
@@ -79,7 +106,7 @@ check('mined the transcript store at all', transcriptGrep.length > 0);
 check(
   'counted outside the context window',
   transcriptGrep.some((command) => /rg |grep |sort |uniq |awk |jq |python3|node /.test(command)),
-  'no command that could rank without reading the sessions in'
+  'no command that could rank without reading the sessions in',
 );
 check('kept tool output under 100k chars', toolResultChars(records) < 100_000);
 
@@ -96,7 +123,13 @@ function toolResultChars(records) {
   return records
     .flatMap((record) => (Array.isArray(record?.message?.content) ? record.message.content : []))
     .filter((block) => block.type === 'tool_result')
-    .reduce((total, block) => total + (typeof block.content === 'string' ? block.content : JSON.stringify(block.content ?? '')).length, 0);
+    .reduce(
+      (total, block) =>
+        total +
+        (typeof block.content === 'string' ? block.content : JSON.stringify(block.content ?? ''))
+          .length,
+      0,
+    );
 }
 
 function toolCommands(record) {
@@ -104,7 +137,10 @@ function toolCommands(record) {
   if (!Array.isArray(content)) return [];
   return content
     .filter((block) => block.type === 'tool_use')
-    .map((block) => block.input?.command ?? `${block.name} ${JSON.stringify(block.input ?? {}).slice(0, 120)}`);
+    .map(
+      (block) =>
+        block.input?.command ?? `${block.name} ${JSON.stringify(block.input ?? {}).slice(0, 120)}`,
+    );
 }
 
 async function readTranscript(file) {
@@ -126,7 +162,8 @@ async function readTranscript(file) {
 async function newestRun() {
   const entries = await fs.readdir(EVAL_ROOT).catch(() => []);
   const runs = entries.filter((entry) => entry.startsWith('init-')).toSorted();
-  if (runs.length === 0) throw new Error(`No runs under ${EVAL_ROOT}. Run evals/init/run.mjs first.`);
+  if (runs.length === 0)
+    throw new Error(`No runs under ${EVAL_ROOT}. Run evals/init/run.mjs first.`);
   return path.join(EVAL_ROOT, runs.at(-1));
 }
 

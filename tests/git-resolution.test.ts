@@ -19,8 +19,10 @@ test('fails with an actionable message when git cannot be run', async () => {
 
   try {
     await assert.rejects(
-      cloneReferences(path.join(projectRoot, 'package.json'), { storeDir: path.join(tempDir, 'store') }),
-      /git is required to materialize references.*Install git/s
+      cloneReferences(path.join(projectRoot, 'package.json'), {
+        storeDir: path.join(tempDir, 'store'),
+      }),
+      /git is required to materialize references.*Install git/s,
     );
   } finally {
     process.env.PATH = realPath;
@@ -36,10 +38,10 @@ test('checks out the commit whose package.json matches, not a same-numbered mono
         name: '@scope/thing',
         version: '1.0.0',
         // Deliberately wrong, the way stale npm metadata often is.
-        repository: { type: 'git', url: source.path, directory: 'packages/wrong' }
-      }
+        repository: { type: 'git', url: source.path, directory: 'packages/wrong' },
+      },
     },
-    storeDir: path.join(tempDir, 'store')
+    storeDir: path.join(tempDir, 'store'),
   });
 
   const cloned = result.cloned[0];
@@ -51,13 +53,15 @@ test('checks out the commit whose package.json matches, not a same-numbered mono
 
   // The repository root is checked out, but the useful path is the package directory.
   assert.equal(cloned?.packagePath, path.join(cloned?.worktreePath ?? '', 'packages/thing'));
-  const manifest = JSON.parse(await fs.readFile(path.join(cloned?.packagePath ?? '', 'package.json'), 'utf8')) as {
+  const manifest = JSON.parse(
+    await fs.readFile(path.join(cloned?.packagePath ?? '', 'package.json'), 'utf8'),
+  ) as {
     version: string;
   };
   assert.equal(manifest.version, '1.0.0');
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
-    storeDir: path.join(tempDir, 'store')
+    storeDir: path.join(tempDir, 'store'),
   });
   const entry = report.references.find((reference) => reference.name === '@scope/thing');
   assert.equal(entry?.status, 'ready');
@@ -74,10 +78,10 @@ test('falls back to the default branch and flags the checkout as unverified', as
       '@scope/thing@9.9.9': {
         name: '@scope/thing',
         version: '9.9.9',
-        repository: { type: 'git', url: source.path, directory: 'packages/thing' }
-      }
+        repository: { type: 'git', url: source.path, directory: 'packages/thing' },
+      },
     },
-    storeDir: path.join(tempDir, 'store')
+    storeDir: path.join(tempDir, 'store'),
   });
 
   assert.equal(result.cloned[0]?.refSource, 'defaultBranch');
@@ -93,7 +97,9 @@ test('advances cached branch refs when the upstream default branch moves', async
 
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ git: { tooling: { repository: `file:${path.relative(projectRoot, source)}`, ref: 'main' } } })
+    JSON.stringify({
+      git: { tooling: { repository: `file:${path.relative(projectRoot, source)}`, ref: 'main' } },
+    }),
   );
 
   const storeDir = path.join(tempDir, 'store');
@@ -115,7 +121,7 @@ test('two subtrees of one monorepo are two references into one checkout', async 
   const { projectRoot, storeDir, sourcePath } = await createSubtreeScenario('subtrees');
   await declareSubtrees(projectRoot, sourcePath, {
     'design-system': 'packages/design-system',
-    'api-client': 'packages/api-client'
+    'api-client': 'packages/api-client',
   });
 
   const result = await cloneReferences(path.join(projectRoot, 'package.json'), { storeDir });
@@ -126,7 +132,10 @@ test('two subtrees of one monorepo are two references into one checkout', async 
   // The store keys a checkout on repository and sha, so declaring the subtrees separately
   // costs one clone, not two. That is what makes flat entries the right shape here.
   assert.equal(design?.worktreePath, api?.worktreePath);
-  assert.equal(design?.referencePath, path.join(design?.worktreePath ?? '', 'packages/design-system'));
+  assert.equal(
+    design?.referencePath,
+    path.join(design?.worktreePath ?? '', 'packages/design-system'),
+  );
   assert.equal(api?.referencePath, path.join(api?.worktreePath ?? '', 'packages/api-client'));
   assert.equal(design?.directoryMissing, false);
   assert.deepEqual(result.problems, []);
@@ -167,7 +176,7 @@ test('a subtree that upstream moved is reported, and the checkout root is still 
 });
 
 async function createSubtreeScenario(
-  label: string
+  label: string,
 ): Promise<{ projectRoot: string; storeDir: string; sourcePath: string }> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), `agent-reference-${label}-test-`));
   const projectRoot = await copyFixtureProject(tempDir);
@@ -176,7 +185,7 @@ async function createSubtreeScenario(
   await writeFiles(sourcePath, {
     'package.json': JSON.stringify({ name: 'monorepo', version: '0.0.0', private: true }),
     'packages/design-system/tokens.css': ':root { --brand: #0e7869; }\n',
-    'packages/api-client/index.js': 'export const client = 1;\n'
+    'packages/api-client/index.js': 'export const client = 1;\n',
   });
   await commit(sourcePath, 'two packages');
 
@@ -190,20 +199,20 @@ async function createSubtreeScenario(
 async function declareSubtrees(
   projectRoot: string,
   sourcePath: string,
-  directories: Record<string, string>
+  directories: Record<string, string>,
 ): Promise<void> {
   const git = Object.fromEntries(
     Object.entries(directories).map(([name, directory]) => [
       name,
-      { repository: `file:${sourcePath}`, directory }
-    ])
+      { repository: `file:${sourcePath}`, directory },
+    ]),
   );
   await fs.writeFile(path.join(projectRoot, 'agent-reference.local.json'), JSON.stringify({ git }));
 }
 
 async function createMonorepoScenario(
   label: string,
-  requestedVersion = '1.0.0'
+  requestedVersion = '1.0.0',
 ): Promise<{
   projectRoot: string;
   tempDir: string;
@@ -213,21 +222,21 @@ async function createMonorepoScenario(
   const projectRoot = await copyFixtureProject(tempDir);
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ packages: { '@scope/thing': requestedVersion } })
+    JSON.stringify({ packages: { '@scope/thing': requestedVersion } }),
   );
 
   const sourcePath = await initRepo(path.join(tempDir, 'monorepo-source'));
   await writeFiles(sourcePath, {
     'package.json': JSON.stringify({ name: 'monorepo', version: '0.0.0', private: true }),
     'packages/thing/package.json': JSON.stringify({ name: '@scope/thing', version: '1.0.0' }),
-    'packages/thing/index.js': 'export const thing = 1;\n'
+    'packages/thing/index.js': 'export const thing = 1;\n',
   });
   const firstCommit = await commit(sourcePath, 'thing 1.0.0');
   await tag(sourcePath, 'release-thing-1.0.0');
 
   await writeFiles(sourcePath, {
     'packages/thing/package.json': JSON.stringify({ name: '@scope/thing', version: '2.0.0' }),
-    'packages/thing/index.js': 'export const thing = 2;\n'
+    'packages/thing/index.js': 'export const thing = 2;\n',
   });
   const decoyCommit = await commit(sourcePath, 'thing 2.0.0');
   await tag(sourcePath, 'v1.0.0');

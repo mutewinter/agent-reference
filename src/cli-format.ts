@@ -24,11 +24,11 @@ export function formatGetResults(results: GetReferenceResult[], options: CliForm
   for (const result of results) {
     if (result.kind === 'package') {
       lines.push(
-        `${formatCoordinate(result.name, result.version)} -> ${show(result.path)} (${result.confidence}, ${result.refSource} ${sanitizeRelayedLine(result.checkoutRef ?? '')})`
+        `${formatCoordinate(result.name, result.version)} -> ${show(result.path)} (${result.confidence}, ${result.refSource} ${sanitizeRelayedLine(result.checkoutRef ?? '')})`,
       );
     } else if (result.kind === 'git') {
       lines.push(
-        `${sanitizeRelayedLine(result.requested)} -> ${show(result.path)} (${sanitizeRelayedLine(result.checkoutRef ?? '')} @ ${result.checkoutSha?.slice(0, 12)})`
+        `${sanitizeRelayedLine(result.requested)} -> ${show(result.path)} (${sanitizeRelayedLine(result.checkoutRef ?? '')} @ ${result.checkoutSha?.slice(0, 12)})`,
       );
     } else {
       lines.push(`${result.name} -> ${show(result.path)}`);
@@ -41,24 +41,32 @@ export function formatGetResults(results: GetReferenceResult[], options: CliForm
   return `${lines.join('\n')}\n`;
 }
 
-export function formatCloneResult(result: CloneReferencesResult, options: CliFormatOptions): string {
+export function formatCloneResult(
+  result: CloneReferencesResult,
+  options: CliFormatOptions,
+): string {
   const show = (value: string | null): string => displayPath(value, options);
   const lines = [
     ...result.cloned.map(
       (clone) =>
         // A ref is a tag out of a third-party repository or a gitHead out of registry
         // metadata, so it is relayed text here exactly as it is under `get`.
-        `${dependencyKey(clone.dependency.name, clone.dependency.version)} -> ${show(clone.packagePath)} (${clone.confidence}, ${clone.refSource} ${sanitizeRelayedLine(clone.checkoutRef)})`
+        `${dependencyKey(clone.dependency.name, clone.dependency.version)} -> ${show(clone.packagePath)} (${clone.confidence}, ${clone.refSource} ${sanitizeRelayedLine(clone.checkoutRef)})`,
     ),
     ...result.skipped.map(
-      (skip) => `${skip.version ? dependencyKey(skip.name, skip.version) : skip.name} skipped: ${skip.reason}`
+      (skip) =>
+        `${skip.version ? dependencyKey(skip.name, skip.version) : skip.name} skipped: ${skip.reason}`,
     ),
     ...result.clonedGit.map((clone) => `git:${clone.name} -> ${show(clone.referencePath)}`),
     ...result.paths.map((name) => `path:${name} is already local, nothing to clone`),
     `state -> ${show(result.manifestPath)}`,
     ...(result.problems.length > 0
-      ? ['', `problems:\n${result.problems.map(formatProblem).join('\n')}`, `  ${KEEP_REFERENCE_NOTE}`]
-      : [])
+      ? [
+          '',
+          `problems:\n${result.problems.map(formatProblem).join('\n')}`,
+          `  ${KEEP_REFERENCE_NOTE}`,
+        ]
+      : []),
   ];
   return `${lines.join('\n')}\n`;
 }
@@ -74,7 +82,7 @@ export function formatStoreReport(report: StoreReport, options: CliFormatOptions
   const rows = report.repositories.map((repository) => [
     repository.name,
     formatBytes(repository.totalBytes),
-    `${repository.checkouts.length} checkout${repository.checkouts.length === 1 ? '' : 's'}`
+    `${repository.checkouts.length} checkout${repository.checkouts.length === 1 ? '' : 's'}`,
   ]);
   const width = Math.max(...rows.map((row) => row[0]?.length ?? 0));
   const size = Math.max(...rows.map((row) => row[1]?.length ?? 0));
@@ -84,25 +92,33 @@ export function formatStoreReport(report: StoreReport, options: CliFormatOptions
 
   lines.push('', `total ${formatBytes(report.totalBytes)}`);
   if (report.removed.length > 0) {
-    lines.push(`removed ${report.removed.length}, reclaiming ${formatBytes(report.reclaimedBytes)}`);
+    lines.push(
+      `removed ${report.removed.length}, reclaiming ${formatBytes(report.reclaimedBytes)}`,
+    );
   } else {
-    lines.push('Everything here is a cache: agent-reference store --prune trims it, and clone rebuilds.');
+    lines.push(
+      'Everything here is a cache: agent-reference store --prune trims it, and clone rebuilds.',
+    );
   }
 
   return `${lines.join('\n')}\n`;
 }
 
-export function formatValidationReport(report: ValidationReport, options: CliFormatOptions): string {
+export function formatValidationReport(
+  report: ValidationReport,
+  options: CliFormatOptions,
+): string {
   const lines = [
     ...report.errors.map((error) => `error: ${error}`),
-    ...report.warnings.map((warning) => `warning: ${warning}`)
+    ...report.warnings.map((warning) => `warning: ${warning}`),
   ];
 
   if (report.valid) {
-    const references = report.references.length === 1 ? '1 reference' : `${report.references.length} references`;
+    const references =
+      report.references.length === 1 ? '1 reference' : `${report.references.length} references`;
     const sets = report.sets.length === 1 ? '1 set' : `${report.sets.length} sets`;
     lines.push(
-      `ok: ${displayPath(report.configPath ?? report.localConfigPath, options)} defines ${references} in ${sets}.`
+      `ok: ${displayPath(report.configPath ?? report.localConfigPath, options)} defines ${references} in ${sets}.`,
     );
   }
 

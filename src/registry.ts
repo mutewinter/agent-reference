@@ -2,7 +2,7 @@ import semver from 'semver';
 
 import {
   repositoryDirectoryFromManifestRepository,
-  repositoryUrlFromManifestRepository
+  repositoryUrlFromManifestRepository,
 } from './repository.ts';
 import type { DependencyMetadata, NpmPackageManifest, RegistryOptions } from './types.ts';
 
@@ -13,7 +13,7 @@ interface Packument {
 
 export async function resolvePackageMetadata(
   dependency: { name: string; version: string },
-  options: RegistryOptions = {}
+  options: RegistryOptions = {},
 ): Promise<DependencyMetadata> {
   const key = `${dependency.name}@${dependency.version}`;
   const mapped = options.metadataMap?.[key];
@@ -22,7 +22,7 @@ export async function resolvePackageMetadata(
   const manifest = await fetchRegistryJson<NpmPackageManifest>(
     `${encodePackageName(dependency.name)}/${dependency.version}`,
     options,
-    `Registry lookup failed for ${key}`
+    `Registry lookup failed for ${key}`,
   );
   return toDependencyMetadata(manifest);
 }
@@ -30,7 +30,7 @@ export async function resolvePackageMetadata(
 export async function resolveRegistryVersion(
   name: string,
   specifier: string,
-  options: RegistryOptions = {}
+  options: RegistryOptions = {},
 ): Promise<string> {
   const exact = semver.valid(specifier);
   if (exact) return exact;
@@ -38,7 +38,7 @@ export async function resolveRegistryVersion(
   const packument = await fetchRegistryJson<Packument>(
     encodePackageName(name),
     options,
-    `Registry version lookup failed for ${name}`
+    `Registry version lookup failed for ${name}`,
   );
 
   const distTagVersion = packument['dist-tags']?.[specifier];
@@ -57,11 +57,15 @@ function toDependencyMetadata(manifest: NpmPackageManifest): DependencyMetadata 
   return {
     repositoryUrl: repositoryUrlFromManifestRepository(manifest.repository ?? null),
     repositoryDirectory: repositoryDirectoryFromManifestRepository(manifest.repository ?? null),
-    gitHead: manifest.gitHead ?? null
+    gitHead: manifest.gitHead ?? null,
   };
 }
 
-async function fetchRegistryJson<T>(resource: string, options: RegistryOptions, errorPrefix: string): Promise<T> {
+async function fetchRegistryJson<T>(
+  resource: string,
+  options: RegistryOptions,
+  errorPrefix: string,
+): Promise<T> {
   const fetchImpl = options.fetchImpl ?? globalThis.fetch;
   if (!fetchImpl) {
     throw new Error('No fetch implementation is available for npm registry metadata.');
@@ -70,8 +74,8 @@ async function fetchRegistryJson<T>(resource: string, options: RegistryOptions, 
   const registry = (options.registry ?? 'https://registry.npmjs.org').replace(/\/+$/, '');
   const response = await fetchImpl(`${registry}/${resource}`, {
     headers: {
-      accept: 'application/vnd.npm.install-v1+json, application/json'
-    }
+      accept: 'application/vnd.npm.install-v1+json, application/json',
+    },
   });
 
   if (!response.ok) {

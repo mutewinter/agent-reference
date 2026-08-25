@@ -30,7 +30,7 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
  * gives any.
  */
 const DEFAULT_TURNS = [
-  'I want to be able to read the real upstream source of this project\'s dependencies. Use agent-reference to get every dependency in apps/studio checked out and readable, and tell me where each one landed. Some of them will not resolve on the first try; work through whatever it reports until each one is either correct or you can explain why it cannot be.'
+  "I want to be able to read the real upstream source of this project's dependencies. Use agent-reference to get every dependency in apps/studio checked out and readable, and tell me where each one landed. Some of them will not resolve on the first try; work through whatever it reports until each one is either correct or you can explain why it cannot be.",
 ];
 const TIMEOUT_MS = 15 * 60 * 1000;
 
@@ -45,7 +45,7 @@ const INHERITED_SESSION_VARS = [
   'CLAUDE_CODE_EXECPATH',
   'CLAUDE_PID',
   'CLAUDE_EFFORT',
-  'CLAUDE_AGENT_SDK_VERSION'
+  'CLAUDE_AGENT_SDK_VERSION',
 ];
 
 const options = parseArgs(process.argv.slice(2));
@@ -58,12 +58,22 @@ const registry = await startRegistry(repos);
 const storeDir = path.join(runDir, 'store');
 await fs.writeFile(
   path.join(projectRoot, 'agent-reference.json'),
-  `${JSON.stringify({ registry: registry.url, cacheDir: storeDir }, null, 2)}\n`
+  `${JSON.stringify({ registry: registry.url, cacheDir: storeDir }, null, 2)}\n`,
 );
 
 await execFileAsync('git', ['init', '-q', projectRoot]);
 await execFileAsync('git', ['-C', projectRoot, 'add', '-A']);
-await execFileAsync('git', ['-C', projectRoot, '-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', 'studio: initial']);
+await execFileAsync('git', [
+  '-C',
+  projectRoot,
+  '-c',
+  'user.email=eval@example.com',
+  '-c',
+  'user.name=Eval',
+  'commit',
+  '-qm',
+  'studio: initial',
+]);
 
 const binDir = await writeShims(runDir, home);
 await snapshot(projectRoot, path.join(runDir, 'before'));
@@ -86,18 +96,27 @@ await fs.writeFile(path.join(runDir, 'result.json'), `${JSON.stringify(result, n
 await snapshot(projectRoot, path.join(runDir, 'after'));
 
 const transcript = result?.session_id
-  ? path.join(os.homedir(), '.claude', 'projects', projectRoot.replaceAll(/[^A-Za-z0-9]/g, '-'), `${result.session_id}.jsonl`)
+  ? path.join(
+      os.homedir(),
+      '.claude',
+      'projects',
+      projectRoot.replaceAll(/[^A-Za-z0-9]/g, '-'),
+      `${result.session_id}.jsonl`,
+    )
   : null;
 await fs.writeFile(
   path.join(runDir, 'run.json'),
-  `${JSON.stringify({ runDir, home, projectRoot, storeDir, transcript, model: options.model, turns: options.turns }, null, 2)}\n`
+  `${JSON.stringify({ runDir, home, projectRoot, storeDir, transcript, model: options.model, turns: options.turns }, null, 2)}\n`,
 );
 
 console.log(`\ndone in ${elapsed}s, ${result?.num_turns ?? '?'} turns`);
-if (typeof result?.total_cost_usd === 'number') console.log(`cost: $${result.total_cost_usd.toFixed(4)}`);
+if (typeof result?.total_cost_usd === 'number')
+  console.log(`cost: $${result.total_cost_usd.toFixed(4)}`);
 console.log(`transcript: ${transcript ?? 'unknown'}`);
 console.log(`\ncases: ${EXPECTED.cases.map((entry) => entry.name).join(', ')}`);
-console.log(`\nconfig it left behind:\n${await readIfPresent(projectRoot, 'agent-reference.json')}`);
+console.log(
+  `\nconfig it left behind:\n${await readIfPresent(projectRoot, 'agent-reference.json')}`,
+);
 console.log(`grade with: node evals/resolve/grade.mjs`);
 
 async function runAgent({ binDir, projectRoot, model, turns }) {
@@ -117,10 +136,23 @@ async function runAgent({ binDir, projectRoot, model, turns }) {
 }
 
 async function oneTurn({ env, projectRoot, model, turn, resume }) {
-  const args = [...resume, '--print', '--model', model, '--dangerously-skip-permissions', '--output-format', 'json', turn];
+  const args = [
+    ...resume,
+    '--print',
+    '--model',
+    model,
+    '--dangerously-skip-permissions',
+    '--output-format',
+    'json',
+    turn,
+  ];
 
   return await new Promise((resolve, reject) => {
-    const child = spawn('claude', args, { cwd: projectRoot, env, stdio: ['ignore', 'pipe', 'inherit'] });
+    const child = spawn('claude', args, {
+      cwd: projectRoot,
+      env,
+      stdio: ['ignore', 'pipe', 'inherit'],
+    });
     const chunks = [];
     const timer = setTimeout(() => child.kill('SIGKILL'), TIMEOUT_MS);
 
@@ -152,7 +184,7 @@ async function writeShims(runDir, home) {
   await fs.writeFile(
     path.join(binDir, 'agent-reference'),
     `#!/bin/sh\nHOME=${JSON.stringify(home)} exec node ${JSON.stringify(path.join(repoRoot, 'dist', 'cli.js'))} "$@"\n`,
-    { mode: 0o755 }
+    { mode: 0o755 },
   );
   await fs.writeFile(
     path.join(binDir, 'npx'),
@@ -162,9 +194,9 @@ async function writeShims(runDir, home) {
       'while [ "$1" = "-y" ] || [ "$1" = "--yes" ]; do shift; done',
       'cmd=$(printf %s "$1" | sed "s/@[^@]*$//"); shift',
       'exec "$cmd" "$@"',
-      ''
+      '',
     ].join('\n'),
-    { mode: 0o755 }
+    { mode: 0o755 },
   );
 
   return binDir;
@@ -175,7 +207,8 @@ async function snapshot(projectRoot, destination) {
   await fs.mkdir(path.dirname(destination), { recursive: true });
   await fs.cp(projectRoot, destination, {
     recursive: true,
-    filter: (source) => !source.includes(`${path.sep}.git${path.sep}`) && !source.endsWith(`${path.sep}.git`)
+    filter: (source) =>
+      !source.includes(`${path.sep}.git${path.sep}`) && !source.endsWith(`${path.sep}.git`),
   });
 }
 
@@ -194,5 +227,8 @@ function parseArgs(argv) {
 }
 
 function stamp() {
-  return new Date().toISOString().replaceAll(/[-:]/g, '').replace(/\.\d+Z$/, '');
+  return new Date()
+    .toISOString()
+    .replaceAll(/[-:]/g, '')
+    .replace(/\.\d+Z$/, '');
 }

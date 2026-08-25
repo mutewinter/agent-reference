@@ -17,11 +17,13 @@ test('scans exact dependency versions from a PNPM lockfile importer', async () =
 });
 
 test('resolves nested PNPM workspace importer from package.json path', async () => {
-  const dependencies = await scanProject(path.join(repoRoot, 'fixtures/pnpm-workspace/packages/app/package.json'));
+  const dependencies = await scanProject(
+    path.join(repoRoot, 'fixtures/pnpm-workspace/packages/app/package.json'),
+  );
 
   assert.deepEqual(
     dependencies.map((dependency) => `${dependency.name}@${dependency.version}`),
-    ['zod@4.0.17']
+    ['zod@4.0.17'],
   );
   assert.deepEqual(dependencies[0]?.importers, ['packages/app']);
 });

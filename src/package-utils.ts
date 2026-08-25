@@ -27,12 +27,7 @@ export function parsePackageAtVersion(value: string): { name: string; version: s
 
 export function tagCandidatesForDependency(name: string, version: string): string[] {
   const leafName = name.includes('/') ? (name.split('/').at(-1) ?? name) : name;
-  const candidates = [
-    `${name}@${version}`,
-    `${leafName}@${version}`,
-    `v${version}`,
-    version
-  ];
+  const candidates = [`${name}@${version}`, `${leafName}@${version}`, `v${version}`, version];
 
   return [...new Set(candidates)];
 }
@@ -54,14 +49,19 @@ export interface InstalledSelection {
 export function selectInstalledPackage(
   name: string,
   packages: PackageReference[],
-  importer: string
+  importer: string,
 ): InstalledSelection {
   // Workspace links are part of the answer to "what is installed" but never to "what should
   // be fetched": the source is already in the repository.
-  const candidates = packages.filter((entry) => entry.name === name && !isWorkspaceVersion(entry.version));
+  const candidates = packages.filter(
+    (entry) => entry.name === name && !isWorkspaceVersion(entry.version),
+  );
   if (candidates.length <= 1) return { match: candidates[0] ?? null, candidates };
 
-  return { match: candidates.find((entry) => entry.importers.includes(importer)) ?? null, candidates };
+  return {
+    match: candidates.find((entry) => entry.importers.includes(importer)) ?? null,
+    candidates,
+  };
 }
 
 export function mergeDependencyEntries(entries: PackageReference[]): PackageReference[] {
@@ -74,7 +74,7 @@ export function mergeDependencyEntries(entries: PackageReference[]): PackageRefe
       byKey.set(key, {
         ...entry,
         dependencyTypes: [...entry.dependencyTypes],
-        importers: [...entry.importers]
+        importers: [...entry.importers],
       });
       continue;
     }

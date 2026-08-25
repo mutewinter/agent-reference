@@ -175,7 +175,7 @@ export const samples = {
   }
 }`,
   },
-}
+};
 
 export const trees = {
   siblings: `~/code/acme/
@@ -216,7 +216,7 @@ export const trees = {
 \u2514\u2500\u2500 state/ # one file per project
     \u251C\u2500\u2500 web-a3f81c04.json
     \u2514\u2500\u2500 api-5c02e7d1.json`,
-}
+};
 
 /**
  * Terminal output, keyed so an example can name the block it pairs with. Not
@@ -278,7 +278,7 @@ agent-reference.json (shared)
     codex  git \u00B7 declared \u00B7 github:openai/codex
 
 package versions read from pnpm-lock.yaml`,
-}
+};
 
 /** The examples section, in the order somebody meets these problems. */
 export const examples = [
@@ -329,7 +329,7 @@ export const examples = [
     sample: 'kitchenSink',
     terminal: 'complex',
   },
-]
+];
 
 /**
  * Two configs and the disk they leave behind. The tree carries its own notes, so
@@ -348,8 +348,9 @@ export const howItWorks = {
     { file: 'api/agent-reference.json', sample: 'storeApi' },
   ],
   tree: 'store',
-  cache: 'All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.',
-}
+  cache:
+    'All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.',
+};
 
 /**
  * The page's own words, shared so the README says them too rather than keeping
@@ -374,20 +375,20 @@ export const copy = {
     heading: 'The commands',
     note: 'You will not need these. Your agent runs them. They are here anyway.',
   },
-}
+};
 
 /**
  * The one command that sets a project up. Short enough to retype off a link
  * preview, which is the only place it appears without something to copy it.
  */
-export const quickStart = 'npx agent-reference init'
+export const quickStart = 'npx agent-reference init';
 
 /** The one sentence a person hands their agent. The site and the README share it. */
-export const setupPrompt = `Set this project up for agent-reference: run \`${quickStart}\` and follow the brief it prints.`
+export const setupPrompt = `Set this project up for agent-reference: run \`${quickStart}\` and follow the brief it prints.`;
 
-export const cd = 'cd ~/code/acme/web'
-export const install = 'npm install -g agent-reference'
-export const prompt = 'Help me set up agent-reference'
+export const cd = 'cd ~/code/acme/web';
+export const install = 'npm install -g agent-reference';
+export const prompt = 'Help me set up agent-reference';
 
 /** Cycled in the install example, to say that no harness is special. */
-export const agents = ['claude', 'codex', 'opencode', 'pi']
+export const agents = ['claude', 'codex', 'opencode', 'pi'];

@@ -39,14 +39,14 @@ export function committedPathLeaks(config: AgentReferenceConfig): CommittedPathL
         reference: `path:${reference.name}`,
         severity: 'error',
         summary: `paths.${reference.name} puts the machine path ${reference.path} in the committed config.`,
-        fix: MOVE_FIX
+        fix: MOVE_FIX,
       });
     } else if (verdict === 'escapes') {
       leaks.push({
         reference: `path:${reference.name}`,
         severity: 'warning',
         summary: `paths.${reference.name} escapes the repo (${reference.path}).`,
-        fix: ESCAPE_FIX
+        fix: ESCAPE_FIX,
       });
     }
   }
@@ -64,25 +64,29 @@ export function committedPathLeaks(config: AgentReferenceConfig): CommittedPathL
         reference: `git:${reference.name}`,
         severity: 'error',
         summary: `git.${reference.name} points at the machine path ${reference.repository} in the committed config.`,
-        fix: MOVE_FIX
+        fix: MOVE_FIX,
       });
     } else if (verdict === 'escapes') {
       leaks.push({
         reference: `git:${reference.name}`,
         severity: 'warning',
         summary: `git.${reference.name} escapes the repo (${reference.repository}).`,
-        fix: ESCAPE_FIX
+        fix: ESCAPE_FIX,
       });
     }
   }
 
   // A relative cacheDir still resolves the same everywhere, so only a machine path is wrong.
-  if (config.cacheDir && config.cacheDirScope !== 'local' && classifyConfiguredPath(config.cacheDir) === 'machine') {
+  if (
+    config.cacheDir &&
+    config.cacheDirScope !== 'local' &&
+    classifyConfiguredPath(config.cacheDir) === 'machine'
+  ) {
     leaks.push({
       reference: null,
       severity: 'error',
       summary: `cacheDir puts the machine path ${config.cacheDir} in the committed config.`,
-      fix: 'Move it to agent-reference.local.json, or drop it and set AGENT_REFERENCE_STORE_DIR instead, so personal paths never reach a commit.'
+      fix: 'Move it to agent-reference.local.json, or drop it and set AGENT_REFERENCE_STORE_DIR instead, so personal paths never reach a commit.',
     });
   }
 

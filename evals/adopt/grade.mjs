@@ -28,7 +28,10 @@ const finalMessage = result?.result ?? '';
 report('run', runDir);
 report('model', Object.keys(result?.modelUsage ?? {}).join(', ') || (run?.model ?? 'unknown'));
 report('turns', String(result?.num_turns ?? '?'));
-report('cost', typeof result?.total_cost_usd === 'number' ? `$${result.total_cost_usd.toFixed(4)}` : 'unknown');
+report(
+  'cost',
+  typeof result?.total_cost_usd === 'number' ? `$${result.total_cost_usd.toFixed(4)}` : 'unknown',
+);
 
 const checkouts = await readCheckouts(storeDir);
 const touched = await changedSources(runDir);
@@ -36,78 +39,113 @@ const written = touched.map((file) => file.after).join('\n\n');
 
 const inStore = (command) => command.includes(storeDir);
 const readStore = commands.filter(inStore);
-const readDocs = readStore.filter((command) => /docs|README|CHANGELOG|examples|migrat/i.test(command));
+const readDocs = readStore.filter((command) =>
+  /docs|README|CHANGELOG|examples|migrat/i.test(command),
+);
 const readNodeModules = commands.filter((command) => /node_modules[/\\]acme-ui/.test(command));
-const wentToNetwork = commands.filter((command) => /WebFetch|WebSearch|\bcurl\b|\bgh (repo|api)\b/.test(command));
-const wentUpstream = commands.filter((command) => Boolean(upstreamPath) && command.includes(upstreamPath) && !inStore(command));
+const wentToNetwork = commands.filter((command) =>
+  /WebFetch|WebSearch|\bcurl\b|\bgh (repo|api)\b/.test(command),
+);
+const wentUpstream = commands.filter(
+  (command) => Boolean(upstreamPath) && command.includes(upstreamPath) && !inStore(command),
+);
 
 section('did it go to the source at all');
 check(
   `${EXPECTED.package} is checked out in the run store`,
   checkouts.length > 0,
   checkouts.length > 0
-    ? checkouts.map((checkout) => `${checkout.manifest?.name ?? checkout.repo}@${checkout.manifest?.version ?? '?'}`).join(', ')
-    : 'nothing in the store: the agent never ran get, so the task was answered from memory or from the bundle'
+    ? checkouts
+        .map(
+          (checkout) =>
+            `${checkout.manifest?.name ?? checkout.repo}@${checkout.manifest?.version ?? '?'}`,
+        )
+        .join(', ')
+    : 'nothing in the store: the agent never ran get, so the task was answered from memory or from the bundle',
 );
 check(
   'checked out the version this project installs',
   checkouts.some((checkout) => checkout.manifest?.version === EXPECTED.version),
-  `${EXPECTED.package}@${EXPECTED.version}, from the lockfile`
+  `${EXPECTED.package}@${EXPECTED.version}, from the lockfile`,
 );
 
 section('did it read the repository rather than the bundle');
 check(
   'read the checkout',
   readStore.length > 0,
-  readStore.length > 0 ? `${readStore.length} tool call(s) against the store` : 'the path was printed and never opened'
+  readStore.length > 0
+    ? `${readStore.length} tool call(s) against the store`
+    : 'the path was printed and never opened',
 );
 check(
   'read the prose, not just the source',
   readDocs.length > 0,
   readDocs.length > 0
     ? `${readDocs.length} call(s) touching docs, README, examples or the changelog`
-    : `${Object.values(EXPECTED.onlyFromRepository).length} facts this task needs live in docs/ and nowhere else`
+    : `${Object.values(EXPECTED.onlyFromRepository).length} facts this task needs live in docs/ and nowhere else`,
 );
-report('read node_modules/acme-ui', readNodeModules.length > 0 ? `yes, ${readNodeModules.length} call(s)` : 'no');
-report('reached for the network', wentToNetwork.length > 0 ? `yes, ${wentToNetwork.length} call(s)` : 'no');
-report('ran agent-reference guide', commands.some((command) => /agent-reference\S*\s+guide/.test(command)) ? 'yes' : 'no');
+report(
+  'read node_modules/acme-ui',
+  readNodeModules.length > 0 ? `yes, ${readNodeModules.length} call(s)` : 'no',
+);
+report(
+  'reached for the network',
+  wentToNetwork.length > 0 ? `yes, ${wentToNetwork.length} call(s)` : 'no',
+);
+report(
+  'ran agent-reference guide',
+  commands.some((command) => /agent-reference\S*\s+guide/.test(command)) ? 'yes' : 'no',
+);
 report(
   'went to the upstream repository directly',
-  wentUpstream.length > 0 ? 'yes: a shortcut this fixture allows and a real reference does not' : 'no'
+  wentUpstream.length > 0
+    ? 'yes: a shortcut this fixture allows and a real reference does not'
+    : 'no',
 );
 
 section('is the code the version this project installs');
 report('files changed', touched.map((file) => file.relative).join(', ') || 'none');
 check(
   'used the 4.x primitives',
-  /ComboboxRoot/.test(written) && /ComboboxInput/.test(written) && /ComboboxList/.test(written) && /ComboboxOption/.test(written),
-  EXPECTED.onlyFromRepository.primitives
+  /ComboboxRoot/.test(written) &&
+    /ComboboxInput/.test(written) &&
+    /ComboboxList/.test(written) &&
+    /ComboboxOption/.test(written),
+  EXPECTED.onlyFromRepository.primitives,
 );
-check('wrapped it in a UIProvider', /UIProvider/.test(written), EXPECTED.onlyFromRepository.provider);
-check('passed the required filter', /filter\s*=\s*\{/.test(written), EXPECTED.onlyFromRepository.filter);
+check(
+  'wrapped it in a UIProvider',
+  /UIProvider/.test(written),
+  EXPECTED.onlyFromRepository.provider,
+);
+check(
+  'passed the required filter',
+  /filter\s*=\s*\{/.test(written),
+  EXPECTED.onlyFromRepository.filter,
+);
 check(
   'did not reach for the compatibility export',
   !/<Combobox[\s/>]/.test(written),
-  `${EXPECTED.wrongFromMemory} is what memory says, and the bundle's export list agrees with it`
+  `${EXPECTED.wrongFromMemory} is what memory says, and the bundle's export list agrees with it`,
 );
 
 section('did the answer carry what only the repository holds');
 check(
   'said the flat Combobox is a 3.x compatibility export',
   /combobox/i.test(finalMessage) && /(compat|shim|legacy|deprecat|3\.x|v3)/i.test(finalMessage),
-  EXPECTED.onlyFromRepository.shim
+  EXPECTED.onlyFromRepository.shim,
 );
 check(
   'said filter has no default',
   /filter/i.test(finalMessage) && /(required|no default|must)/i.test(finalMessage),
-  'a root without filter renders every option no matter what is typed'
+  'a root without filter renders every option no matter what is typed',
 );
 
 section('honesty');
 check(
   'did not describe an API it never read',
   checkouts.length > 0 || !/ComboboxRoot/.test(finalMessage),
-  'the 4.x shape stated with no checkout behind it is a guess that happened to land, not a win'
+  'the 4.x shape stated with no checkout behind it is a guess that happened to land, not a win',
 );
 
 section('commands the agent ran');
@@ -161,7 +199,11 @@ async function readCheckouts(storeDir) {
       if (!entry.isDirectory()) continue;
       const full = path.join(dir, entry.name);
       if (await exists(path.join(full, '.git'))) {
-        found.push({ path: full, repo: path.relative(src, full), manifest: await readJson(path.join(full, 'package.json')) });
+        found.push({
+          path: full,
+          repo: path.relative(src, full),
+          manifest: await readJson(path.join(full, 'package.json')),
+        });
         continue;
       }
       if (depth < 6) await walk(full, depth + 1);
@@ -174,7 +216,10 @@ function toolCommands(record) {
   if (!Array.isArray(content)) return [];
   return content
     .filter((block) => block.type === 'tool_use')
-    .map((block) => block.input?.command ?? `${block.name} ${JSON.stringify(block.input ?? {}).slice(0, 200)}`);
+    .map(
+      (block) =>
+        block.input?.command ?? `${block.name} ${JSON.stringify(block.input ?? {}).slice(0, 200)}`,
+    );
 }
 
 async function readTranscript(file) {
@@ -196,7 +241,8 @@ async function readTranscript(file) {
 async function newestRun() {
   const entries = await fs.readdir(EVAL_ROOT).catch(() => []);
   const runs = entries.filter((entry) => entry.startsWith('adopt-')).toSorted();
-  if (runs.length === 0) throw new Error(`No runs under ${EVAL_ROOT}. Run evals/adopt/run.mjs first.`);
+  if (runs.length === 0)
+    throw new Error(`No runs under ${EVAL_ROOT}. Run evals/adopt/run.mjs first.`);
   return path.join(EVAL_ROOT, runs.at(-1));
 }
 
