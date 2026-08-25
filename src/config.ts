@@ -108,12 +108,14 @@ function parseReferences(value: unknown, configPath: string, config: AgentRefere
     'an object mapping names to sources',
   );
 
+  const declaredNames = new Set(Object.keys(object));
+
   for (const [name, entry] of Object.entries(object)) {
     if (!name.trim()) fail(configPath, 'references has an empty reference name.');
     const field = `references.${name}`;
 
     if (Array.isArray(entry)) {
-      parseSet(name, null, entry, configPath, field, config);
+      parseSet(name, null, entry, configPath, field, config, declaredNames);
       continue;
     }
 
@@ -122,7 +124,7 @@ function parseReferences(value: unknown, configPath: string, config: AgentRefere
       if (entry.references !== undefined) {
         assertKnownKeys(entry, SET_KEYS, configPath, field);
         const description = parseDescription(entry.description, configPath, field);
-        parseSet(name, description, entry.references, configPath, field, config);
+        parseSet(name, description, entry.references, configPath, field, config, declaredNames);
         continue;
       }
       if (entry.source === undefined) {
@@ -152,6 +154,7 @@ function parseSet(
   configPath: string,
   field: string,
   config: AgentReferenceConfig,
+  declaredNames: Set<string>,
 ): void {
   if (!Array.isArray(members)) {
     fail(configPath, `${field}.references must be an array of sources.`);
@@ -165,6 +168,17 @@ function parseSet(
       fail(
         configPath,
         `${itemField} is a set inside a set. A set holds references, never other sets; give this one its own name in "references".`,
+      );
+    }
+    // A member is a source, not the name of another reference. The help calls a set "a
+    // name that stands for several" and `status` prints members beside the standalone
+    // entries, so writing a name here is the reading two of two readers arrived at. Left
+    // alone it fails as a versionless package while the name it used is declared in the
+    // same file, which says nothing about what went wrong.
+    if (typeof member === 'string' && declaredNames.has(member) && member !== name) {
+      fail(
+        configPath,
+        `${itemField} is "${member}", which is the name of another reference in this file. A set holds sources, not names: write the source itself here, the same one references.${member} uses.`,
       );
     }
     const declared = isObject(member)

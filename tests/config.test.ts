@@ -204,6 +204,26 @@ test('a set may not take a name a reference already has', () => {
   );
 });
 
+test('a set member that names another reference says so', () => {
+  // The help calls a set "a name that stands for several" and `status` prints members
+  // beside the standalone entries, so writing names here is the reading two of two
+  // readers arrived at. It used to fail as a versionless package while the name it used
+  // was declared in the same file.
+  assert.throws(
+    () =>
+      parseConfig(
+        {
+          references: {
+            'just-bash': 'github:vercel-labs/just-bash',
+            everything: ['just-bash'],
+          },
+        },
+        'agent-reference.json',
+      ),
+    /is "just-bash", which is the name of another reference in this file.*A set holds sources, not names/s,
+  );
+});
+
 test('a set holds references, never other sets', () => {
   assert.throws(
     () =>
