@@ -5,9 +5,11 @@ lockfile as it is right now, so what gets checked out cannot drift from what is 
 The funnel, top to bottom:
 
 1. The coordinate gives `name@version`, either written out or taken from the lockfile (four
-   formats: PNPM, npm, Bun text, Yarn). Every workspace importer is read; the importer the
-   command ran in wins when several install the same name, and anything still ambiguous is
-   reported rather than picked.
+   formats: PNPM, npm, Bun text, Yarn). A PNPM lockfile is read across every workspace
+   importer, and the importer the command ran in wins when several install the same name;
+   anything still ambiguous is reported rather than picked. The other three read the one
+   importer the command ran in, so a dependency a sibling workspace package holds is
+   reached by running there.
 2. The registry manifest for that exact version gives the repository URL and, when
    present, the publish commit (`gitHead`).
 3. Known tag shapes are tried: `pkg@1.2.3`, `v1.2.3`, `1.2.3`.
