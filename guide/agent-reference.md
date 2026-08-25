@@ -4,35 +4,107 @@ The instructions the skill on disk is too short to carry, printed by the install
 
 ## Reading what a project declares
 
-`agent-reference versions <name>` answers "what does this project install, and where" without fetching anything. It names the lockfile the numbers came out of, so a version is never separated from its source. Reach for it when `get <name>` reports that a name is ambiguous, when a package lives in a workspace package rather than the root, and before writing a `packages` entry, which always carries an exact version.
+`agent-reference versions <name>` answers "what does this project install, and where" without fetching anything. It names the lockfile the numbers came out of, so a version is never separated from its source. Reach for it when `get <name>` reports that a name is ambiguous, when a package lives in a workspace package rather than the root, and before writing a package reference, which always carries an exact version.
 
-`agent-reference status` lists everything declared for this project, with each set rendered as a labeled list under its description. Every line names where that reference comes from, so the kind column reads `npm`, `git`, `file`, or `folder`, and the lockfile package versions were read from is stated once at the end. `declared` means not fetched yet, which is normal; nothing needs doing until the source is needed. Read `problems:` and `next steps:` first when they appear; they state the fix exactly, including JSON to add.
+`agent-reference status` lists everything declared for this project. Every line names where that reference comes from, so the kind column reads `npm`, `git`, `file`, or `folder`, and the lockfile package versions were read from is stated once at the end. A set is printed under the name you ask for it by, with its description beneath. `declared` means not fetched yet, which is normal; nothing needs doing until the source is needed. Read `problems:` and `next steps:` first when they appear; they state the fix exactly, including JSON to add.
 
 ## When to use this instead of node_modules
 
 `node_modules` holds only what a package published, usually build output. `get` checks out the package's repository at the exact shipped commit, which is the only way to read the full `README`, `docs/`, examples, tests, CI workflows, the changelog and its migration guides, git history, and the source behind `dist/`. That list is why a checkout answers ordinary API questions too, not just archaeology: the published build carries the code and almost none of the prose, and a docs site describes whatever version is current rather than the one this project installs. The path it prints is a git worktree, so the repository's history is already there: `git -C <path> log`, `show <tag>:<file>`, `blame`, and diffs between releases all run against the whole repository rather than the one commit checked out. Mirrors are cloned without file contents, so commit metadata and `--name-only` are free and offline, while `-p`, `--stat`, `blame`, and `-S` fetch what they need the first time they run.
 
+## The config is one map
+
+Both files hold a single `references` object, from the name an agent asks for to where that source comes from:
+
+```jsonc
+{
+  "references": {
+    "decisions": "./docs/decisions",
+    "pi": "github:earendil-works/pi",
+    "zod": "npm:zod@3.22.0"
+  }
+}
+```
+
+The value may be a string, an object, or an array. What kind of reference it is follows from the source rather than from a declaration, the same way `status` reports `file` or `folder` from what it finds on disk:
+
+| source shape | reads as | example |
+| --- | --- | --- |
+| `./x`, `../x`, `~/x`, `/x` | a path on this machine, read where it lives | `"./docs/decisions"` |
+| `github:owner/repo`, `owner/repo` | a repository, at its default branch | `"github:openai/codex"` |
+| either, with `#ref` | a repository at a tag, branch, or commit | `"openai/codex#v0.20.0"` |
+| a git URL, `git@`, `ssh:`, `https://…git`, `file://` | any git remote | `"https://git.acme.dev/ui.git"` |
+| `npm:name@version`, `name@version` | a package at an exact version | `"npm:zod@3.22.0"` |
+
+A path source has to start with `./`, `../`, `~/` or `/`. `docs/decisions` is a valid `owner/repo` shorthand, so the prefix is what tells the two apart; `validate` warns when a shorthand names a folder that is also in this project.
+
+Write the object form when an entry needs more than its source:
+
+```jsonc
+{
+  "references": {
+    "electron": {
+      "source": "npm:electron@42.3.3",
+      "directory": ".",
+      "description": "Read docs/api/ before changing a BrowserWindow option. directory is \".\" because the root manifest is named @electron-ci/dev-root."
+    },
+    "effect-docs": {
+      "source": "github:Effect-TS/website",
+      "directory": "apps/web/src/content/docs/v4"
+    }
+  }
+}
+```
+
+- `ref` pins the checkout. On a package source it overrides version resolution, which is what a repository whose tags do not match its published versions needs. On a path source it is refused: a checkout read where it lives has no other ref.
+- `repository` overrides what the registry reported. Package sources only, since a repository source already names its own remote.
+- `directory` names the subtree worth reading in a monorepo. The reference resolves to that subtree while `status` still reports the checkout root. Several subtrees of one repository are several entries with distinct names; they share one clone, and each gets its own `ref` and description. A `directory` that is not in the checkout is an error naming the path to fix, because upstream reorganizations are the usual cause and a silent fall back to the root would hand you the wrong scope.
+- `description` is the whole value of a reference to a future agent. Say when to open it, not what it is. User policy travels here too ("never name this folder in committed code").
+
+## Sets are references that resolve to several paths
+
+A set has a name and members, and the name works everywhere a reference's name works. `get harnesses` materializes all of them, `status harnesses` reports the group. There is no separate flag and no separate namespace.
+
+```jsonc
+{
+  "references": {
+    "engines": ["github:official-stockfish/Stockfish", "github:leela-zero/leela-zero"],
+
+    "harnesses": {
+      "description": "How other agents solve the same problems",
+      "references": [
+        "github:anomalyco/opencode",
+        { "source": "github:openai/codex", "ref": "v0.20.0" },
+        { "source": "github:mutewinter/opencode", "name": "opencode-fork" }
+      ]
+    }
+  }
+}
+```
+
+A bare array is a set with no heading. The object form adds a `description`, which is the heading `status` prints under the name. A member takes the basename of its source as its name unless it declares one, and members may be any kind, so one set can hold a package, a repository and a folder together. A set holds references, never other sets. When the user says "add this to the documentation sources", find the set whose name or description matches and append the member.
+
+Names are one namespace: a set may not take a reference's name, and two entries pointing somewhere different may not share one. The parser refuses both rather than leaving an ambiguity for every later lookup to rediscover. The same source listed in two sets is repetition, not a conflict, and becomes one reference belonging to both.
+
 ## Adding references ("add this as a reference: ...")
 
 Edit the JSON directly; there are no add commands. Both config files are read as JSON with comments (`//` and `/* */`) and trailing commas, so preserve any note the file already carries rather than reformatting it away, and write one yourself when an entry needs a caveat that is not a `description`. Run `agent-reference validate` after every edit. Route by what was pasted:
 
-| the user pastes | kind | file |
+| the user pastes | source to write | file |
 | --- | --- | --- |
-| a dependency name | usually nothing: `get` already works; add a `packages` entry only for a pin, a description, or a place in a set, and give it an exact version from `agent-reference versions <name>` | `agent-reference.json` |
-| a coordinate `get` printed, `npm:zod@3.22.0` | `packages`, keyed `npm:zod` with the version as the value; the key is the coordinate without its version | `agent-reference.json` |
-| a git URL or `owner/repo` | `git` | `agent-reference.json` |
-| a git URL naming one package inside a monorepo | `git`, with `directory` set to that subtree | `agent-reference.json` |
-| a `file:` path to a checkout on this machine | `git` | `agent-reference.local.json`, always |
-| a relative path inside the repo | `paths` | `agent-reference.json` |
-| an absolute or `~/` path | `paths` | `agent-reference.local.json`, always |
+| a dependency name | usually nothing: `get` already works. Add an entry only for a pin, a description, or a place in a set, and give it an exact version from `agent-reference versions <name>` | `agent-reference.json` |
+| a coordinate `get` printed, `npm:zod@3.22.0` | that coordinate, verbatim | `agent-reference.json` |
+| a git URL or `owner/repo` | that, verbatim | `agent-reference.json` |
+| a git URL naming one package inside a monorepo | that, with `directory` set to the subtree | `agent-reference.json` |
+| a relative path inside the repo | `./the/path` | `agent-reference.json` |
+| an absolute or `~/` path | the path as given | `agent-reference.local.json`, always |
+| a checkout on this machine | the path as given, which is read live | `agent-reference.local.json`, always |
 
-`agent-reference.local.json` is gitignored and overrides same-named entries; machine paths and private references live there and never reach a commit. `validate` enforces that mechanically: a machine path in the committed file is an error whichever key holds it, whether a `paths` entry, a `file:` repository under `git`, or `cacheDir`, and so is `agent-reference.local.json` itself being tracked by git. `status` reports the same path leaks as warnings, so the config gets checked on a command you already run. Collections are sets: a labeled list with a `description` heading and members declared inline, mirroring how users paste these lists. When the user says "add this to the documentation sources", find the set whose description matches and append the member. Record intent as a `description` on the set or the reference; descriptions are how instructions like "never mention this folder in committed code" travel to future agents.
+`agent-reference.local.json` is gitignored and overrides same-named entries; machine paths and private references live there and never reach a commit. `validate` enforces that mechanically: a machine path in the committed file is an error whichever entry holds it, whether a path source, a `file://` repository, or `cacheDir`, and so is `agent-reference.local.json` itself being tracked by git. `status` reports the same path leaks as warnings, so the config gets checked on a command you already run.
 
-A `git` reference checks out a whole repository. When only one subtree of it is worth reading, set `directory` to that path and the reference resolves to the subtree while `status` still reports the checkout root alongside it. Several subtrees of one monorepo are several entries with distinct names, not one nested entry: the store keys a checkout on repository and commit, so they share one clone, and each gets its own description and its own `ref`. A `directory` that is not in the checkout is an error naming the path to fix, because upstream reorganizations are the normal cause and a silent fall back to the repository root would hand you the wrong scope.
+A local checkout is read where it lives, so it stays current and you see uncommitted work. A `file://` URL with an absolute path clones it into the store at a commit instead, which is a snapshot and goes stale; reach for it only when you need a fixed point.
 
-A `packages` key is a coordinate with the version left out, because the value holds it. `"zod"` and `"npm:zod"` are the same reference; the prefix names the registry the package name lives in, not the tool that installs it, so a pnpm or bun project writes `npm:` like everyone else. Write it either way, but keep one spelling per package: two keys for one package that disagree about the version are refused. Only npm resolves today, and a key naming another ecosystem fails at parse time rather than becoming a reference nothing can materialize.
-
-A `paths` entry may name a file as easily as a folder: one note out of a vault, a checklist, a spec. The config declares the path and nothing more, so `status` reports whether it is a `file` or a `folder` from what it finds on disk, and a folder that later becomes a file needs no config change.
+A path may name a file as easily as a folder: one note out of a vault, a checklist, a spec. The config declares the path and nothing more, so `status` reports whether it is a `file` or a `folder` from what it finds on disk, and a folder that later becomes a file needs no config change.
 
 A useful pattern for links, issues, and gathered research: create a folder, save the fetched material into it, and declare it as a path reference with a description. The user may ask you to maintain such a folder over time.
 

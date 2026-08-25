@@ -9,16 +9,14 @@
 
 ```jsonc
 {
-  "packages": {
-    "npm:effect": "4.0.0-rc.111"
-  },
-  "git": {
+  "references": {
+    "effect": "npm:effect@4.0.0-rc.111",
     "pi": {
-      "repository": "github:earendil-works/pi",
+      "source": "github:earendil-works/pi",
       "description": "AI agent toolkit: LLM API, loop, TUI, CLI"
     },
     "effect-docs": {
-      "repository": "github:Effect-TS/website",
+      "source": "github:Effect-TS/website",
       "directory": "apps/web/src/content/docs/v4",
       "description": "Effect's v4 documentation"
     }
@@ -87,17 +85,17 @@ Let your agent read other repositories checked out on your computer, by name.
 
 ```jsonc
 {
-  "paths": {
+  "references": {
     "api": {
-      "path": "../api",
+      "source": "../api",
       "description": "Acme's API"
     },
     "workers": {
-      "path": "../workers",
+      "source": "../workers",
       "description": "Acme's background workers"
     },
     "shared": {
-      "path": "../shared",
+      "source": "../shared",
       "description": "Acme's shared code"
     }
   }
@@ -113,9 +111,9 @@ or any git remote.
 
 ```jsonc
 {
-  "git": {
+  "references": {
     "codex": {
-      "repository": "github:openai/codex",
+      "source": "github:openai/codex",
       "description": "OpenAI's coding agent, written in Rust"
     }
   }
@@ -132,9 +130,9 @@ dependency worth remembering.
 
 ```jsonc
 {
-  "packages": {
-    "npm:ai": {
-      "version": "7.0.78",
+  "references": {
+    "ai": {
+      "source": "npm:ai@7.0.78",
       "description": "Read its docs/ and changelog before writing v7; v6 examples still dominate search results"
     }
   }
@@ -160,9 +158,9 @@ the two drift.
 
 ```jsonc
 {
-  "paths": {
+  "references": {
     "commit-style": {
-      "path": "~/code/other-app/.claude/skills/commit",
+      "source": "~/code/other-app/.claude/skills/commit",
       "description": "The commit style we use"
     }
   }
@@ -188,19 +186,19 @@ own.
 
 ```jsonc
 {
-  "paths": {
+  "references": {
     "dotfiles": "~/.dotfiles",
     "personal": "~/code/personal",
     "work": "~/code/work",
     "forks": {
-      "path": "~/code/forks",
+      "source": "~/code/forks",
       "description": "Upstream repos I have patched"
     }
   }
 }
 ```
 
-### Use sets to group references
+### Group references into a set
 
 Group references so your agent can pull all of them in by name.
 
@@ -208,17 +206,16 @@ Group references so your agent can pull all of them in by name.
 
 ```jsonc
 {
-  "sets": [
-    {
-      "name": "coding harnesses",
+  "references": {
+    "harnesses": {
       "description": "How other agents solve the same problems",
-      "git": [
+      "references": [
         "github:earendil-works/pi",
         "github:openai/codex",
         "github:anomalyco/opencode"
       ]
     }
-  ]
+  }
 }
 ```
 
@@ -226,9 +223,10 @@ Group references so your agent can pull all of them in by name.
 $ codex "Implement context compaction based on how
   other coding harnesses do it"
 
-* Bash(agent-reference status --set "coding harnesses")
-  ⎿ codex  git · ready · ~/.agent-reference/src/…/codex/a4f10b27
-    pi     git · ready · ~/.agent-reference/src/…/pi/dcd46192
+* Bash(agent-reference get harnesses)
+  ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd46192
+    ~/.agent-reference/src/…/openai/codex/a4f10b27
+    ~/.agent-reference/src/…/anomalyco/opencode/7b0e5c31
 
 * Read(…/pi/packages/coding-agent/src/core/compaction.ts)
 ```
@@ -241,37 +239,31 @@ Every kind at once, and what your agent sees when it asks.
 
 ```jsonc
 {
-  "packages": {
-    "npm:ai": "7.0.78",
-    "npm:electron": {
-      "version": "41.0.2",
+  "references": {
+    "ai": "npm:ai@7.0.78",
+    "electron": {
+      "source": "npm:electron@41.0.2",
       "description": "Pinned: we ship against this build's native module ABI"
-    }
-  },
-  // Relative, and inside this repo. A machine path belongs in
-  // agent-reference.local.json, which merges over this file.
-  "paths": {
+    },
+    // Relative, and inside this repo. A machine path belongs in
+    // agent-reference.local.json, which merges over this file.
     "decisions": "./docs/decisions",
-    "style": "./docs/style-guide.md"
-  },
-  // Named here and again in the set below, so status lists it once, there.
-  "git": {
-    "pi": "github:earendil-works/pi"
-  },
-  "sets": [
-    {
-      "name": "coding harnesses",
+    "style": "./docs/style-guide.md",
+
+    // A set is a reference that resolves to several paths. Its key is its
+    // name, so `get harnesses` takes all of them at once.
+    "harnesses": {
       "description": "How other agents solve the same problems",
-      "git": [
+      "references": [
         "github:earendil-works/pi",
         {
-          "repository": "github:openai/codex",
+          "source": "github:openai/codex",
           "ref": "v0.20.0",
           "description": "Pinned: we match this version's tool schema"
         }
       ]
     }
-  ]
+  }
 }
 ```
 
@@ -284,7 +276,8 @@ agent-reference.json (shared)
   decisions  folder · ready · ./docs/decisions
   style      file · ready · ./docs/style-guide.md
 
-  How other agents solve the same problems
+  harnesses  set · 2 references
+             "How other agents solve the same problems"
     pi     git · ready · ~/.agent-reference/src/…/pi/dcd46192
     codex  git · declared · github:openai/codex
 
@@ -303,10 +296,8 @@ sharing one store.
 
 ```jsonc
 {
-  "packages": {
-    "npm:effect": "4.0.0-rc.111"
-  },
-  "git": {
+  "references": {
+    "effect": "npm:effect@4.0.0-rc.111",
     "pi": "github:earendil-works/pi"
   }
 }
@@ -316,8 +307,8 @@ sharing one store.
 
 ```jsonc
 {
-  "packages": {
-    "npm:effect": "3.19.4"
+  "references": {
+    "effect": "npm:effect@3.19.4"
   }
 }
 ```
@@ -353,14 +344,14 @@ $ agent-reference help
 agent-reference
 
 Gives an agent readable upstream source on demand: dependencies at their exact
-installed version, git repositories, and local files and folders, all by name. Nothing is
-fetched until asked for.
+installed version, git repositories, and local files and folders, all by name.
+Nothing is fetched until asked for.
 
 Usage:
   agent-reference get <spec>... [--json]
   agent-reference versions <name> [--json]
-  agent-reference status [reference...] [--set <name>] [--json]
-  agent-reference clone  [reference...] [--set <name>] [--json]
+  agent-reference status [name...] [--json]
+  agent-reference clone  [name...] [--json]
   agent-reference init   [project] [--json]
   agent-reference validate
   agent-reference guide
@@ -369,45 +360,41 @@ Usage:
 
 Commands:
   get       Materialize one reference and print its path. A spec is a configured
-            reference name, a dependency name (version from the lockfile), a
-            name@version, github:owner/repo, owner/repo, a git URL, or file:../repo.
-            A package may carry an ecosystem prefix (npm:zod@3.22.0), in a spec
-            here and as a key in the config alike; npm is the default and the
-            only one resolved today. Works with no config and no project at all.
+            name, a dependency name (version from the lockfile), a name@version,
+            github:owner/repo, owner/repo, a git URL, or a path. A package may
+            carry an ecosystem prefix (npm:zod@3.22.0); npm is the default and
+            the only one resolved today. Works with no config at all.
   versions  Report every version of a package this project installs, which
             workspace package installs it, and the lockfile the numbers came out
-            of. Reads only; never fetches, and an unknown ecosystem or an absent
-            package is an answer, not an error.
-  status    Report every configured reference: scope, state, and absolute path.
+            of. Reads only; never fetches.
+  status    Report every configured reference: source, state, and absolute path.
             Declared-but-not-fetched is the normal state, not a problem.
   clone     Bulk prefetch every configured reference, for CI or a long flight.
   init      Survey this project and print a setup brief for the agent to carry
-            out: install the skill, mine recent sessions for references worth
-            declaring, write the config, and show the user the result. Reads and
-            prints only; it never writes.
+            out. Reads and prints only; it never writes.
   validate  Check agent-reference.json and agent-reference.local.json; flags
             machine paths that do not belong in the committed file, and the
             local file being tracked by git. Exits non-zero, so CI can gate on
             it.
-  guide     Print the full agent instructions for this version. The installed
-            skill is a short stub that cannot go stale; everything about config
-            shape and setup lives here, next to the code it describes.
+  guide     Print the full agent instructions for this version.
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
-            checkouts unused for --days (default 30) and any repository left
-            with none; everything pruned is refetched on the next get.
+            checkouts unused for --days (default 30).
+
+  <command> --help explains one command on its own.
 
 Options:
-  --set <name>    Select every reference in a set, by the set's name or an
-                  unambiguous piece of its description. Repeatable.
   --json          Print machine-readable JSON.
   --prune         For store: delete stale checkouts.
   --days <n>      For store --prune: age threshold in days. Default 30.
 
 References are declared in agent-reference.json (committed, shareable) and
-agent-reference.local.json (gitignored, machine paths and private references).
-Edit the JSON directly; run `agent-reference validate` after. The store lives
-in ~/.agent-reference. Set AGENT_REFERENCE_STORE_DIR to move it.
+agent-reference.local.json (gitignored, machine paths and private references),
+as one "references" map from a name to a source. A value that is an array, or an
+object with a "references" array, is a set: a name that stands for several, and
+that get and status take like any other name. Edit the JSON directly; run
+`agent-reference validate` after. The store lives in ~/.agent-reference. Set
+AGENT_REFERENCE_STORE_DIR to move it.
 ```
 
 ### agent-reference status
@@ -462,7 +449,7 @@ ok: ~/code/my-app/agent-reference.json defines 4 references in 0 sets.
 $ agent-reference schema
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://unpkg.com/agent-reference/schema/agent-reference.schema.json",
+  "$id": "https://unpkg.com/agent-reference@1/schema/agent-reference.schema.json",
   "title": "agent-reference config",
   "description": "Desired state for the local reference source an agent can read. Lives at agent-reference.json (committed) or agent-reference.local.json (machine-specific, gitignored). Both are read as JSON with comments (// and /* */) and trailing commas, so a note beside an entry is part of the format; keep any the file already carries when editing it.",
   "type": "object",

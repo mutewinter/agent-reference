@@ -7,16 +7,14 @@ export const samples = {
   shared: {
     lang: 'jsonc',
     code: `{
-  "packages": {
-    "npm:effect": "4.0.0-rc.111"
-  },
-  "git": {
+  "references": {
+    "effect": "npm:effect@4.0.0-rc.111",
     "pi": {
-      "repository": "github:earendil-works/pi",
+      "source": "github:earendil-works/pi",
       "description": "AI agent toolkit: LLM API, loop, TUI, CLI"
     },
     "effect-docs": {
-      "repository": "github:Effect-TS/website",
+      "source": "github:Effect-TS/website",
       "directory": "apps/web/src/content/docs/v4",
       "description": "Effect's v4 documentation"
     }
@@ -27,17 +25,17 @@ export const samples = {
   siblings: {
     lang: 'jsonc',
     code: `{
-  "paths": {
+  "references": {
     "api": {
-      "path": "../api",
+      "source": "../api",
       "description": "Acme's API"
     },
     "workers": {
-      "path": "../workers",
+      "source": "../workers",
       "description": "Acme's background workers"
     },
     "shared": {
-      "path": "../shared",
+      "source": "../shared",
       "description": "Acme's shared code"
     }
   }
@@ -47,9 +45,9 @@ export const samples = {
   upstream: {
     lang: 'jsonc',
     code: `{
-  "git": {
+  "references": {
     "codex": {
-      "repository": "github:openai/codex",
+      "source": "github:openai/codex",
       "description": "OpenAI's coding agent, written in Rust"
     }
   }
@@ -59,9 +57,9 @@ export const samples = {
   pinned: {
     lang: 'jsonc',
     code: `{
-  "packages": {
-    "npm:ai": {
-      "version": "7.0.78",
+  "references": {
+    "ai": {
+      "source": "npm:ai@7.0.78",
       "description": "Read its docs/ and changelog before writing v7; v6 examples still dominate search results"
     }
   }
@@ -71,9 +69,9 @@ export const samples = {
   skills: {
     lang: 'jsonc',
     code: `{
-  "paths": {
+  "references": {
     "commit-style": {
-      "path": "~/code/other-app/.claude/skills/commit",
+      "source": "~/code/other-app/.claude/skills/commit",
       "description": "The commit style we use"
     }
   }
@@ -83,12 +81,12 @@ export const samples = {
   global: {
     lang: 'jsonc',
     code: `{
-  "paths": {
+  "references": {
     "dotfiles": "~/.dotfiles",
     "personal": "~/code/personal",
     "work": "~/code/work",
     "forks": {
-      "path": "~/code/forks",
+      "source": "~/code/forks",
       "description": "Upstream repos I have patched"
     }
   }
@@ -98,56 +96,49 @@ export const samples = {
   together: {
     lang: 'jsonc',
     code: `{
-  "sets": [
-    {
-      "name": "coding harnesses",
+  "references": {
+    "harnesses": {
       "description": "How other agents solve the same problems",
-      "git": [
+      "references": [
         "github:earendil-works/pi",
         "github:openai/codex",
         "github:anomalyco/opencode"
       ]
     }
-  ]
+  }
 }`,
   },
 
   // Ordered the way `status` reports it, so the config and the output beside it
-  // read down the page together: packages, then paths, then sets.
+  // read down the page together: uncollected references first, then the sets.
   kitchenSink: {
     lang: 'jsonc',
     code: `{
-  "packages": {
-    "npm:ai": "7.0.78",
-    "npm:electron": {
-      "version": "41.0.2",
+  "references": {
+    "ai": "npm:ai@7.0.78",
+    "electron": {
+      "source": "npm:electron@41.0.2",
       "description": "Pinned: we ship against this build's native module ABI"
-    }
-  },
-  // Relative, and inside this repo. A machine path belongs in
-  // agent-reference.local.json, which merges over this file.
-  "paths": {
+    },
+    // Relative, and inside this repo. A machine path belongs in
+    // agent-reference.local.json, which merges over this file.
     "decisions": "./docs/decisions",
-    "style": "./docs/style-guide.md"
-  },
-  // Named here and again in the set below, so status lists it once, there.
-  "git": {
-    "pi": "github:earendil-works/pi"
-  },
-  "sets": [
-    {
-      "name": "coding harnesses",
+    "style": "./docs/style-guide.md",
+
+    // A set is a reference that resolves to several paths. Its key is its
+    // name, so \`get harnesses\` takes all of them at once.
+    "harnesses": {
       "description": "How other agents solve the same problems",
-      "git": [
+      "references": [
         "github:earendil-works/pi",
         {
-          "repository": "github:openai/codex",
+          "source": "github:openai/codex",
           "ref": "v0.20.0",
           "description": "Pinned: we match this version's tool schema"
         }
       ]
     }
-  ]
+  }
 }`,
   },
 
@@ -158,10 +149,8 @@ export const samples = {
   storeWeb: {
     lang: 'jsonc',
     code: `{
-  "packages": {
-    "npm:effect": "4.0.0-rc.111"
-  },
-  "git": {
+  "references": {
+    "effect": "npm:effect@4.0.0-rc.111",
     "pi": "github:earendil-works/pi"
   }
 }`,
@@ -170,8 +159,8 @@ export const samples = {
   storeApi: {
     lang: 'jsonc',
     code: `{
-  "packages": {
-    "npm:effect": "3.19.4"
+  "references": {
+    "effect": "npm:effect@3.19.4"
   }
 }`,
   },
@@ -259,9 +248,10 @@ agent-reference get electron
   set: `$ codex "Implement context compaction based on how
   other coding harnesses do it"
 
-* Bash(agent-reference status --set "coding harnesses")
-  \u23BF codex  git \u00B7 ready \u00B7 ~/.agent-reference/src/\u2026/codex/a4f10b27
-    pi     git \u00B7 ready \u00B7 ~/.agent-reference/src/\u2026/pi/dcd46192
+* Bash(agent-reference get harnesses)
+  \u23BF ~/.agent-reference/src/\u2026/earendil-works/pi/dcd46192
+    ~/.agent-reference/src/\u2026/openai/codex/a4f10b27
+    ~/.agent-reference/src/\u2026/anomalyco/opencode/7b0e5c31
 
 * Read(\u2026/pi/packages/coding-agent/src/core/compaction.ts)`,
 
@@ -273,7 +263,8 @@ agent-reference.json (shared)
   decisions  folder \u00B7 ready \u00B7 ./docs/decisions
   style      file \u00B7 ready \u00B7 ./docs/style-guide.md
 
-  How other agents solve the same problems
+  harnesses  set \u00B7 2 references
+             "How other agents solve the same problems"
     pi     git \u00B7 ready \u00B7 ~/.agent-reference/src/\u2026/pi/dcd46192
     codex  git \u00B7 declared \u00B7 github:openai/codex
 
@@ -330,7 +321,7 @@ export const examples: Example[] = [
     sample: 'global',
   },
   {
-    title: 'Use sets to group references',
+    title: 'Group references into a set',
     note: 'Group references so your agent can pull all of them in by name.',
     file: 'agent-reference.json',
     sample: 'together',

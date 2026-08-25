@@ -10,8 +10,8 @@ One verb does the work: `agent-reference get <spec>` materializes a reference an
 ```sh
 agent-reference get zod                     # the version in this project's lockfile
 agent-reference get zod@3.22.0              # any other version, coexisting with the first
-agent-reference get vercel-labs/just-bash   # any GitHub repo; git URLs and file:../repo too
-agent-reference get design-notes            # a configured reference, by name
+agent-reference get vercel-labs/just-bash   # any GitHub repo; git URLs too
+agent-reference get design-notes            # a configured reference or set, by name
 ```
 
 ## Writing code against a library
