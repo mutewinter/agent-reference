@@ -27,8 +27,12 @@ export function formatGetResults(results: GetReferenceResult[], options: CliForm
         `${formatCoordinate(result.name, result.version)} -> ${show(result.path)} (${result.confidence}, ${result.refSource} ${sanitizeRelayedLine(result.checkoutRef ?? '')})`,
       );
     } else if (result.kind === 'git') {
+      // The name, not the spec that was configured for it. A name is the whole
+      // interface now, and asking for a set by name has to say which member each
+      // path is; echoing `github:owner/repo` back answers a question nobody
+      // asked. The spec is still in `--json`, and `status` prints it too.
       lines.push(
-        `${sanitizeRelayedLine(result.requested)} -> ${show(result.path)} (${sanitizeRelayedLine(result.checkoutRef ?? '')} @ ${result.checkoutSha?.slice(0, 12)})`,
+        `${result.name} -> ${show(result.path)} (${sanitizeRelayedLine(result.checkoutRef ?? '')} @ ${result.checkoutSha?.slice(0, 12)})`,
       );
     } else {
       lines.push(`${result.name} -> ${show(result.path)}`);

@@ -6,6 +6,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
 
+import { formatGetResults } from '../src/cli-format.ts';
 import { getReferences } from '../src/get.ts';
 import { stateFilePath } from '../src/manifest.ts';
 import { getStatusReport } from '../src/status.ts';
@@ -181,6 +182,11 @@ test('a set is a name that resolves to every reference in it', async () => {
     results.map((entry) => entry.name),
     ['first', 'second'],
   );
+
+  // Every member is named by the handle it answers to, not by the repository it
+  // came from: a set expands to several results and the caller has to be able to
+  // tell which path is which.
+  assert.match(formatGetResults(results, { tilde: false }), /^first -> .*\nsecond -> /mu);
 
   // A set and a plain reference sit in one namespace, so one call takes both.
   const mixed = await getReferences(
