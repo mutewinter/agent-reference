@@ -46,7 +46,7 @@ Every fourth conversation, a human was the retrieval layer.
 The design rules the project keeps returning to, each traceable to a working session.
 
 1. **The human is not the maintainer.** "The human is not the one that's going to be maintaining this. They're really going to be chatting with their own agent to both set it up and maintain it over time." Every surface is designed for an agent to read and write; the human gets one screen, `status`, for when they need to debug it.
-2. **Stay generic.** "This is of utmost importance: it needs to stay generic, malleable, flexible for the use cases the user has. Not overly prescriptive." Three kinds of reference, one verb, no opinions about what belongs in them.
+2. **Stay generic.** "This is of utmost importance: it needs to stay generic, malleable, flexible for the use cases the user has. Not overly prescriptive." One map from a name to a source, one verb, and no opinions about what belongs in it: the kind is read out of the source rather than declared, so nothing has to classify a reference before declaring one.
 3. **Nothing is eager.** Cloning everything on a new machine could take minutes for source the agent may never open, so nothing is fetched until it is asked for. `declared` is a normal resting state, not a problem.
 4. **Personal paths never leak.** The gitignored file is not a convenience, it is the guardrail: the committed file is read on someone else's machine, so a home path there is a leak rather than a preference, and it fails as an error.
 5. **Policy ships as a description, not a feature.** A house rule like "never name these folders in a commit" travels as a sentence in the reference's description, which the agent reads, rather than as behavior in the code.
