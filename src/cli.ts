@@ -35,7 +35,7 @@ async function main(argv: string[]): Promise<void> {
 
   switch (options.command) {
     case 'help':
-      process.stdout.write(helpText());
+      process.stdout.write(helpText(options.helpTopic));
       return;
     case 'version': {
       const packageJson = JSON.parse(
@@ -64,7 +64,7 @@ async function main(argv: string[]): Promise<void> {
       return;
     case 'status': {
       const { projectPath, references } = await splitPositionals(options);
-      const report = await getStatusReport(projectPath, { references, sets: options.sets });
+      const report = await getStatusReport(projectPath, { references });
       write(options, report, (result) =>
         formatStatusReport(result, {
           color: humanOutput && !process.env.NO_COLOR,
@@ -93,7 +93,7 @@ async function main(argv: string[]): Promise<void> {
     }
     case 'clone': {
       const { projectPath, references } = await splitPositionals(options);
-      const result = await cloneReferences(projectPath, { references, sets: options.sets });
+      const result = await cloneReferences(projectPath, { references });
       write(options, result, (value) => formatCloneResult(value, format));
       return;
     }
@@ -161,18 +161,76 @@ function write<T>(options: CliOptions, result: T, format: (result: T) => string)
   process.stdout.write(options.json ? `${JSON.stringify(result, null, 2)}\n` : format(result));
 }
 
-function helpText(): string {
+/** Per-command help, so `get --help` answers about get rather than printing the whole page. */
+const COMMAND_HELP: Record<string, string> = {
+  get: `agent-reference get <spec>... [--json]
+
+Materialize each spec and print its path. A spec is a configured name, which may
+be a set and then stands for every reference in it, or any source written the way
+the config writes one:
+
+  brief                a configured reference or set
+  zod                  a dependency, at the version this project installs
+  npm:zod@3.22.0       a package at an exact version
+  github:openai/codex  a repository, at its default branch
+  openai/codex#v0.2.0  the same, at a tag or commit
+  ./docs/decisions     a path, read where it lives
+
+Works with no config and no project at all.`,
+  versions: `agent-reference versions <name> [--json]
+
+Report every version of a package this project installs, which workspace package
+installs it, and the lockfile the numbers came out of. Reads only; never fetches,
+and an unknown ecosystem or an absent package is an answer, not an error.`,
+  status: `agent-reference status [name...] [--json]
+
+Report every configured reference: where it comes from, its state, and its
+absolute path. Naming a set reports that set. Declared-but-not-fetched is the
+normal state, not a problem.`,
+  clone: `agent-reference clone [name...] [--json]
+
+Bulk prefetch, for CI or a long flight. With no names it takes everything; with a
+set's name it takes that set. Same work as get, reported as a batch.`,
+  init: `agent-reference init [project] [--json]
+
+Survey this project and print a setup brief for the agent to carry out: install
+the skill, mine recent sessions for references worth declaring, write the config,
+and show the user the result. Reads and prints only; it never writes.`,
+  validate: `agent-reference validate
+
+Check agent-reference.json and agent-reference.local.json; flags machine paths
+that do not belong in the committed file, and the local file being tracked by
+git. Exits non-zero, so CI can gate on it.`,
+  guide: `agent-reference guide
+
+Print the full agent instructions for this version. The installed skill is a
+short stub that cannot go stale; everything about config shape and setup lives
+here, next to the code it describes.`,
+  schema: `agent-reference schema
+
+Print the JSON Schema for agent-reference.json.`,
+  store: `agent-reference store [--prune] [--days <n>]
+
+Show what the store holds and how big it is. --prune deletes checkouts unused for
+--days (default 30) and any repository left with none; everything pruned is
+refetched on the next get.`,
+};
+
+function helpText(topic: string | null = null): string {
+  const focused = topic ? COMMAND_HELP[topic] : null;
+  if (focused) return `${focused}\n`;
+
   return `agent-reference
 
 Gives an agent readable upstream source on demand: dependencies at their exact
-installed version, git repositories, and local files and folders, all by name. Nothing is
-fetched until asked for.
+installed version, git repositories, and local files and folders, all by name.
+Nothing is fetched until asked for.
 
 Usage:
   agent-reference get <spec>... [--json]
   agent-reference versions <name> [--json]
-  agent-reference status [reference...] [--set <name>] [--json]
-  agent-reference clone  [reference...] [--set <name>] [--json]
+  agent-reference status [name...] [--json]
+  agent-reference clone  [name...] [--json]
   agent-reference init   [project] [--json]
   agent-reference validate
   agent-reference guide
@@ -181,45 +239,41 @@ Usage:
 
 Commands:
   get       Materialize one reference and print its path. A spec is a configured
-            reference name, a dependency name (version from the lockfile), a
-            name@version, github:owner/repo, owner/repo, a git URL, or file:../repo.
-            A package may carry an ecosystem prefix (npm:zod@3.22.0), in a spec
-            here and as a key in the config alike; npm is the default and the
-            only one resolved today. Works with no config and no project at all.
+            name, a dependency name (version from the lockfile), a name@version,
+            github:owner/repo, owner/repo, a git URL, or a path. A package may
+            carry an ecosystem prefix (npm:zod@3.22.0); npm is the default and
+            the only one resolved today. Works with no config at all.
   versions  Report every version of a package this project installs, which
             workspace package installs it, and the lockfile the numbers came out
-            of. Reads only; never fetches, and an unknown ecosystem or an absent
-            package is an answer, not an error.
-  status    Report every configured reference: scope, state, and absolute path.
+            of. Reads only; never fetches.
+  status    Report every configured reference: source, state, and absolute path.
             Declared-but-not-fetched is the normal state, not a problem.
   clone     Bulk prefetch every configured reference, for CI or a long flight.
   init      Survey this project and print a setup brief for the agent to carry
-            out: install the skill, mine recent sessions for references worth
-            declaring, write the config, and show the user the result. Reads and
-            prints only; it never writes.
+            out. Reads and prints only; it never writes.
   validate  Check agent-reference.json and agent-reference.local.json; flags
             machine paths that do not belong in the committed file, and the
             local file being tracked by git. Exits non-zero, so CI can gate on
             it.
-  guide     Print the full agent instructions for this version. The installed
-            skill is a short stub that cannot go stale; everything about config
-            shape and setup lives here, next to the code it describes.
+  guide     Print the full agent instructions for this version.
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
-            checkouts unused for --days (default 30) and any repository left
-            with none; everything pruned is refetched on the next get.
+            checkouts unused for --days (default 30).
+
+  <command> --help explains one command on its own.
 
 Options:
-  --set <name>    Select every reference in a set, by the set's name or an
-                  unambiguous piece of its description. Repeatable.
   --json          Print machine-readable JSON.
   --prune         For store: delete stale checkouts.
   --days <n>      For store --prune: age threshold in days. Default 30.
 
 References are declared in agent-reference.json (committed, shareable) and
-agent-reference.local.json (gitignored, machine paths and private references).
-Edit the JSON directly; run \`agent-reference validate\` after. The store lives
-in ~/.agent-reference. Set AGENT_REFERENCE_STORE_DIR to move it.
+agent-reference.local.json (gitignored, machine paths and private references),
+as one "references" map from a name to a source. A value that is an array, or an
+object with a "references" array, is a set: a name that stands for several, and
+that get and status take like any other name. Edit the JSON directly; run
+\`agent-reference validate\` after. The store lives in ~/.agent-reference. Set
+AGENT_REFERENCE_STORE_DIR to move it.
 `;
 }
 

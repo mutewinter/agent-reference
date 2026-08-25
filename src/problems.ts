@@ -1,4 +1,5 @@
 import { bareRepositoryPathFor } from './git.ts';
+import { SUPPORTED_ECOSYSTEM } from './package-utils.ts';
 import type {
   AgentReferenceProblem,
   PackageReference,
@@ -64,8 +65,8 @@ export function gitUnresolvedProblem(
   return {
     reference: `git:${name}`,
     severity: 'error',
-    summary: `git.${name} (${spec}) could not be materialized. ${detail}`.trim(),
-    fix: `Check that git can read ${spec} directly; agent-reference clones with your own credentials. If the repository moved or the ref was renamed, correct git.${name} in ${configFile}, then run ${getCommand(name)}.`,
+    summary: `references.${name} (${spec}) could not be materialized. ${detail}`.trim(),
+    fix: `Check that git can read ${spec} directly; agent-reference clones with your own credentials. If the repository moved or the ref was renamed, correct references.${name}.source in ${configFile}, then run ${getCommand(name)}.`,
     configPatch: null,
     configFile,
   };
@@ -88,9 +89,9 @@ export function missingDirectoryProblem(
   return {
     reference: `git:${name}`,
     severity: 'error',
-    summary: `git.${name} asks for ${directory}, which is not in this checkout${at}. The path is the repository root, so it is the whole repository rather than that subtree.`,
-    fix: `List what is actually there with: ls ${repositoryPath}. Set git.${name}.directory in ${configFile} to the current path, or remove it to read from the root on purpose. Upstream moving a directory is the usual cause.`,
-    configPatch: { git: { [name]: { directory: '<path-in-repository>' } } },
+    summary: `references.${name} asks for ${directory}, which is not in this checkout${at}. The path is the repository root, so it is the whole repository rather than that subtree.`,
+    fix: `List what is actually there with: ls ${repositoryPath}. Set references.${name}.directory in ${configFile} to the current path, or remove it to read from the root on purpose. Upstream moving a directory is the usual cause.`,
+    configPatch: { references: { [name]: { directory: '<path-in-repository>' } } },
     configFile,
   };
 }
@@ -106,7 +107,7 @@ export function pinFix(
     ? `List the candidate tags with: git -C ${bareRepositoryPathFor(storeDir, repositoryUrl)} tag --list '*${version ?? ''}*'. Inspect a candidate with: git -C ${bareRepositoryPathFor(storeDir, repositoryUrl)} show <tag>:package.json.`
     : 'Inspect the source repository to find the release commit.';
 
-  return `${search} Pick the commit or tag that really is ${name}@${version ?? ''}, set packages.${name}.ref to it in ${configFile}, then run ${getCommand(name)}. A pinned ref always wins over automatic resolution.`;
+  return `${search} Pick the commit or tag that really is ${name}@${version ?? ''}, set references.${name}.ref to it in ${configFile}, then run ${getCommand(name)}. A pinned ref always wins over automatic resolution.`;
 }
 
 function unresolvedFix(
@@ -115,31 +116,33 @@ function unresolvedFix(
   configFile: string,
 ): string {
   if (failure.reason === 'no-repository') {
-    return `The registry has no repository for this package. Find its source repository, then set packages.${failure.name}.repository in ${configFile} (github:owner/repo or a git URL). Add "ref" too if the tags are unusual. Then run ${getCommand(failure.name)}.`;
+    return `The registry has no repository for this package. Find its source repository, then set references.${failure.name}.repository in ${configFile} (github:owner/repo or a git URL). Add "ref" too if the tags are unusual. Then run ${getCommand(failure.name)}.`;
   }
   if (failure.reason === 'unresolved-ref') {
-    return `The pinned packages.${failure.name}.ref does not exist in the repository. ${pinFix(failure.name, failure.version, failure.repositoryUrl, storeDir, configFile)}`;
+    return `The pinned references.${failure.name}.ref does not exist in the repository. ${pinFix(failure.name, failure.version, failure.repositoryUrl, storeDir, configFile)}`;
   }
   if (failure.reason === 'registry-error') {
-    return `The registry lookup failed. If this package is private or unpublished, set both packages.${failure.name}.repository and packages.${failure.name}.ref in ${configFile} to skip the registry entirely. Otherwise check network access and run ${getCommand(failure.name)}.`;
+    return `The registry lookup failed. If this package is private or unpublished, set both references.${failure.name}.repository and references.${failure.name}.ref in ${configFile} to skip the registry entirely. Otherwise check network access and run ${getCommand(failure.name)}.`;
   }
   if (failure.reason === 'rejected') {
-    return `agent-reference refused this value rather than passing it to git. Correct packages.${failure.name} in ${configFile}: a ref, a commit, or a repository may not begin with "-", and a repository has to use https, ssh, git, or a local path. If this config came from somewhere else, treat the value as hostile rather than fixing it in place.`;
+    return `agent-reference refused this value rather than passing it to git. Correct references.${failure.name} in ${configFile}: a ref, a commit, or a repository may not begin with "-", and a repository has to use https, ssh, git, or a local path. If this config came from somewhere else, treat the value as hostile rather than fixing it in place.`;
   }
   if (failure.reason === 'clone-failed') {
     // The repository was never read, so there is no mirror to search and nothing to pin a
     // ref against: pointing at the tag workflow here sends an agent to a path that does not
     // exist. The wrong value is the repository, so that is the only key worth naming.
     const source = failure.repository
-      ? `packages.${failure.name}.repository in ${configFile}`
+      ? `references.${failure.name}.repository in ${configFile}`
       : `the npm registry metadata for ${failure.name}@${failure.version}`;
-    return `The repository could not be read, so nothing was cloned and no ref was tried. It came from ${source}. If the project moved or was renamed, set packages.${failure.name}.repository in ${configFile} to the current location (github:owner/repo, a git URL, or file:../repo). If it is private, agent-reference clones with your own git credentials, so check that git can read it directly. Then run ${getCommand(failure.name)}.`;
+    return `The repository could not be read, so nothing was cloned and no ref was tried. It came from ${source}. If the project moved or was renamed, set references.${failure.name}.repository in ${configFile} to the current location (github:owner/repo or a git URL). If it is private, agent-reference clones with your own git credentials, so check that git can read it directly. Then run ${getCommand(failure.name)}.`;
   }
   return pinFix(failure.name, failure.version, failure.repositoryUrl, storeDir, configFile);
 }
 
 function unresolvedPatch(failure: UnresolvedManifestReference): Record<string, unknown> {
-  const pinned: Record<string, unknown> = { version: failure.version };
+  const pinned: Record<string, unknown> = {
+    source: `${SUPPORTED_ECOSYSTEM}:${failure.name}@${failure.version}`,
+  };
   if (
     failure.reason === 'no-repository' ||
     failure.reason === 'registry-error' ||
@@ -153,5 +156,5 @@ function unresolvedPatch(failure: UnresolvedManifestReference): Record<string, u
     pinned.ref = '<commit-or-tag>';
   }
 
-  return { packages: { [failure.name]: pinned } };
+  return { references: { [failure.name]: pinned } };
 }

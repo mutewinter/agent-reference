@@ -9,6 +9,12 @@ import { configuredReferences, resolveSets, setMemberKey } from './sets.ts';
 import { resolveProjectInput } from './scanner.ts';
 import type { AgentReferenceKind } from './types.ts';
 
+/** The `owner/repo` shorthand read as a project-relative path, or null for anything else. */
+function githubShorthandPath(repository: string): string | null {
+  const match = /^github:([\w.-]+\/[\w.-]+)$/.exec(repository);
+  return match?.[1] ?? null;
+}
+
 export interface ValidationReport {
   projectRoot: string;
   configPath: string | null;
@@ -24,7 +30,7 @@ export interface ValidationReport {
     description: string | null;
     sets: string[];
   }>;
-  sets: Array<{ name: string | null; description: string; references: string[] }>;
+  sets: Array<{ name: string; description: string | null; references: string[] }>;
 }
 
 /**
@@ -84,19 +90,7 @@ export async function validateConfig(
   for (const set of report.sets) {
     if (set.references.length === 0) {
       report.warnings.push(
-        `Set "${set.description}" has no members. Add paths, git, or packages entries inside it.`,
-      );
-    }
-  }
-
-  const namesByKind = new Map<string, AgentReferenceKind[]>();
-  for (const reference of references) {
-    namesByKind.set(reference.name, [...(namesByKind.get(reference.name) ?? []), reference.kind]);
-  }
-  for (const [name, kinds] of namesByKind) {
-    if (kinds.length > 1) {
-      report.warnings.push(
-        `"${name}" is used by ${kinds.join(' and ')} references. Qualify it as ${kinds[0]}:${name} when selecting it.`,
+        `Set "${set.name}" has no members. Add sources to its "references" array, or drop the set.`,
       );
     }
   }
@@ -104,7 +98,22 @@ export async function validateConfig(
   for (const reference of loaded.config.paths) {
     const resolved = resolveReferencePath(projectRoot, reference.path);
     if (!(await pathExists(resolved))) {
-      report.warnings.push(`paths.${reference.name} points at ${resolved}, which does not exist.`);
+      report.warnings.push(
+        `references.${reference.name} points at ${resolved}, which does not exist.`,
+      );
+    }
+  }
+
+  // `docs/decisions` is a valid `owner/repo` shorthand and a plausible folder, and the
+  // source alone cannot say which was meant. Only the disk can, and only here: parsing
+  // stays pure so it answers the same on every machine.
+  for (const reference of loaded.config.git) {
+    const shorthand = githubShorthandPath(reference.repository);
+    if (!shorthand) continue;
+    if (await pathExists(path.resolve(projectRoot, shorthand))) {
+      report.warnings.push(
+        `references.${reference.name} reads as the GitHub repository ${reference.repository}, but ${shorthand} is also a folder in this project. Write "./${shorthand}" for the folder; a path source has to be rooted so the two cannot be confused.`,
+      );
     }
   }
 

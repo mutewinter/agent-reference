@@ -21,6 +21,8 @@ import {
   workspaceVersionPath,
 } from './pnpm-lock.ts';
 import { loadReferenceContext, type LoadedReferenceContext } from './reference-context.ts';
+import { configuredReferences, knownSelectorsMessage } from './sets.ts';
+import { classifySource, derivedName, type ClassifiedSource } from './source.ts';
 import {
   parsePackageCoordinate,
   selectInstalledPackage,
@@ -51,10 +53,10 @@ export interface GetReferencesOptions extends ScanProjectOptions, RegistryOption
  * Materializes each spec and returns its readable path. This is the on-demand verb: nothing
  * is fetched until an agent asks, and one call fetches exactly what was asked for.
  *
- * A spec is resolved in this order: a configured reference name (optionally qualified as
- * `kind:name`), a git spec (`github:owner/repo`, `owner/repo`, a git URL, or `file:`), or a
- * package (`name` or `name@version`), where the version comes from the explicit spec, the
- * lockfile, or the registry, in that order.
+ * A spec is resolved in this order: a configured name, which may be a set and then stands
+ * for every reference in it; a git spec (`github:owner/repo`, `owner/repo`, or a git URL);
+ * or a package (`name` or `name@version`), where the version comes from the explicit spec,
+ * the lockfile, or the registry, in that order.
  */
 export async function getReferences(
   projectPath: string | null | undefined,
@@ -86,8 +88,24 @@ export async function getReferences(
   const recordedGit: GitReferenceWorktreeResult[] = [];
 
   for (const spec of specs) {
-    const configured = findConfiguredReference(spec, context);
-    if (configured) {
+    // A set is a reference that resolves to several paths, so naming one materializes every
+    // member. Nothing else about the loop changes: each member returns its own result.
+    const members = setMembers(spec, context);
+    const configured = members ?? findConfiguredReference(spec, context);
+    if (Array.isArray(configured)) {
+      for (const member of configured) {
+        results.push(
+          await getConfigured(
+            member,
+            context,
+            registryOptions,
+            worktreeOptions,
+            recordedPackages,
+            recordedGit,
+          ),
+        );
+      }
+    } else if (configured) {
       results.push(
         await getConfigured(
           configured,
@@ -98,12 +116,19 @@ export async function getReferences(
           recordedGit,
         ),
       );
-    } else if (isGitSpec(spec)) {
-      results.push(await getAdHocGit(spec, worktreeOptions));
     } else {
-      results.push(
-        await getPackage(spec, context, registryOptions, worktreeOptions, recordedPackages),
-      );
+      // The same classifier the config parser uses, so a spelling that works here works
+      // there and resolves to the same thing.
+      const source = classifySource(spec);
+      if (source.kind === 'git') {
+        results.push(await getAdHocGit(source, spec, worktreeOptions));
+      } else if (source.kind === 'path') {
+        results.push(await getAdHocPath(source.path, spec, projectRoot, context));
+      } else {
+        results.push(
+          await getPackage(spec, context, registryOptions, worktreeOptions, recordedPackages),
+        );
+      }
     }
   }
 
@@ -116,42 +141,22 @@ export async function getReferences(
   return results;
 }
 
+/**
+ * One map, one namespace, so a name is looked up and nothing is qualified. Two references
+ * cannot share a name any more; the config parser refuses that outright rather than leaving
+ * an ambiguity for every later lookup to rediscover.
+ */
 function findConfiguredReference(
   spec: string,
   context: LoadedReferenceContext,
 ): ConfiguredReference | null {
-  const references = [
-    ...(context.config?.packages ?? []),
-    ...(context.config?.paths ?? []),
-    ...(context.config?.git ?? []),
-  ];
+  return configuredReferences(context.config).find((reference) => reference.name === spec) ?? null;
+}
 
-  const colon = spec.indexOf(':');
-  if (colon > 0) {
-    const prefix = spec.slice(0, colon);
-    const name = spec.slice(colon + 1);
-    // Two qualifiers, both spellings an agent already has: `package:zod` names the kind, and
-    // `npm:zod` names the ecosystem, which is what `get` prints back and what the config now
-    // stores. A prefix that is neither, `github:` or `file:`, falls through to the git specs.
-    return (
-      references.find(
-        (reference) =>
-          (reference.kind === prefix ||
-            (reference.kind === 'package' && reference.ecosystem === prefix)) &&
-          reference.name === name,
-      ) ?? null
-    );
-  }
-
-  const matches = references.filter((reference) => reference.name === spec);
-  if (matches.length > 1) {
-    throw new Error(
-      `"${spec}" names ${matches.length} configured references. Qualify it: ${matches
-        .map((match) => `${match.kind}:${match.name}`)
-        .join(' or ')}.`,
-    );
-  }
-  return matches[0] ?? null;
+/** The members of the set this name stands for, or null when it does not name a set. */
+function setMembers(spec: string, context: LoadedReferenceContext): ConfiguredReference[] | null {
+  if (!context.config?.sets.some((set) => set.name === spec)) return null;
+  return configuredReferences(context.config).filter((reference) => reference.sets.includes(spec));
 }
 
 async function getConfigured(
@@ -274,7 +279,14 @@ async function getPackage(
     // Nothing here installs it, which is the "look at a library I might adopt" case rather
     // than an error. The result says where the version came from, so it cannot be mistaken
     // for the one this project uses.
-    const version = await resolveRegistryVersion(name, 'latest', registryOptions);
+    const version = await resolveRegistryVersion(name, 'latest', registryOptions).catch(
+      (error: unknown) => {
+        // A name nothing installs and no registry knows is usually a typo of something this
+        // config declares. Blaming npm for it sends an agent to check its network instead.
+        const message = error instanceof Error ? error.message : String(error);
+        throw new Error(`${message}. ${knownSelectorsMessage(context.config)}`);
+      },
+    );
     dependency = adHocDependency(name, version, 'latest', null);
     versionSource = 'registry';
   }
@@ -458,17 +470,18 @@ function resultProblem(
 }
 
 async function getAdHocGit(
-  spec: string,
+  source: Extract<ClassifiedSource, { kind: 'git' }>,
+  requested: string,
   worktreeOptions: GitWorktreeOptions,
 ): Promise<GetReferenceResult> {
-  const normalized = normalizeGitShorthand(spec);
-  const name = repoNameFromSpec(normalized);
-  const result = await ensureGitReferenceWorktree(name, normalized, null, worktreeOptions);
+  const name = derivedName(source);
+  const spec = source.ref ? `${source.repository}#${source.ref}` : source.repository;
+  const result = await ensureGitReferenceWorktree(name, spec, null, worktreeOptions);
 
   return {
     kind: 'git',
     name,
-    requested: spec,
+    requested,
     version: null,
     versionSource: null,
     path: result.referencePath,
@@ -485,25 +498,40 @@ async function getAdHocGit(
   };
 }
 
-function isGitSpec(spec: string): boolean {
-  if (/^(github:|git@|file:|ssh:|git\+|https?:\/\/)/.test(spec)) return true;
-  if (spec.replace(/#.*$/, '').endsWith('.git')) return true;
-  // `owner/repo` is not a valid npm name (only scoped names contain a slash), so the
-  // shorthand agents type for GitHub cannot collide with a package.
-  return !spec.startsWith('@') && /^[\w.-]+\/[\w.-]+(#[\w./-]+)?$/.test(spec);
-}
-
-function normalizeGitShorthand(spec: string): string {
-  if (/^[\w.-]+\/[\w.-]+(#[\w./-]+)?$/.test(spec) && !spec.startsWith('@')) {
-    return `github:${spec}`;
+/**
+ * A path spec that nothing declares. It is already on this machine, so there is nothing to
+ * materialize and the answer is the resolved path or a plain statement that it is not there.
+ */
+async function getAdHocPath(
+  declaredPath: string,
+  requested: string,
+  projectRoot: string,
+  context: LoadedReferenceContext,
+): Promise<GetReferenceResult> {
+  const resolvedPath = resolveReferencePath(projectRoot, declaredPath);
+  if (!(await pathExists(resolvedPath))) {
+    throw new Error(
+      `${requested} resolves to ${resolvedPath}, which does not exist. ${knownSelectorsMessage(context.config)}`,
+    );
   }
-  return spec;
-}
 
-function repoNameFromSpec(spec: string): string {
-  const withoutRef = spec.replace(/#.*$/, '');
-  const base = path.posix.basename(withoutRef.replaceAll('\\', '/'));
-  return base.replace(/\.git$/, '') || withoutRef;
+  return {
+    kind: 'path',
+    name: derivedName({ kind: 'path', path: declaredPath }),
+    requested,
+    version: null,
+    versionSource: null,
+    path: resolvedPath,
+    repositoryPath: null,
+    repositoryUrl: null,
+    checkoutRef: null,
+    checkoutSha: null,
+    refSource: null,
+    confidence: null,
+    description: null,
+    recorded: false,
+    problem: null,
+  };
 }
 
 /** Shared by `get` and `clone`, so a missing subtree is reported wherever it is discovered. */

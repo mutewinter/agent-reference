@@ -120,9 +120,10 @@ export function formatProblem(problem: AgentReferenceProblem): string {
 }
 
 /**
- * Sets render as their own subsections, headed by the set's description, so the output
- * reads the way the collections were written: a labeled list. An entry belonging to two
- * sets appears under both, which is repetition, not state.
+ * Sets render as their own subsections, headed by the name they are addressed by with the
+ * description beneath it. The name is the point: an agent reading this has to be able to
+ * pass it straight back to `get`, and a heading that printed only the description left the
+ * handle discoverable in `--json` and nowhere else.
  */
 function scopeSection(
   header: string,
@@ -136,14 +137,28 @@ function scopeSection(
   lines.push(...entryLines(unset, 2, options));
 
   for (const set of sets) {
-    const label = set.name ?? set.description;
-    const members = entries.filter((entry) => entry.sets.includes(label));
+    const members = entries.filter((entry) => entry.sets.includes(set.name));
     if (members.length === 0) continue;
     if (lines.length > 1) lines.push('');
-    lines.push(`  ${set.description}`, ...entryLines(members, 4, options));
+    lines.push(...setHeading(set, members.length, options), ...entryLines(members, 4, options));
   }
 
   return `${lines.join('\n')}\n`;
+}
+
+function setHeading(
+  set: AgentReferenceStatusReport['sets'][number],
+  memberCount: number,
+  options: StatusFormatOptions,
+): string[] {
+  const count = `set · ${memberCount} ${memberCount === 1 ? 'reference' : 'references'}`;
+  const lines = [`  ${set.name}  ${paint(count, 'dim', options.color)}`];
+  if (set.description) {
+    lines.push(
+      `  ${' '.repeat(set.name.length + 2)}${paint(`"${sanitizeRelayedLine(set.description)}"`, 'dim', options.color)}`,
+    );
+  }
+  return lines;
 }
 
 function entryLines(
@@ -268,7 +283,7 @@ function emptyStateHint(report: AgentReferenceStatusReport): string {
     'No references configured here.',
     '',
     'agent-reference get <spec> materializes readable source on demand, no config needed:',
-    '  a dependency name, name@version, owner/repo, a git URL, or file:../repo',
+    '  a dependency name, name@version, owner/repo, a git URL, or a path',
   ];
 
   if (report.installedPackageCount > 0) {

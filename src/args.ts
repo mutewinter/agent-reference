@@ -15,10 +15,13 @@ export interface CliOptions {
   command: CliCommand;
   /** Reference names, or one project directory / package.json path. */
   positionals: string[];
-  sets: string[];
   json: boolean;
   prune: boolean;
   days: number | null;
+  /** `--help` after a command, which asks about that command rather than running it. */
+  help: boolean;
+  /** The command `--help` was asked about, when one was named. */
+  helpTopic: CliCommand | null;
 }
 
 /** Every verb this build answers to. Ordered as the help lists them. */
@@ -37,16 +40,17 @@ export const CLI_COMMANDS: readonly string[] = [
 ];
 
 const COMMANDS = new Set<string>(CLI_COMMANDS);
-const VALID_OPTIONS = '--set <name-or-description>, --json, --prune, --days <n>';
+const VALID_OPTIONS = '--json, --prune, --days <n>';
 
 export function parseArgv(argv: string[]): CliOptions {
   const options: CliOptions = {
     command: 'status',
     positionals: [],
-    sets: [],
     json: false,
     prune: false,
     days: null,
+    help: false,
+    helpTopic: null,
   };
 
   for (let index = 0; index < argv.length; index += 1) {
@@ -58,7 +62,7 @@ export function parseArgv(argv: string[]): CliOptions {
     const inlineValue = equals === -1 ? null : arg.slice(equals + 1);
 
     if (flag === '--help' || flag === '-h') {
-      options.command = 'help';
+      options.help = true;
     } else if (flag === '--version' || flag === '-v') {
       options.command = 'version';
     } else if (flag === '--json') {
@@ -71,9 +75,6 @@ export function parseArgv(argv: string[]): CliOptions {
         throw new Error('--days requires a non-negative number');
       options.days = value;
       if (inlineValue === null) index += 1;
-    } else if (flag === '--set') {
-      options.sets.push(flagValue(argv, index, flag, inlineValue));
-      if (inlineValue === null) index += 1;
     } else if (flag === '--non-interactive') {
       // Always true now. Accepted because agents type it by convention, and erroring on a
       // flag that only restates the default would cost them a turn for nothing.
@@ -85,9 +86,19 @@ export function parseArgv(argv: string[]): CliOptions {
   }
 
   const [first, ...rest] = options.positionals;
-  if (first && COMMANDS.has(first)) {
+  const named = Boolean(first && COMMANDS.has(first));
+  if (named) {
     options.command = first as CliCommand;
     options.positionals = rest;
+  }
+
+  // Asked last, so it wins over the command word that precedes it. `clone --help` used to
+  // run the clone: the positional overwrote the help request, and a flag that asks a
+  // question performed a fetch instead of answering it. The topic is only the word that was
+  // actually typed, never the command `status` defaults to.
+  if (options.help) {
+    if (named && options.command !== 'help') options.helpTopic = options.command;
+    options.command = 'help';
   }
 
   return options;

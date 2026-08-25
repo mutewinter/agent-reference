@@ -157,12 +157,9 @@ function collectProblems(
 ): AgentReferenceProblem[] {
   const problems: AgentReferenceProblem[] = [];
   const gitByName = new Map((config?.git ?? []).map((entry) => [entry.name, entry]));
-  // A patch has to edit the entry that is there. Keying it by the bare name when the config
-  // spelled the key `npm:zod` would add a second entry for the same package, and the two
-  // would then disagree about the version, which the parser refuses outright.
-  const configKeyByName = new Map(
-    (config?.packages ?? []).map((entry) => [entry.name, entry.configKey]),
-  );
+  // A patch has to edit the entry that is there, so it is keyed by the name the config
+  // gave it. Everything else about the entry, the source included, stays as written.
+  const packageByName = new Map((config?.packages ?? []).map((entry) => [entry.name, entry]));
 
   for (const entry of entries) {
     const reference = `${entry.kind}:${entry.name}`;
@@ -193,13 +190,15 @@ function collectProblems(
 
     const drifted = drift.find((candidate) => candidate.name === entry.name);
     if (drifted) {
-      const configKey = configKeyByName.get(entry.name) ?? entry.name;
+      const configured = packageByName.get(entry.name);
+      const ecosystem = configured?.ecosystem ?? SUPPORTED_ECOSYSTEM;
+      const source = `${ecosystem}:${entry.name}@${drifted.installed[0]}`;
       problems.push({
         reference,
         severity: 'warning',
         summary: `${entry.name} is pinned to ${drifted.pinned}, but this project installs ${drifted.installed.join(' and ')} (${drifted.importers.join(', ')}).`,
-        fix: `If the pin is deliberate, say so in packages.${configKey}.description. Otherwise set packages.${configKey} in ${configFile} to ${drifted.installed[0]} and run ${getCommand(entry.name)}.`,
-        configPatch: { packages: { [configKey]: drifted.installed[0] } },
+        fix: `If the pin is deliberate, say so in references.${entry.name}.description. Otherwise set references.${entry.name} in ${configFile} to ${source} and run ${getCommand(entry.name)}.`,
+        configPatch: { references: { [entry.name]: source } },
         configFile,
       });
     }
@@ -210,7 +209,10 @@ function collectProblems(
         severity: 'error',
         summary: `${entry.name}@${entry.currentVersion} has no matching release commit, so the default branch was checked out. The source at this path is NOT version ${entry.currentVersion}.`,
         fix: pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile),
-        configPatch: pinPatch(entry, configKeyByName.get(entry.name) ?? entry.name),
+        configPatch: pinPatch(
+          entry,
+          packageByName.get(entry.name)?.ecosystem ?? SUPPORTED_ECOSYSTEM,
+        ),
         configFile,
       });
       continue;
@@ -226,7 +228,10 @@ function collectProblems(
         severity: 'warning',
         summary: `${entry.name}@${entry.currentVersion} was checked out from a plausible ref, but no package.json confirmed the version.`,
         fix: `Spot-check ${entry.path}/package.json. If it is wrong, ${pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile)}`,
-        configPatch: pinPatch(entry, configKeyByName.get(entry.name) ?? entry.name),
+        configPatch: pinPatch(
+          entry,
+          packageByName.get(entry.name)?.ecosystem ?? SUPPORTED_ECOSYSTEM,
+        ),
         configFile,
       });
     }
@@ -260,11 +265,12 @@ function nextStepsFor(problems: AgentReferenceProblem[]): string[] {
   return steps;
 }
 
-function pinPatch(entry: AgentReferenceStatusEntry, configKey: string): Record<string, unknown> {
+function pinPatch(entry: AgentReferenceStatusEntry, ecosystem: string): Record<string, unknown> {
+  const version = entry.currentVersion ?? entry.requested ?? '<version>';
   return {
-    packages: {
-      [configKey]: {
-        version: entry.requested ?? entry.currentVersion ?? 'installed',
+    references: {
+      [entry.name]: {
+        source: `${ecosystem}:${entry.name}@${version}`,
         ref: '<commit-or-tag>',
       },
     },
