@@ -122,3 +122,70 @@ a {
   display: inline-block;
   width: 100%;
 }
+
+/* The hero plays once. Every line is in the markup from the first byte and only
+   its opacity animates, so the panels never reflow, the finished state is what a
+   crawler and a reader with JavaScript off both get, and turning motion down
+   costs nothing but the timing.
+
+   All of the timing is here rather than split with the components, which only
+   say what arrives together: `rv-s*` is a tool call in the session, `rv-w*` is
+   a group of lines in the file being written beside it. The two interleave on
+   purpose, so the file fills in as the agent learns each thing, and finishes
+   just after the Write that produced it. */
+.rv {
+  opacity: 0;
+  animation: rv-in 400ms ease-out var(--d, 0ms) forwards;
+}
+
+.rv-s0 {
+  --d: 0ms;
+}
+.rv-s1 {
+  --d: 900ms;
+}
+.rv-s2 {
+  --d: 1800ms;
+}
+.rv-s3 {
+  --d: 2700ms;
+}
+.rv-s4 {
+  --d: 3600ms;
+}
+.rv-s5 {
+  --d: 4500ms;
+}
+
+.rv-w1 {
+  --d: 1400ms;
+}
+.rv-w2 {
+  --d: 2100ms;
+}
+.rv-w3 {
+  --d: 2600ms;
+}
+.rv-w4 {
+  --d: 3100ms;
+}
+.rv-w5 {
+  --d: 3800ms;
+}
+
+@keyframes rv-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rv {
+    opacity: 1;
+    animation: none;
+  }
+}

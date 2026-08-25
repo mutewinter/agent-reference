@@ -8,15 +8,18 @@ export const samples = {
     lang: 'jsonc',
     code: `{
   "references": {
-    "effect": "npm:effect@4.0.0-rc.111",
-    "pi": {
-      "source": "github:earendil-works/pi",
-      "description": "AI agent toolkit: LLM API, loop, TUI, CLI"
+    "effect": {
+      "source": "npm:effect@4.0.0-rc.111",
+      "description": "We are on the v4 rc; every example online is v3"
     },
     "effect-docs": {
       "source": "github:Effect-TS/website",
       "directory": "apps/web/src/content/docs/v4",
-      "description": "Effect's v4 documentation"
+      "description": "The v4 docs, which the site does not publish"
+    },
+    "pi": {
+      "source": "github:earendil-works/pi",
+      "description": "AI agent toolkit: LLM API, loop, TUI, CLI"
     }
   }
 }`,
@@ -222,6 +225,30 @@ export const trees = {
  * and whose published site is not the default view.
  */
 export const terminals = {
+  /**
+   * The hero, and the only block on the page that plays. A first run: the agent
+   * reads the brief, mines the machine's own session history for what this
+   * project keeps reaching for, and writes the config filling in beside it.
+   */
+  setup: `> Set this project up for agent-reference: run \`npx agent-reference init\` and follow the brief it prints.
+
+* Bash(npx agent-reference init)
+  \u23BF 2,723 sessions across claude-code, codex and opencode
+    mine them for the sources this project reaches for
+
+* Bash(rg -o 'github:[^ ]+' ~/.claude/projects | sort | uniq -c | sort -rn)
+  \u23BF 41 Effect-TS/website
+    12 earendil-works/pi
+
+* Read(pnpm-lock.yaml)
+  \u23BF effect 4.0.0-rc.111
+
+* Write(agent-reference.json)
+  \u23BF 3 references
+
+* Bash(agent-reference validate)
+  \u23BF ok: agent-reference.json defines 3 references in 0 sets`,
+
   session: `$ claude "Implement an edit tool like pi's, using Effect v4"
 
 * Skill(agent-reference)
@@ -367,6 +394,36 @@ export const howItWorks: HowItWorks = {
 };
 
 /**
+ * How the hero config arrives: how many lines land together, in order. The
+ * braces open, then one entry per thing the agent found, then the braces close.
+ * When each group arrives is in styles.css, next to the session's own steps,
+ * because the two have to be read against each other to be tuned at all.
+ */
+export const heroChunks = [2, 4, 5, 4, 2];
+
+/**
+ * The whole format, which is short enough to put on the page now that it is one
+ * map. The first table is what a value may be, the second what a source may be.
+ */
+export const format = {
+  heading: 'The format',
+  lead: 'One `references` map, from the name your agent asks for to where that source comes from. An object with `source` is a reference; an object with `references` is a set. That is the only rule.',
+  values: [
+    { code: '"github:openai/codex"', means: 'a reference: one name, one source' },
+    { code: '{ "source": "…", "ref": "…" }', means: 'a reference, with more said about it' },
+    { code: '["openai/codex", "./docs"]', means: 'a set: one name, several sources' },
+    { code: '{ "references": ["…", "…"] }', means: 'a set, with a heading' },
+  ],
+  sources: [
+    { code: './docs/decisions', means: 'a folder or a file, read where it lives' },
+    { code: 'github:openai/codex', means: 'a repository, at its default branch' },
+    { code: 'openai/codex#v0.20.0', means: 'the same, at a tag, branch, or commit' },
+    { code: 'npm:zod@3.22.0', means: 'a package, at an exact version' },
+  ],
+  note: 'A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. There is no flag for it and no second namespace.',
+};
+
+/**
  * The page's own words, shared so the README says them too rather than keeping
  * a second copy that drifts. `tagline` also names the browser tab and heads the
  * link preview; `description` is the meta description, and the only line of
@@ -384,6 +441,10 @@ export const copy = {
   },
   install: {
     heading: 'Install it yourself',
+  },
+  thenUse: {
+    heading: 'Then use your agent normally',
+    note: 'Nothing about how you work changes. The agent notices what it needs, takes the source by name, and reads the version this project actually installs.',
   },
   commands: {
     heading: 'The commands',

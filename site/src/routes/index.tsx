@@ -8,6 +8,8 @@ import {
   copy,
   type Example as ExampleData,
   examples,
+  format,
+  heroChunks,
   howItWorks,
   install,
   prompt,
@@ -15,7 +17,7 @@ import {
   terminals,
   trees,
 } from '../../code-samples.ts';
-import { Highlighted, Panel, Session, Term, Tree, source } from '../components/panels';
+import { Highlighted, Panel, Prose, Session, Term, Tree, source } from '../components/panels';
 import { ForYou, ForYourAgent, Or } from '../components/start';
 
 export const Route = createFileRoute('/')({ component: Home });
@@ -85,21 +87,64 @@ function HowItWorks() {
   );
 }
 
+/**
+ * The one block on the page that moves. A first run, left to right: the agent
+ * reads the brief and mines the machine for what this project reaches for, and
+ * the config fills in beside it. The pairing is the pitch, so it sits above
+ * everything else and nothing is asked of the reader to see it.
+ */
+function Hero() {
+  return (
+    <div className="mt-10 grid gap-5 lg:grid-cols-2">
+      <Panel tone="term" label="agent">
+        <Session text={terminals.setup} reveal />
+      </Panel>
+      <Panel label="agent-reference.json" copy={source('shared')}>
+        <Highlighted name="shared" reveal={{ chunks: heroChunks }} />
+      </Panel>
+    </div>
+  );
+}
+
+/** What the config is for, one screen after the config gets written. */
+function Format() {
+  return (
+    <>
+      <Prose text={format.lead} className="max-w-3xl text-muted" />
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <Panel label="a value may be">
+          <Rows rows={format.values} />
+        </Panel>
+        <Panel label="a source may be">
+          <Rows rows={format.sources} />
+        </Panel>
+      </div>
+      <Prose text={format.note} className="mt-6 max-w-3xl text-muted" />
+    </>
+  );
+}
+
+/** Two columns of code against prose, laid out so the code reads as a column. */
+function Rows({ rows }: { rows: Array<{ code: string; means: string }> }) {
+  return (
+    <dl className="grid items-baseline gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+      {rows.map((row) => (
+        <div key={row.code} className="contents">
+          <dt className="text-fg">{row.code}</dt>
+          <dd className="text-muted">{row.means}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 function Home() {
   return (
     <>
       <section className="pt-12">
         <h1 className="text-2xl text-fg">{copy.title}</h1>
         <p className="mt-2 text-lg text-muted">{copy.tagline}</p>
-
-        <div className="mt-10 grid gap-5 lg:grid-cols-2">
-          <Panel label="agent-reference.json" copy={source('shared')}>
-            <Highlighted name="shared" />
-          </Panel>
-          <Panel tone="term">
-            <Session text={terminals.session} />
-          </Panel>
-        </div>
+        <Hero />
       </section>
 
       <Section label="Get started">
@@ -108,6 +153,19 @@ function Home() {
           <Or />
           <ForYou cd={cd} install={install} prompt={prompt} agents={agents} />
         </div>
+      </Section>
+
+      <Section label={copy.thenUse.heading}>
+        <p className="mb-6 max-w-3xl text-muted">{copy.thenUse.note}</p>
+        <div className="max-w-3xl">
+          <Panel tone="term" label="agent">
+            <Session text={terminals.session} />
+          </Panel>
+        </div>
+      </Section>
+
+      <Section label={format.heading}>
+        <Format />
       </Section>
 
       <Section label="Examples">

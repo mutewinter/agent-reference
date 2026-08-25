@@ -1,8 +1,29 @@
-import type { ReactNode } from 'react';
+import { cloneElement, type ReactElement, type ReactNode } from 'react';
 
 import highlighted from 'virtual:highlighted';
 
 import { IconCopy } from './copy';
+
+/**
+ * Prose with `backticks` in it. The page has no markdown, and a name like
+ * `references` set in the body face reads as a word rather than as the key it
+ * is; the site sets code in code everywhere else, so it does here too.
+ */
+export function Prose({ text, className }: { text: string; className?: string }) {
+  return (
+    <p className={className}>
+      {text.split('`').map((part, i) =>
+        i % 2 === 1 ? (
+          <code key={i} className="text-fg">
+            {part}
+          </code>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
+    </p>
+  );
+}
 
 /** A framed block. The label is a filename or a command, never a description. */
 export function Panel({
@@ -88,11 +109,32 @@ export function Tree({ text }: { text: string }) {
   );
 }
 
-/** Shiki output for JSON, rendered in Node at build time. */
-export function Highlighted({ name }: { name: string }) {
-  return (
-    <div className="shiki-block" dangerouslySetInnerHTML={{ __html: highlighted[name].html }} />
+/**
+ * Shiki output for JSON, rendered in Node at build time. `reveal` fades the
+ * lines in one at a time, which is what a file being written looks like; the
+ * markup is the finished file either way, so nothing about the page depends on
+ * the animation having run.
+ */
+export function Highlighted({ name, reveal }: { name: string; reveal?: { chunks: number[] } }) {
+  const html = reveal ? revealLines(highlighted[name].html, reveal) : highlighted[name].html;
+  return <div className="shiki-block" dangerouslySetInnerHTML={{ __html: html }} />;
+}
+
+/**
+ * Marks each line with the group it arrives in. Shiki emits exactly this opener
+ * once per line, which is the seam the class rides on; the HTML comes from a
+ * build-time highlighter, so nothing a config or a repository wrote reaches it.
+ * `chunks` is how many lines land together, and the stylesheet says when.
+ */
+function revealLines(html: string, reveal: { chunks: number[] }): string {
+  const groups = reveal.chunks.flatMap((count, group) =>
+    Array.from({ length: count }, () => group + 1),
   );
+  let index = 0;
+  return html.replaceAll('<span class="line">', () => {
+    const group = groups[index++] ?? groups.at(-1) ?? 1;
+    return `<span class="line rv rv-w${group}">`;
+  });
 }
 
 /** The source behind a snippet, for the clipboard. */
@@ -179,56 +221,89 @@ function Line({ text, inline = false }: { text: string; inline?: boolean }) {
 /**
  * A coding-agent session rather than a shell. The point of showing it this way
  * is that nobody types these commands: the agent does, which is the whole
- * reason the tool prints paths instead of file contents.
+ * reason the tool prints paths instead of file contents. With `reveal` it plays
+ * once, a tool call at a time.
  */
-export function Session({ text }: { text: string }) {
+export function Session({ text, reveal = false }: { text: string; reveal?: boolean }) {
+  const lines = text.split('\n');
+  const steps = stepIndices(lines);
+
   return (
     <pre className="code-wrap leading-code">
-      {text.split('\n').map((line, i) => {
-        if (line === '') return <div key={i}>&nbsp;</div>;
-
-        if (line.startsWith('> ')) {
-          return (
-            <div key={i} className="text-muted">
-              <span className="select-none">{'> '}</span>
-              {line.slice(2)}
-            </div>
-          );
-        }
-
-        if (line.startsWith('* ')) {
-          const call = line.slice(2);
-          const open = call.indexOf('(');
-          return (
-            <div key={i}>
-              <span className="text-ok select-none">{'\u23FA '}</span>
-              {open === -1 ? (
-                call
-              ) : (
-                <>
-                  {call.slice(0, open)}
-                  <span className="text-muted">{call.slice(open)}</span>
-                </>
-              )}
-            </div>
-          );
-        }
-
-        const result = line.match(/^(\s+)(\u23BF )?(.*)$/u);
-        if (result) {
-          const [, indent, elbow, rest] = result;
-          return (
-            <div key={i}>
-              {indent}
-              <span className="text-line select-none">{elbow ? '\u23BF ' : ''}</span>
-              <Line text={rest} inline />
-            </div>
-          );
-        }
-
-        return <Line key={i} text={line} />;
+      {lines.map((line, i) => {
+        const element = sessionLine(line, i);
+        if (!reveal) return element;
+        return cloneElement(element, {
+          className: `${element.props.className ?? ''} rv ${STEP_CLASS[steps[i] ?? 0]}`.trim(),
+        });
       })}
     </pre>
+  );
+}
+
+/**
+ * A tool call and the results under it arrive together, the way they do in a
+ * real session, so the group is per call rather than per line. The stylesheet
+ * holds the timing; this only says what belongs with what.
+ */
+function stepIndices(lines: string[]): number[] {
+  const steps: number[] = [];
+  let step = 0;
+  for (const line of lines) {
+    if (line.startsWith('* ')) step += 1;
+    steps.push(step);
+  }
+  return steps;
+}
+
+const STEP_CLASS = ['rv-s0', 'rv-s1', 'rv-s2', 'rv-s3', 'rv-s4', 'rv-s5'];
+
+function sessionLine(line: string, i: number): ReactElement<{ className?: string }> {
+  if (line === '') return <div key={i}>&nbsp;</div>;
+
+  if (line.startsWith('> ')) {
+    return (
+      <div key={i} className="text-muted">
+        <span className="select-none">{'> '}</span>
+        {line.slice(2)}
+      </div>
+    );
+  }
+
+  if (line.startsWith('* ')) {
+    const call = line.slice(2);
+    const open = call.indexOf('(');
+    return (
+      <div key={i}>
+        <span className="text-ok select-none">{'\u23FA '}</span>
+        {open === -1 ? (
+          call
+        ) : (
+          <>
+            {call.slice(0, open)}
+            <span className="text-muted">{call.slice(open)}</span>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  const result = line.match(/^(\s+)(\u23BF )?(.*)$/u);
+  if (result) {
+    const [, indent, elbow, rest] = result;
+    return (
+      <div key={i}>
+        {indent}
+        <span className="text-line select-none">{elbow ? '\u23BF ' : ''}</span>
+        <Line text={rest} inline />
+      </div>
+    );
+  }
+
+  return (
+    <div key={i}>
+      <Line text={line} inline />
+    </div>
   );
 }
 
