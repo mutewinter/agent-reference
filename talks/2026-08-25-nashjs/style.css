@@ -274,13 +274,9 @@
   padding: 0 3px;
 }
 
-/* A screenshot of one config slide should say what it is on its own. */
-.subhead {
-  flex: none;
-  margin-top: -0.55em;
-  margin-bottom: 1.1em;
-  font-size: 15px;
-  color: #666;
+.code .mark {
+  background: #4a3c1c;
+  padding: 0 2px;
 }
 
 /* An empty input, until it is pasted into. The caret has to leave the flow

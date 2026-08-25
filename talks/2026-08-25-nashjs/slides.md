@@ -201,9 +201,7 @@ class: interlude
 class: config
 ---
 
-## Reference the repos checked out beside this one
-
-<div class="subhead">By name, so nobody has to remember a path</div>
+## Reference other folders on your computer
 
 <div class="body">
 
@@ -218,9 +216,7 @@ class: config
 class: config
 ---
 
-## Check out any repo worth reading
-
-<div class="subhead">Public or private, and the projects you copy patterns from</div>
+## Reference public or private repos, automatically cloned
 
 <div class="body">
 
@@ -237,8 +233,6 @@ class: config
 
 ## Check out source for exact npm versions
 
-<div class="subhead">The version your lockfile installs, from the repository rather than the tarball</div>
-
 <div class="body">
 
 <div class="pair">
@@ -252,9 +246,7 @@ class: config
 class: config
 ---
 
-## Check out two versions of one package at once
-
-<div class="subhead">Both on disk, keyed by commit, so an upgrade can be read from both sides</div>
+## Check out two versions of a package at once
 
 <div class="body">
 
@@ -269,9 +261,7 @@ class: config
 class: config
 ---
 
-## Reference anything on your machine, from any folder
-
-<div class="subhead">A config at home, for every project that has none of its own</div>
+## Define references for every agent on your computer
 
 <div class="body">
 
@@ -288,12 +278,10 @@ class: config
 
 ## Group references under one name
 
-<div class="subhead">Ask for all of them at once, by that name</div>
-
 <div class="body">
 
 <div class="pair">
-<div class="panel"><div class="panel-head">agent-reference.json</div><div class="panel-body"><div class="code small"><div><span class="k">"references"</span>: {</div><div>&nbsp;&nbsp;<span class="k">"harnesses"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"How others solve this"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"references"</span>: [</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:earendil-works/pi"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:openai/codex"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:anomalyco/opencode"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;]</div><div>&nbsp;&nbsp;}</div><div>}</div></div></div></div>
+<div class="panel"><div class="panel-head">agent-reference.json</div><div class="panel-body"><div class="code small"><div><span class="k">"references"</span>: {</div><div>&nbsp;&nbsp;<span class="k mark">"harnesses"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"How others solve this"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"references"</span>: [</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:earendil-works/pi"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:openai/codex"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:anomalyco/opencode"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;]</div><div>&nbsp;&nbsp;}</div><div>}</div></div></div></div>
 <div class="panel"><div class="panel-head">agent</div><div class="panel-body"><div class="sess" style="font-size:12px">
 <div class="p"><div>&gt; how do other <b>harnesses</b> compact context</div></div>
 <div>
