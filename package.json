@@ -10,7 +10,7 @@
   "homepage": "https://agent-reference.dev",
   "bugs": "https://github.com/mutewinter/agent-reference/issues",
   "bin": {
-    "agent-reference": "./dist/cli.js"
+    "agent-reference": "dist/cli.js"
   },
   "types": "./dist/index.d.ts",
   "exports": {
