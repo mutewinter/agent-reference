@@ -33,6 +33,7 @@ test('renders scope sections with sets as labeled-list subsections', () => {
           {
             name: 'engines',
             description: 'Engines we study upstream',
+            scope: 'shared',
             references: ['git:chess-engine'],
           },
         ],

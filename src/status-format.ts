@@ -7,6 +7,7 @@ import type {
   AgentReferenceProblem,
   AgentReferenceStatusEntry,
   AgentReferenceStatusReport,
+  ConfigScope,
 } from './types.ts';
 
 export interface StatusFormatOptions {
@@ -59,20 +60,26 @@ export function formatStatusReport(
   const shared = report.references.filter((entry) => entry.scope !== 'local');
   const local = report.references.filter((entry) => entry.scope === 'local');
   if (shared.length > 0) {
-    sections.push(
+    pushSection(
+      sections,
       scopeSection(
         fileLabel(report.configPath, 'agent-reference.json', 'shared'),
+        'shared',
         shared,
+        report.references,
         report.sets,
         options,
       ),
     );
   }
   if (local.length > 0) {
-    sections.push(
+    pushSection(
+      sections,
       scopeSection(
         fileLabel(report.localConfigPath, 'agent-reference.local.json', 'this machine'),
+        'local',
         local,
+        report.references,
         report.sets,
         options,
       ),
@@ -86,6 +93,10 @@ export function formatStatusReport(
   if (footer) sections.push(footer);
 
   return sections.join('\n');
+}
+
+function pushSection(sections: string[], section: string | null): void {
+  if (section !== null) sections.push(section);
 }
 
 /**
@@ -127,23 +138,33 @@ export function formatProblem(problem: AgentReferenceProblem): string {
  */
 function scopeSection(
   header: string,
+  scope: ConfigScope,
   entries: AgentReferenceStatusEntry[],
+  all: AgentReferenceStatusEntry[],
   sets: AgentReferenceStatusReport['sets'],
   options: StatusFormatOptions,
-): string {
-  const lines = [paint(header, 'dim', options.color)];
+): string | null {
+  const lines: string[] = [];
 
   const unset = entries.filter((entry) => entry.sets.length === 0);
   lines.push(...entryLines(unset, 2, options));
 
   for (const set of sets) {
-    const members = entries.filter((entry) => entry.sets.includes(set.name));
+    // A set belongs to the file that declared it; its members may come from
+    // either. Filtering the heading by member scope printed a set split across
+    // both files twice, each half captioned as the whole.
+    if (set.scope !== scope) continue;
+    const members = all.filter((entry) => entry.sets.includes(set.name));
     if (members.length === 0) continue;
     if (lines.length > 1) lines.push('');
     lines.push(...setHeading(set, members.length, options), ...entryLines(members, 4, options));
   }
 
-  return `${lines.join('\n')}\n`;
+  // A file whose every entry is a member of a set declared in the other one has
+  // nothing of its own to show, and a heading with no rows under it reads as a
+  // file that failed to load.
+  if (lines.length === 0) return null;
+  return `${paint(header, 'dim', options.color)}\n${lines.join('\n')}\n`;
 }
 
 function setHeading(

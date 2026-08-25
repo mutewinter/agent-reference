@@ -319,6 +319,8 @@ export interface AgentReferenceProblem {
 export interface AgentReferenceStatusSet {
   name: string;
   description: string | null;
+  /** Which config file declared the set. Its members may come from either. */
+  scope: ConfigScope;
   references: string[];
 }
 
@@ -404,6 +406,8 @@ export type ConfiguredReference =
 export interface ConfiguredSet {
   name: string;
   description: string | null;
+  /** Which config file declared the set, so `status` renders it in one section. */
+  scope: ConfigScope;
 }
 
 export interface ReferenceSetMember {
@@ -414,6 +418,7 @@ export interface ReferenceSetMember {
 export interface ReferenceSet {
   name: string;
   description: string | null;
+  scope: ConfigScope;
   members: ReferenceSetMember[];
 }
 

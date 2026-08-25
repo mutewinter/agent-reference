@@ -29,6 +29,7 @@ export function resolveSets(config: AgentReferenceConfig | undefined): Reference
   return config.sets.map((set) => ({
     name: set.name,
     description: set.description,
+    scope: set.scope,
     members: references
       .filter((reference) => reference.sets.includes(set.name))
       .map((reference) => ({ kind: reference.kind, name: reference.name })),
@@ -68,14 +69,9 @@ export function selectionFilter(
   // reference it meant was never materialized.
   const selectors: Array<UnmatchedSelector & { keys: Set<string> }> = [];
   const sets = resolveSets(config);
-  const references = configuredReferences(config);
 
   for (const input of inputs) {
-    selectors.push({
-      label: `reference "${input}"`,
-      input,
-      keys: selectorKeys(input, sets, references),
-    });
+    selectors.push({ label: `reference "${input}"`, input, keys: selectorKeys(input, sets) });
   }
 
   const hits = new Set<string>();
@@ -95,49 +91,22 @@ export function selectionFilter(
 }
 
 /**
- * What one selector stands for. An exact name wins outright; a set expands to its members;
- * anything left over is matched against descriptions, so the phrasing a user says in chat
- * ("the documentation sources") works at the CLI without being the reference's name.
+ * What one selector stands for: a name, exactly. A set expands to its members, and
+ * everything else is the name it is.
+ *
+ * Matching a description substring was tried and taken back out. It ran in `status` and
+ * `clone`, which go through here, and not in `get`, which classifies the spec itself and
+ * would have asked a registry for a package by that word. One selector, two behaviors, one
+ * of them a network fetch of something unrelated. A fuzzy match also sits badly in an API
+ * whose whole claim is that a name means one thing.
  */
-function selectorKeys(
-  input: string,
-  sets: ReferenceSet[],
-  references: ConfiguredReference[],
-): Set<string> {
+function selectorKeys(input: string, sets: ReferenceSet[]): Set<string> {
   const set = sets.find((candidate) => candidate.name === input);
   if (set) return new Set(set.members.map((member) => memberKey(member.kind, member.name)));
 
-  if (references.some((reference) => reference.name === input)) {
-    return new Set(KINDS.map((kind) => memberKey(kind, input)));
-  }
-
-  const described = matchDescription(input, sets, references);
-  if (described) return described;
-
-  // Nothing named it and nothing described it. The keys are still generated so the caller
-  // reports which selector missed rather than silently narrowing to nothing.
+  // Generated whether or not anything answers to the name, so a miss is reported as the
+  // selector that missed rather than silently narrowing the selection to nothing.
   return new Set(KINDS.map((kind) => memberKey(kind, input)));
-}
-
-function matchDescription(
-  input: string,
-  sets: ReferenceSet[],
-  references: ConfiguredReference[],
-): Set<string> | null {
-  const needle = input.toLowerCase();
-  const setHits = sets.filter((set) => (set.description ?? '').toLowerCase().includes(needle));
-  const referenceHits = references.filter((reference) =>
-    (reference.description ?? '').toLowerCase().includes(needle),
-  );
-
-  if (setHits.length === 1 && referenceHits.length === 0) {
-    return new Set(setHits[0]!.members.map((member) => memberKey(member.kind, member.name)));
-  }
-  if (referenceHits.length === 1 && setHits.length === 0) {
-    const hit = referenceHits[0]!;
-    return new Set([memberKey(hit.kind, hit.name)]);
-  }
-  return null;
 }
 
 /** Says which selector missed and what could have been written instead. */

@@ -249,7 +249,7 @@ test('a key that does nothing for its source is refused rather than ignored', ()
 test('a local checkout is read where it lives, so the file: prefix names the path to write', () => {
   assert.throws(
     () => parseConfig({ references: { ui: 'file:../company-ui' } }, 'agent-reference.json'),
-    /"file:\.\.\/company-ui" is not a source.*write the path on its own: "\.\.\/company-ui"/s,
+    /"file:\.\.\/company-ui" is not a source.*Write "\.\.\/company-ui" to read that checkout where it lives.*not the same thing.*snapshot/s,
   );
 
   // A `file://` URL is a git URL like any other, and still clones into the store.
@@ -260,7 +260,7 @@ test('a local checkout is read where it lives, so the file: prefix names the pat
   assert.equal(config.git[0]?.repository, 'file:///opt/checkouts/company-ui');
 });
 
-test('selects references by name, by set name, and by description substring', () => {
+test('a selector is a name, and a set name stands for its members', () => {
   const config = parseConfig(
     {
       references: {
@@ -276,14 +276,15 @@ test('selects references by name, by set name, and by description substring', ()
   assert.equal(bySetName?.matches('path', 'notes'), true);
   assert.equal(bySetName?.matches('package', 'react'), false);
 
-  // The phrasing a user says in chat still works at the CLI, and now for any reference
-  // rather than only for a set.
-  const bySubstring = selectionFilter(config, { references: ['documentation'] });
-  assert.equal(bySubstring?.matches('path', 'notes'), true);
-
   const byName = selectionFilter(config, { references: ['react-notes'] });
   assert.equal(byName?.matches('path', 'react-notes'), true);
   assert.equal(byName?.matches('package', 'react'), false);
+
+  // A word out of a description is not a selector. It resolved here and not in `get`,
+  // which classifies the spec itself and would have asked a registry for a package by
+  // that word: one selector, two behaviors, one of them a network fetch.
+  const bySubstring = selectionFilter(config, { references: ['documentation'] });
+  assert.equal(bySubstring?.matches('path', 'notes'), false);
 
   assert.equal(selectionFilter(config, {}), null);
 });
@@ -347,6 +348,47 @@ test('local config overrides shared entries by name', async () => {
       ['company-ui', '~/code/company-ui', 'Local checkout'],
       ['notes', './notes', null],
     ],
+  );
+});
+
+test('a local entry overrides a committed one of any kind, not just its own', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-override-kind-'));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({ references: { zod: 'npm:zod@3.22.0' } }),
+  );
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.local.json'),
+    JSON.stringify({ references: { zod: '~/code/zod' } }),
+  );
+
+  // Three arrays merged separately, so both survived: `get` answered with whichever
+  // it reached first and `status` printed two rows for one name.
+  const loaded = await loadAgentReferenceConfig(projectRoot);
+
+  assert.equal(loaded?.config.packages.length, 0);
+  assert.deepEqual(
+    loaded?.config.paths.map((entry) => [entry.name, entry.path]),
+    [['zod', '~/code/zod']],
+  );
+});
+
+test('a set in one file and a reference in the other names both files', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-xfile-set-'));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({ references: { harnesses: ['github:acme/chess-engine'] } }),
+  );
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.local.json'),
+    JSON.stringify({ references: { harnesses: '~/code/harnesses' } }),
+  );
+
+  // Not an override the way two references are: one resolves to a path and the
+  // other to several, so there is nothing to prefer.
+  await assert.rejects(
+    loadAgentReferenceConfig(projectRoot),
+    /"harnesses" is a set in .*agent-reference\.json and a path reference in .*agent-reference\.local\.json/,
   );
 });
 

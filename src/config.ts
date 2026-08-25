@@ -52,12 +52,14 @@ export async function loadAgentReferenceConfig(
   for (const reference of [...localConfig.packages, ...localConfig.paths, ...localConfig.git]) {
     reference.scope = 'local';
   }
+  for (const set of localConfig.sets) {
+    set.scope = 'local';
+  }
 
-  return {
-    path: configPath,
-    localPath,
-    config: mergeConfigs(baseConfig, localConfig),
-  };
+  const config = mergeConfigs(baseConfig, localConfig);
+  assertMergedNamesAreFree(config, configPath, localPath);
+
+  return { path: configPath, localPath, config };
 }
 
 async function readConfigJson(configPath: string): Promise<unknown> {
@@ -155,7 +157,7 @@ function parseSet(
     fail(configPath, `${field}.references must be an array of sources.`);
   }
 
-  config.sets.push({ name, description });
+  config.sets.push({ name, description, scope: 'shared' });
 
   for (const [index, member] of members.entries()) {
     const itemField = `${field}.references[${index}]`;
@@ -392,6 +394,33 @@ export function setLabel(set: ConfiguredSet): string {
   return set.name;
 }
 
+/**
+ * A set and a reference cannot share a name, and the two files parse
+ * separately, so this collision only exists after the merge. It is not an
+ * override the way two references are: one resolves to a path and the other to
+ * several, so there is nothing to prefer. Both filenames are named, because the
+ * fix is in whichever of them the reader does not have open.
+ */
+function assertMergedNamesAreFree(
+  config: AgentReferenceConfig,
+  configPath: string | null,
+  localPath: string | null,
+): void {
+  const shared = configPath ?? DEFAULT_CONFIG_FILE;
+  const local = localPath ?? DEFAULT_LOCAL_CONFIG_FILE;
+
+  for (const set of config.sets) {
+    const clash = findByName(config, set.name);
+    if (!clash) continue;
+    const setFile = set.scope === 'local' ? local : shared;
+    const referenceFile = clash.scope === 'local' ? local : shared;
+    if (setFile === referenceFile) continue;
+    throw new Error(
+      `"${set.name}" is a set in ${setFile} and a ${clash.kind} reference in ${referenceFile}. One name means one thing across both files: rename one of them.`,
+    );
+  }
+}
+
 function parseDescription(value: unknown, configPath: string, field: string): string | null {
   if (value === undefined || value === null) return null;
   return expectString(value, configPath, `${field}.description`).trim() || null;
@@ -406,6 +435,13 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
+/**
+ * The local file wins by name, which is the rule the guide states and two
+ * comments repeat. It only held inside a kind: the three arrays merged
+ * separately, so a local path and a committed package sharing a name both
+ * survived, `get` answered with whichever it looked at first, and `status`
+ * printed two rows for one name. Overriding now spans all three.
+ */
 function mergeConfigs(
   base: AgentReferenceConfig,
   local: AgentReferenceConfig,
@@ -415,12 +451,21 @@ function mergeConfigs(
     if (!sets.some((existing) => existing.name === set.name)) sets.push(set);
   }
 
+  // Only a local entry of a different kind drops the committed one here; a local
+  // entry of the same kind replaces it in place further down, which keeps the
+  // reference where it was in the file rather than moving it to the end.
+  const overriddenKind = new Map(
+    [...local.packages, ...local.paths, ...local.git].map((entry) => [entry.name, entry.kind]),
+  );
+  const kept = <T extends ConfiguredReference>(entries: T[]): T[] =>
+    entries.filter((entry) => (overriddenKind.get(entry.name) ?? entry.kind) === entry.kind);
+
   const cacheDir = local.cacheDir ?? base.cacheDir;
 
   return {
-    packages: mergeByName(base.packages, local.packages),
-    paths: mergeByName(base.paths, local.paths),
-    git: mergeByName(base.git, local.git),
+    packages: mergeByName(kept(base.packages), local.packages),
+    paths: mergeByName(kept(base.paths), local.paths),
+    git: mergeByName(kept(base.git), local.git),
     sets,
     allImporters: local.allImporters ?? base.allImporters,
     registry: local.registry ?? base.registry,
