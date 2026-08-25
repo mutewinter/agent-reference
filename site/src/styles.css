@@ -17,9 +17,11 @@
   --color-line: #333330;
   --color-fg: #e8e8d3;
   --color-muted: #a09a8e;
-  /* The theme's line-number color. Used wherever something is present but
-     deliberately quieter, the way an editor dims an uncommitted filename. */
-  --color-dim: #605958;
+  /* The theme's line-number color, lifted until it clears 4.5:1 on the darkest
+     of the three surfaces. It marks anything present but deliberately quieter,
+     the way an editor dims an uncommitted filename, and it carries real words:
+     the shell comments above the sample commands are set in it. */
+  --color-dim: #847d7c;
 
   /* Both taken from the theme's own token colors. Amber carries anything
      interactive; green means the one thing it means in the CLI, that the
@@ -68,6 +70,21 @@ body {
 
 ::selection {
   background: --alpha(var(--color-accent) / 25%);
+}
+
+/* The browser's own focus ring belongs to no design system, and this page has
+   exactly two things you can operate. Both are on dark, so the ring is the
+   accent with a dark gap behind it rather than a halo that dissolves into the
+   panel it sits on. */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* The caret in the one place text can be selected and stepped through. */
+* {
+  caret-color: var(--color-accent);
 }
 
 a {
@@ -249,7 +266,7 @@ a {
    rather than a blank line in the transcript. A blank line costs a full leading
    and reads as a pause the agent did not take. */
 .code-wrap > .call {
-  margin-top: 0.6em;
+  margin-top: 0.5em;
 }
 
 .code-wrap > .prompt + .call {

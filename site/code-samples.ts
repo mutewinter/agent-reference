@@ -385,7 +385,7 @@ export interface HowItWorks {
 }
 
 export const howItWorks: HowItWorks = {
-  heading: 'How it works',
+  heading: 'Where the source lands',
   lead: 'Skip this if you like: your agent handles all of it. It is here for anyone who wants to see where the source it reads lands. Two projects, pinning two versions of the same dependency, sharing one store.',
   configs: [
     { file: 'web/agent-reference.json', sample: 'storeWeb' },
@@ -491,9 +491,9 @@ export const copy = {
    * is the only artifact on the page nobody is expected to write.
    */
   demo: {
-    heading: 'What it looks like',
+    heading: 'How it works',
     configNote:
-      'Your agent maintains this file. It edits it to add new references, and anything new is cloned the first time it is needed.',
+      'Your agent maintains this file, adding references as it needs them and cloning anything new on first use.',
   },
   thenUse: {
     heading: 'Now use your agent normally',

@@ -158,7 +158,7 @@ function Home() {
     <>
       <section className="pt-8">
         <h1 className="text-2xl text-fg">{copy.title}</h1>
-        <p className="mt-2 mb-5 text-lg text-muted">{copy.tagline}</p>
+        <p className="mt-2 mb-10 text-lg text-muted">{copy.tagline}</p>
         <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:gap-6">
           <ForYourAgent text={setupPrompt} />
           <Or />
