@@ -1,8 +1,6 @@
 # Decisions
 
-One Markdown file per decision, named for the date it was made: `YYYY-MM-DD-short-slug.md`.
-Sections: Context, Decision, Consequences. Decisions are superseded by newer decisions,
-never rewritten; strike a superseded row here and link its replacement.
+One Markdown file per decision, named for the date it was made: `YYYY-MM-DD-short-slug.md`. Sections: Context, Decision, Consequences. Decisions are superseded by newer decisions, never rewritten; strike a superseded row here and link its replacement.
 
 | Date | Decision |
 | --- | --- |
