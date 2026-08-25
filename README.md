@@ -58,8 +58,7 @@
 Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
 ```
 
-Instructs your agent to install the skill and set up a config for the folders, repositories,
-and packages you often reference.
+Instructs your agent to install the skill and set up a config for the folders, repositories, and packages you often reference.
 <!-- /generated -->
 
 <!-- generated:install -->
@@ -75,8 +74,7 @@ claude "Help me set up agent-reference"       # or codex, opencode, pi
 ## Then use your agent normally
 
 <!-- generated:then-use -->
-Nothing about how you work changes. The agent notices what it needs, takes the source by
-name, and reads the version this project actually installs.
+Nothing about how you work changes. The agent notices what it needs, takes the source by name, and reads the version this project actually installs.
 
 ```text
 $ claude "Implement an edit tool like pi's, using Effect v4"
@@ -99,9 +97,7 @@ $ claude "Implement an edit tool like pi's, using Effect v4"
 ## The format
 
 <!-- generated:format -->
-One `references` map, from the name your agent asks for to where that source comes from. An
-object with `source` is a reference; an object with `references` is a set. That is the only
-rule.
+One `references` map, from the name your agent asks for to where that source comes from. An object with `source` is a reference; an object with `references` is a set. That is the only rule.
 
 | a value may be | |
 | --- | --- |
@@ -117,9 +113,7 @@ rule.
 | `openai/codex#v0.20.0` | the same, at a tag, branch, or commit |
 | `npm:zod@3.22.0` | a package, at an exact version |
 
-A set is a reference that resolves to more than one path, so its name works everywhere a
-name works: `get harnesses` takes all of them, `status harnesses` reports the group. There
-is no flag for it and no second namespace.
+A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. There is no flag for it and no second namespace.
 <!-- /generated -->
 
 ## Examples
@@ -161,8 +155,7 @@ Let your agent read other repositories checked out on your computer, by name.
 
 ### Source code you reference
 
-agent-reference keeps up-to-date clones of anything you want your agent to read, from GitHub
-or any git remote.
+agent-reference keeps up-to-date clones of anything you want your agent to read, from GitHub or any git remote.
 
 `agent-reference.json`
 
@@ -179,9 +172,7 @@ or any git remote.
 
 ### Dependencies, at the version you install
 
-Your agent reads the version this project installs, from the repository rather than from
-build output. No entry is needed for that. Declare one when there is something about a
-dependency worth remembering.
+Your agent reads the version this project installs, from the repository rather than from build output. No entry is needed for that. Declare one when there is something about a dependency worth remembering.
 
 `agent-reference.json`
 
@@ -208,8 +199,7 @@ agent-reference get electron
 
 ### Skills from another project
 
-Let your agent use a skill that lives in another project, without copying it in and letting
-the two drift.
+Let your agent use a skill that lives in another project, without copying it in and letting the two drift.
 
 `agent-reference.local.json`
 
@@ -226,8 +216,7 @@ the two drift.
 
 ### Global references
 
-References every agent on this machine can reach, from any folder that has no config of its
-own.
+References every agent on this machine can reach, from any folder that has no config of its own.
 
 ```text
 ~/
@@ -257,8 +246,7 @@ own.
 
 ### A name for several sources
 
-A set is a reference that resolves to more than one path. Its key is its name, like any
-other, so one get takes all of them.
+A set is a reference that resolves to more than one path. Its key is its name, like any other, so one get takes all of them.
 
 `agent-reference.json`
 
@@ -346,9 +334,7 @@ package versions read from pnpm-lock.yaml
 ## How it works
 
 <!-- generated:how-it-works -->
-Skip this if you like: your agent handles all of it. It is here for anyone who wants to see
-where the source it reads lands. Two projects, pinning two versions of the same dependency,
-sharing one store.
+Skip this if you like: your agent handles all of it. It is here for anyone who wants to see where the source it reads lands. Two projects, pinning two versions of the same dependency, sharing one store.
 
 `web/agent-reference.json`
 
@@ -385,8 +371,7 @@ sharing one store.
     └── api-5c02e7d1.json
 ```
 
-All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first,
-network last. agent-reference store --prune drops the checkouts that have gone unused.
+All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.
 <!-- /generated -->
 
 ## The commands

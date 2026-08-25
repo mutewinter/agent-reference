@@ -31,24 +31,8 @@ const fence = (lang: string, text: string) => '```' + lang + '\n' + text + '\n``
 const labeled = (file: string, name: keyof typeof samples) =>
   `\`${file}\`\n\n${fence(samples[name].lang, samples[name].code)}`;
 
-/** The README hard-wraps its prose, and a generated paragraph has to look the same. */
-function wrap(text: string, width = 92): string {
-  const lines: string[] = [];
-  let line = '';
-  for (const word of text.split(' ')) {
-    if (line && line.length + 1 + word.length > width) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = line ? `${line} ${word}` : word;
-    }
-  }
-  if (line) lines.push(line);
-  return lines.join('\n');
-}
-
 function renderExample({ title, note, tree, file, sample, terminal }: Example): string {
-  const blocks = [`### ${title}`, wrap(note)];
+  const blocks = [`### ${title}`, note];
   if (tree) blocks.push(fence('text', trees[tree]));
   blocks.push(labeled(file, sample));
   if (terminal) blocks.push(fence('text', terminals[terminal]));
@@ -89,20 +73,20 @@ function renderFormat(): string {
     ].join('\n');
 
   return [
-    wrap(format.lead),
+    format.lead,
     table('a value may be', format.values),
     table('a source may be', format.sources),
-    wrap(format.note),
+    format.note,
   ].join('\n\n');
 }
 
 /** The two configs, the store they leave behind, and a line on either side. */
 function renderHowItWorks(): string {
   return [
-    wrap(howItWorks.lead),
+    howItWorks.lead,
     ...howItWorks.configs.map((config) => labeled(config.file, config.sample)),
     fence('text', trees[howItWorks.tree]),
-    wrap(howItWorks.cache),
+    howItWorks.cache,
   ].join('\n\n');
 }
 
@@ -111,15 +95,13 @@ const generated: Record<string, string> = {
   // Bold, so a lone sentence under the title reads as the tagline it is.
   tagline: `**${copy.tagline}**`,
   hero: [labeled('agent-reference.json', 'shared'), fence('text', terminals.setup)].join('\n\n'),
-  agent: [`### ${copy.agent.heading}`, fence('text', setupPrompt), wrap(copy.agent.note)].join(
-    '\n\n',
-  ),
+  agent: [`### ${copy.agent.heading}`, fence('text', setupPrompt), copy.agent.note].join('\n\n'),
   install: renderInstall(),
-  'then-use': [wrap(copy.thenUse.note), fence('text', terminals.session)].join('\n\n'),
+  'then-use': [copy.thenUse.note, fence('text', terminals.session)].join('\n\n'),
   format: renderFormat(),
   examples: examples.map(renderExample).join('\n\n'),
   'how-it-works': renderHowItWorks(),
-  commands: [wrap(copy.commands.note), renderCommands()].join('\n\n'),
+  commands: [copy.commands.note, renderCommands()].join('\n\n'),
 };
 
 export function render(readme: string): string {
