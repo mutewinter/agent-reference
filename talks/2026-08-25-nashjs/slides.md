@@ -346,12 +346,13 @@ layout: statement
 class: dark closer
 ---
 
-<img class="brawndo-bed" src="./assets/brawndo.png" alt="" />
-<img class="brawndo" src="./assets/brawndo.png" alt="" />
+<img class="brawndo" src="./assets/brawndo.jpg" alt="" />
 
 # agent-reference.dev
 
 <div class="crave slow">It&rsquo;s got what agents crave</div>
+
+<div class="deck-link">These slides: <span>agent-reference.dev/talk</span></div>
 
 <div class="cta">Questions? &middot; x.com/mutewinter &middot; hi@mutewinter.com</div>
 

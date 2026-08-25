@@ -650,33 +650,32 @@
   letter-spacing: -0.03em;
 }
 
-/* The still is 4:3 and the slide is 16:9, so a contained copy leaves a gutter
-   down each side. A blurred cover copy behind it fills that gutter with the
-   frame's own colors rather than with black. */
-.brawndo-bed {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  filter: blur(38px) saturate(1.1);
-  transform: scale(1.12);
-  opacity: 0;
-  pointer-events: none;
-  animation: brawndo-arrives 60s ease-in forwards;
-}
-
 .brawndo {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  /* contain, not cover: the whole frame is the joke, and cover was cutting
-     the top and bottom off it. */
+  /* The still is 16:9, the same as the slide, so it fills the frame edge to
+     edge. Contain rather than cover, so a projector at some other ratio
+     letterboxes it instead of cropping the joke off the top and bottom. */
   object-fit: contain;
   opacity: 0;
   pointer-events: none;
   animation: brawndo-arrives 60s ease-in forwards;
+}
+
+/* Where the deck itself lives, for the phone that comes out during Q&A. The
+   heading above is the site; this is the one page of it that is this talk. */
+.deck-link {
+  font-size: 20px;
+  color: #999;
+  margin-top: 1.1em;
+}
+
+.deck-link span {
+  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  font-size: 18px;
+  color: var(--accent);
 }
 
 /* Small, in the corner, and last: the room is already applauding by then. */
@@ -693,6 +692,7 @@
    `relative` that would drop it back into the flow. */
 .slidev-layout.closer h1,
 .slidev-layout.closer .crave,
+.slidev-layout.closer .deck-link,
 .slidev-layout.closer .cta {
   position: relative;
   z-index: 1;
@@ -700,6 +700,7 @@
 
 .slidev-layout.closer h1,
 .slidev-layout.closer .crave,
+.slidev-layout.closer .deck-link,
 .slidev-layout.closer .cta,
 .slidev-layout.closer .thanks {
   text-shadow: 0 2px 18px rgb(0 0 0 / 0.85);

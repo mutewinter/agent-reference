@@ -43,7 +43,7 @@
     "site:lint": "pnpm --dir site run lint",
     "site:check-types": "pnpm --dir site run check-types",
     "talk:dev": "pnpm --dir talks/2026-08-25-nashjs run dev",
-    "talk:build": "pnpm --dir talks/2026-08-25-nashjs exec slidev build slides.md --base /talk/ --out ../../site/public/talk && rm -f site/public/talk/_redirects",
+    "talk:build": "rm -rf site/public/talk && pnpm --dir talks/2026-08-25-nashjs exec slidev build slides.md --base /talk/ --out ../../site/public/talk && rm -f site/public/talk/_redirects",
     "sync-readme": "node scripts/sync-readme.ts",
     "sync-agent-files": "node scripts/sync-agent-files.ts",
     "prepack": "npm run build",

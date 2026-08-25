@@ -47,7 +47,7 @@ Everything else follows from those.
 
 ## Assets
 
-`assets/brawndo.png` is the still the closing line refers to. The slide fades it in full-bleed behind the text over sixty seconds, to 38% opacity, so nobody sees it arrive and at some point somebody notices.
+`assets/brawndo.jpg` is the still the closing line refers to, at the deck's own 16:9 so it fills the frame without a crop or a gutter. The slide fades it in behind the text over sixty seconds, to 38% opacity, so nobody sees it arrive and at some point somebody notices.
 
 ## Numbers on slides
 
