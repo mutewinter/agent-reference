@@ -105,7 +105,7 @@ function HowItWorks() {
  */
 function Hero() {
   return (
-    <div className="mt-6 grid gap-5 lg:grid-cols-2 lg:items-start">
+    <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
       <Panel tone="term" label="agent">
         <Session text={terminals.setup} reveal />
       </Panel>
@@ -157,20 +157,20 @@ function Home() {
     <>
       <section className="pt-8">
         <h1 className="text-2xl text-fg">{copy.title}</h1>
-        <p className="mt-2 text-lg text-muted">{copy.tagline}</p>
-      </section>
-
-      <Section label={copy.getStarted.heading}>
+        <p className="mt-2 mb-6 text-lg text-muted">{copy.tagline}</p>
         <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:gap-6">
           <ForYourAgent text={setupPrompt} />
           <Or />
           <ForYou cd={cd} install={install} prompt={prompt} agents={agents} />
         </div>
-        <Hero />
-      </Section>
+      </section>
 
-      <Section label={copy.thenUse.heading}>
-        <Prose text={copy.thenUse.note} className="mb-5 max-w-3xl text-muted" />
+      <Section label={copy.demo.heading}>
+        <Hero />
+        <Prose text={copy.demo.configNote} className="mt-4 max-w-3xl text-muted" />
+
+        <h3 className="mt-12 text-fg">{copy.thenUse.heading}</h3>
+        <Prose text={copy.thenUse.note} className="mt-1 mb-4 max-w-3xl text-muted" />
         <div className="max-w-3xl">
           <Panel tone="term" label="agent">
             <Session text={terminals.session} />

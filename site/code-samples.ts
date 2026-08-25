@@ -256,15 +256,12 @@ export const terminals = {
   \u23BF ok: agent-reference.json defines 3 references in 0 sets`,
 
   session: `> Implement an edit tool like pi's, using Effect v4
-
 * Skill(agent-reference)
   \u23BF Launching skill: agent-reference
-
 * Bash(agent-reference get pi)
   \u23BF ~/.agent-reference/src/\u2026/earendil-works/pi/dcd46192
 * Read(\u2026/packages/coding-agent/src/core/tools/edit.ts)
   \u23BF Read 461 lines
-
 * Bash(agent-reference get effect-docs)
   \u23BF ~/.agent-reference/src/\u2026/website/6ee985b1/\u2026/docs/v4
 * Read(\u2026/docs/v4/platform/file-system.mdx)
@@ -487,6 +484,16 @@ export const copy = {
   },
   install: {
     heading: 'Install it yourself',
+  },
+  /**
+   * The one section that shows the thing working: a first run, and then any run
+   * after it. The note under the figure is there because the file on the right
+   * is the only artifact on the page nobody is expected to write.
+   */
+  demo: {
+    heading: 'What it looks like',
+    configNote:
+      'Your agent writes that file and keeps it current. Adding a reference later is another sentence to your agent, not an edit you make.',
   },
   thenUse: {
     heading: 'Then use your agent normally',

@@ -45,15 +45,12 @@ That is it. From here your agent reads the real source of the libraries you depe
 
 ```text
 > Implement an edit tool like pi's, using Effect v4
-
 * Skill(agent-reference)
   ⎿ Launching skill: agent-reference
-
 * Bash(agent-reference get pi)
   ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd46192
 * Read(…/packages/coding-agent/src/core/tools/edit.ts)
   ⎿ Read 461 lines
-
 * Bash(agent-reference get effect-docs)
   ⎿ ~/.agent-reference/src/…/website/6ee985b1/…/docs/v4
 * Read(…/docs/v4/platform/file-system.mdx)
