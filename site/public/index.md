@@ -74,9 +74,9 @@ claude "Help me set up agent-reference"       # or codex, opencode, pi
 
 ## Examples
 
-### Multiple repositories
+### Reference other folders on your computer
 
-Let your agent read other repositories checked out on your computer, by name.
+By name, and read where they already are, so there is nothing to keep in sync.
 
 ```text
 ~/code/acme/
@@ -108,9 +108,9 @@ Let your agent read other repositories checked out on your computer, by name.
 }
 ```
 
-### Source code you reference
+### Reference public or private repos, automatically cloned
 
-agent-reference keeps up-to-date clones of anything you want your agent to read, from GitHub or any git remote.
+From GitHub or any git remote, kept up to date, and fetched the first time your agent asks for it.
 
 `agent-reference.json`
 
@@ -125,7 +125,7 @@ agent-reference keeps up-to-date clones of anything you want your agent to read,
 }
 ```
 
-### Dependencies, at the version you install
+### Check out source for exact npm versions
 
 Your agent reads the version this project installs, from the repository rather than from build output. No entry is needed for that. Declare one when there is something about a dependency worth remembering.
 
@@ -152,7 +152,7 @@ agent-reference get electron
 ~/.agent-reference/src/…/electron/electron/22bbbc9f
 ```
 
-### Skills from another project
+### Reference a skill from another project
 
 Let your agent use a skill that lives in another project, without copying it in and letting the two drift.
 
@@ -169,7 +169,7 @@ Let your agent use a skill that lives in another project, without copying it in 
 }
 ```
 
-### Global references
+### Define references for every agent on your computer
 
 References every agent on this machine can reach, from any folder that has no config of its own.
 
@@ -199,7 +199,7 @@ References every agent on this machine can reach, from any folder that has no co
 }
 ```
 
-### A name for several sources
+### Group references under one name
 
 A set is a reference that resolves to more than one path. Its key is its name, like any other, so one get takes all of them.
 
