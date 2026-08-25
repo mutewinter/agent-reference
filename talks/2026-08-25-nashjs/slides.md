@@ -351,3 +351,5 @@ class: dark closer
 <div class="crave slow">It&rsquo;s got what agents crave</div>
 
 <div class="cta">Questions? &middot; x.com/mutewinter &middot; hi@mutewinter.com</div>
+
+<div class="thanks">Thank you, NashJS and Vaco Nashville</div>

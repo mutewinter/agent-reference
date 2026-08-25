@@ -616,13 +616,34 @@
   animation: brawndo-arrives 60s ease-in forwards;
 }
 
-/* The text sits over the still, which arrives behind it. */
+/* Small, in the corner, and last: the room is already applauding by then. */
+.thanks {
+  position: absolute;
+  right: 48px;
+  bottom: 34px;
+  font-size: 15px;
+  color: #8a8a8a;
+}
+
+/* The text sits over the still, which arrives behind it. The corner line is
+   already positioned, so it takes the shadow and the stacking and not the
+   `relative` that would drop it back into the flow. */
 .slidev-layout.closer h1,
 .slidev-layout.closer .crave,
 .slidev-layout.closer .cta {
   position: relative;
   z-index: 1;
+}
+
+.slidev-layout.closer h1,
+.slidev-layout.closer .crave,
+.slidev-layout.closer .cta,
+.slidev-layout.closer .thanks {
   text-shadow: 0 2px 18px rgb(0 0 0 / 0.85);
+}
+
+.slidev-layout.closer .thanks {
+  z-index: 1;
 }
 
 @keyframes brawndo-arrives {
