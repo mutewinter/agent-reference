@@ -254,9 +254,6 @@ Every kind at once, and what your agent sees when it asks.
 
 ```jsonc
 {
-  "git": {
-    "pi": "github:earendil-works/pi"
-  },
   "packages": {
     "npm:ai": "7.0.78",
     "npm:electron": {
@@ -269,6 +266,10 @@ Every kind at once, and what your agent sees when it asks.
   "paths": {
     "decisions": "./docs/decisions",
     "style": "./docs/style-guide.md"
+  },
+  // Named here and again in the set below, so status lists it once, there.
+  "git": {
+    "pi": "github:earendil-works/pi"
   },
   "sets": [
     {

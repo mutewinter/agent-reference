@@ -112,12 +112,11 @@ export const samples = {
 }`,
   },
 
+  // Ordered the way `status` reports it, so the config and the output beside it
+  // read down the page together: packages, then paths, then sets.
   kitchenSink: {
     lang: 'jsonc',
     code: `{
-  "git": {
-    "pi": "github:earendil-works/pi"
-  },
   "packages": {
     "npm:ai": "7.0.78",
     "npm:electron": {
@@ -130,6 +129,10 @@ export const samples = {
   "paths": {
     "decisions": "./docs/decisions",
     "style": "./docs/style-guide.md"
+  },
+  // Named here and again in the set below, so status lists it once, there.
+  "git": {
+    "pi": "github:earendil-works/pi"
   },
   "sets": [
     {
