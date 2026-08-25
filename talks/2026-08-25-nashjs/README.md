@@ -16,7 +16,7 @@ The public view is <http://localhost:6181>, the presenter view with notes and a 
 
 It is built here rather than on the site's build because a Workers deploy installs `site/`'s lockfile and nothing else, and putting a presentation framework on the deploy path is the cost [the three-installs decision](../../docs/decisions/2026-08-25-one-command-three-installs.md) declined to pay. A deck for a talk that already happened is an artifact, so it is checked in like one.
 
-Slidev routes with history, so `/talk` serves the deck and paging through it rewrites the URL, but reloading on `/talk/7` falls through to the site's 404. Link the bare `/talk`. Setting `routerMode: hash` in the headmatter would fix that at the cost of hash URLs everywhere, including in development.
+`routerMode: hash` in the headmatter is what makes a link to one slide work. Under history routing `/talk/7` is a path the host has no file for, so a reload fell through to the site's 404; every slide is now `/talk/#/7`, which is the one file the host already serves. The presenter view is `/talk/#/presenter`.
 
 This directory is its own project with its own lockfile, not a workspace package. The library's `files` allowlist already excludes it from the published tarball, so the only question a workspace would answer is whether `pnpm install` at the repository root should also install a presentation framework. It should not.
 

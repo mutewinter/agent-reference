@@ -88,9 +88,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <div className="mx-auto max-w-6xl px-6 pb-12">
+        {/* A column at least as tall as the window, so a short page keeps the
+            footer at the bottom rather than pulling it up under the header. */}
+        <div className="mx-auto flex min-h-dvh max-w-6xl flex-col px-6 pb-12">
           <Header />
-          <main>{children}</main>
+          <main className="flex-1">{children}</main>
           <Footer />
         </div>
         <Scripts />

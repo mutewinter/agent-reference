@@ -3,6 +3,9 @@ theme: none
 title: Your Agent is Starving
 titleTemplate: "%s"
 transition: none
+# Every slide is then one URL the static host already has, so reloading on a
+# slide works the same as opening the deck.
+routerMode: hash
 fonts:
   mono: JetBrains Mono
 ---
