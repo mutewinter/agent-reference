@@ -169,14 +169,15 @@ function Home() {
       <Section label={copy.demo.heading}>
         <Hero />
 
-        {/* The second beat of the same story, so it is centered rather than
-            hung off the left edge: one session, with what it means under it. */}
+        {/* The second beat of the same story: one session, centered in the
+            column, with its heading and caption reading from the left edge the
+            way every other block on the page does. */}
         <div className="mx-auto mt-14 max-w-3xl">
-          <h3 className="mb-4 text-center text-fg">{copy.thenUse.heading}</h3>
+          <h3 className="mb-4 text-fg">{copy.thenUse.heading}</h3>
           <Panel tone="term" label="agent">
             <Session text={terminals.session} />
           </Panel>
-          <Prose text={copy.thenUse.note} className="mt-3 text-center text-muted" />
+          <Prose text={copy.thenUse.note} className="mt-3 text-muted" />
         </div>
       </Section>
 

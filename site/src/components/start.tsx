@@ -46,7 +46,7 @@ export function ForYourAgent({ text }: { text: string }) {
         type="button"
         onClick={copy}
         aria-label={copied ? 'Copied' : 'Copy this prompt'}
-        className="flex w-full cursor-pointer items-start gap-4 border border-accent/60 bg-accent/10 p-4 text-left shadow-offset transition-all hover:translate-0.5 hover:bg-accent/20 hover:shadow-offset-sm active:translate-1 active:shadow-none"
+        className="flex w-full cursor-pointer flex-col items-start gap-3 border border-accent/60 bg-accent/10 p-4 text-left shadow-offset transition-all hover:translate-0.5 hover:bg-accent/20 hover:shadow-offset-sm active:translate-1 active:shadow-none sm:flex-row sm:gap-4"
       >
         <span className="flex-1 text-sm leading-relaxed text-fg">
           <WithCode text={text} />
@@ -57,9 +57,10 @@ export function ForYourAgent({ text }: { text: string }) {
           }`}
         >
           {copied ? <CheckIcon /> : <CopyIcon />}
-          {/* Fixed width: "Copied" is longer than "Copy", and letting the pill
-              resize reflowed the prompt beside it on every click. */}
-          <span className="inline-block w-11">{copied ? 'Copied' : 'Copy'}</span>
+          {/* Fixed width so the pill does not resize on click and reflow the
+              prompt beside it, and centered inside that width so the two words
+              sit under each other rather than drifting left. */}
+          <span className="inline-block w-11 text-center">{copied ? 'Copied' : 'Copy'}</span>
         </span>
       </button>
     </div>
@@ -68,6 +69,9 @@ export function ForYourAgent({ text }: { text: string }) {
 
 /**
  * Swaps the agent name every few seconds to say that none of them is special.
+ * The line reserves two lines of height on every screen: the longest name wraps
+ * where the shortest does not, and letting it reflow moved the whole page under
+ * it every five seconds.
  * The whole line dips rather than the name typing itself: a name that grows a
  * character at a time reflows everything after it, and reserving a fixed width
  * to stop that left an obvious gap. It dips to a readable dim rather than to
@@ -95,7 +99,9 @@ function CyclingCommand({ names, prompt }: { names: Array<string>; prompt: strin
   }, [names]);
 
   return (
-    <div className={`transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-40'}`}>
+    <div
+      className={`cycle transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-40'}`}
+    >
       <span className="text-muted select-none">$ </span>
       <span className="text-accent">{names[index]}</span>
       {` "${prompt}"`}

@@ -76,7 +76,7 @@ Your agent maintains this file, adding references as it needs them and cloning a
   ⎿ Read 115 lines
 ```
 
-That is it. From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs, without being asked twice.
+From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs.
 
 ## Examples
 

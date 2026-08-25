@@ -272,3 +272,18 @@ a {
 .code-wrap > .prompt + .call {
   margin-top: 0;
 }
+
+/* The install card cycles the agent name, and on a narrow screen the longest of
+   them wraps where the shortest does not, so the swap moved every section under
+   it. Two lines are reserved there. Past the breakpoint the card is wide enough
+   that none of them wraps, and reserving a second line would only cost the fold
+   the height it saves. */
+.cycle {
+  min-height: calc(2 * var(--leading-code) * 1em);
+}
+
+@media (width >= 40rem) {
+  .cycle {
+    min-height: 0;
+  }
+}

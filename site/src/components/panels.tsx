@@ -276,9 +276,12 @@ function sessionLine(line: string, i: number): ReactElement<{ className?: string
   if (line.startsWith('* ')) {
     const call = line.slice(2);
     const open = call.indexOf('(');
+    // U+25CF rather than U+23FA: the record glyph has an emoji presentation
+    // that mobile Safari picks by default, so a transcript came out spotted
+    // with colored circles. This one has no emoji form to fall into.
     return (
       <div key={i} className="call">
-        <span className="text-ok select-none">{'\u23FA '}</span>
+        <span className="text-ok select-none">{'\u25CF '}</span>
         {open === -1 ? (
           call
         ) : (
