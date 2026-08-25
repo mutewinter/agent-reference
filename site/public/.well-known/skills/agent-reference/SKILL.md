@@ -40,7 +40,9 @@ When the user names a repository, app, folder, or file and you have no path for 
 
 `agent-reference: command not found` means npm's global bin directory is not on this shell's `PATH`, not that the tool is missing. It is the usual state on Windows, where the agent's shell is Git Bash while fnm or nvm keeps that directory inside its own tree, and it happens anywhere the agent was launched from a shell that never ran the version manager's hook.
 
-`npx --yes agent-reference <command>` runs regardless and is the way through. Say what happened, because the fix is one line in the user's shell profile and they cannot see the error you saw. npx resolves from the registry, so it may not be the version installed on this machine.
+`npx --yes agent-reference <command>` is what to try first. It gets through when only the global bin directory is missing, which is what a custom npm prefix leaves behind, and it resolves from the registry, so it may not be the version installed on this machine. It does not get through when a version manager is the cause, because npx sits in that same tree: with fnm or nvm, a shell that cannot see `agent-reference` cannot see `node`, `npm`, or `npx` either. `command -v npx` settles which case this is.
+
+Say what happened either way. The fix is one line in the user's shell profile, they cannot see the error you saw, and every later session here hits the same wall until they write it. When npx is missing too, report and stop. The version manager keeps a node on disk somewhere, but digging it out costs more than the line the user has to add, runs the tool under a node and a version nothing here chose, and leaves the next session to repeat the search.
 
 ## Safety rules
 
