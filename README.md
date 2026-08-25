@@ -198,9 +198,10 @@ own.
 }
 ```
 
-### Group references into a set
+### A name for several sources
 
-Group references so your agent can pull all of them in by name.
+A set is a reference that resolves to more than one path. Its key is its name, like any
+other, so one get takes all of them.
 
 `agent-reference.json`
 
@@ -233,7 +234,7 @@ $ codex "Implement context compaction based on how
 
 ### A complex example
 
-Every kind at once, and what your agent sees when it asks.
+Every kind of source in one map, a set among them, and what your agent sees when it asks.
 
 `agent-reference.json`
 

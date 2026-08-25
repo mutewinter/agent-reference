@@ -321,15 +321,15 @@ export const examples: Example[] = [
     sample: 'global',
   },
   {
-    title: 'Group references into a set',
-    note: 'Group references so your agent can pull all of them in by name.',
+    title: 'A name for several sources',
+    note: 'A set is a reference that resolves to more than one path. Its key is its name, like any other, so one get takes all of them.',
     file: 'agent-reference.json',
     sample: 'together',
     terminal: 'set',
   },
   {
     title: 'A complex example',
-    note: 'Every kind at once, and what your agent sees when it asks.',
+    note: 'Every kind of source in one map, a set among them, and what your agent sees when it asks.',
     file: 'agent-reference.json',
     sample: 'kitchenSink',
     terminal: 'complex',
