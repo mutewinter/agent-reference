@@ -195,7 +195,7 @@ layout: statement
 class: interlude
 ---
 
-# Everything you can reference
+# Everything your agent can reference
 
 ---
 class: config
@@ -216,7 +216,7 @@ class: config
 class: config
 ---
 
-## Repos you often reference
+## Repos your agent can learn from
 
 <div class="body">
 
@@ -231,7 +231,7 @@ class: config
 class: config
 ---
 
-## Reference source code for exact npm versions
+## Your agent reads the version you install
 
 <div class="body">
 
@@ -246,7 +246,7 @@ class: config
 class: config
 ---
 
-## Reference multiple versions
+## Multiple versions of the same package
 
 <div class="body">
 
@@ -261,7 +261,7 @@ class: config
 class: config
 ---
 
-## References every agent on your machine can see
+## References your agent can reach from anywhere
 
 <div class="body">
 
@@ -276,7 +276,7 @@ class: config
 class: config
 ---
 
-## Group references into sets
+## Group references under one name
 
 <div class="body">
 
@@ -302,13 +302,13 @@ class: config
 class: config
 ---
 
-## One config for your team, one for your machine
+## A config for your team, and a config for you
 
 <div class="body">
 
 <div class="pair">
-<div class="panel"><div class="panel-head">agent-reference.json</div><div class="panel-body"><div class="code tiny"><div>{</div><div>&nbsp;&nbsp;<span class="k">"references"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"ai"</span>: <span class="s">"npm:ai@7.0.78"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"effect"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"source"</span>: <span class="s">"npm:effect@4.0.0-rc.111"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"We are on the v4 rc"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;},</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"codex"</span>: <span class="s">"github:openai/codex"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"decisions"</span>: <span class="s">"./docs/decisions"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"harnesses"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"How others solve this"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"references"</span>: [</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:earendil-works/pi"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:openai/codex"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]</div><div>&nbsp;&nbsp;&nbsp;&nbsp;}</div><div>&nbsp;&nbsp;}</div><div>}</div></div></div></div>
-<div class="panel"><div class="panel-head">agent-reference.local.json</div><div class="panel-body"><div class="code tiny"><div>{</div><div>&nbsp;&nbsp;<span class="k">"references"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"api"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"source"</span>: <span class="s">"../api"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"Acme's API"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;},</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"notes"</span>: <span class="s">"~/Documents/notes"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"forks"</span>: <span class="s">"~/code/forks"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"spike"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"source"</span>: <span class="s">"git@git.acme.internal:me/spike.git"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"My scratch repo. Never name</span></div><div><span class="s">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;this one in a commit"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;}</div><div>&nbsp;&nbsp;}</div><div>}</div></div></div></div>
+<div class="panel"><div class="panel-head">~/code/acme/web/agent-reference.json</div><div class="panel-body"><div class="code tiny"><div>{</div><div>&nbsp;&nbsp;<span class="k">"references"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"ai"</span>: <span class="s">"npm:ai@7.0.78"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"effect"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"source"</span>: <span class="s">"npm:effect@4.0.0-rc.111"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"We are on the v4 rc"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;},</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"codex"</span>: <span class="s">"github:openai/codex"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"decisions"</span>: <span class="s">"./docs/decisions"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"harnesses"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"How others solve this"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"references"</span>: [</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:earendil-works/pi"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="s">"github:openai/codex"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;]</div><div>&nbsp;&nbsp;&nbsp;&nbsp;}</div><div>&nbsp;&nbsp;}</div><div>}</div></div></div></div>
+<div class="panel"><div class="panel-head">~/code/acme/web/agent-reference.local.json</div><div class="panel-body"><div class="code tiny"><div>{</div><div>&nbsp;&nbsp;<span class="k">"references"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"api"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"source"</span>: <span class="s">"../api"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"Acme's API"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;},</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"notes"</span>: <span class="s">"~/Documents/notes"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"forks"</span>: <span class="s">"~/code/forks"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"spike"</span>: {</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"source"</span>: <span class="s">"git@git.acme.internal:me/spike.git"</span>,</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="k">"description"</span>: <span class="s">"My scratch repo. Never name</span></div><div><span class="s">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;this one in a commit"</span></div><div>&nbsp;&nbsp;&nbsp;&nbsp;}</div><div>&nbsp;&nbsp;}</div><div>}</div></div></div></div>
 </div>
 
 </div>
@@ -343,6 +343,7 @@ layout: statement
 class: dark closer
 ---
 
+<img class="brawndo-bed" src="./assets/brawndo.png" alt="" />
 <img class="brawndo" src="./assets/brawndo.png" alt="" />
 
 # agent-reference.dev

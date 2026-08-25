@@ -632,6 +632,22 @@
   letter-spacing: -0.03em;
 }
 
+/* The still is 4:3 and the slide is 16:9, so a contained copy leaves a gutter
+   down each side. A blurred cover copy behind it fills that gutter with the
+   frame's own colors rather than with black. */
+.brawndo-bed {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(38px) saturate(1.1);
+  transform: scale(1.12);
+  opacity: 0;
+  pointer-events: none;
+  animation: brawndo-arrives 60s ease-in forwards;
+}
+
 .brawndo {
   position: absolute;
   inset: 0;
