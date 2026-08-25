@@ -1,6 +1,6 @@
 # Update notification
 
-Status: considered, not started. Deliberately deferred until the package is published and real version skew exists.
+Status: considered, not started. The package is published, so half the deferral is spent; still waiting on machines running a version behind.
 
 ## Problem
 
@@ -28,4 +28,4 @@ The signal an agent needs is not "a newer version exists on npm." It is "what yo
 
 ## Why not now
 
-Update nags are irritating in exact proportion to how often they fire, and before the package has users on old versions the check can only misfire. Revisit at first publish.
+Update nags are irritating in exact proportion to how often they fire, and before the package has users on old versions the check can only misfire. Revisit when a released version has been superseded long enough for machines to be behind it.
