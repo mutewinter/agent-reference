@@ -10,7 +10,7 @@ import {
   examples,
   format,
   type FormatRow,
-  heroChunks,
+  heroDrafts,
   howItWorks,
   install,
   prompt,
@@ -18,14 +18,23 @@ import {
   terminals,
   trees,
 } from '../../code-samples.ts';
-import { Highlighted, Panel, Prose, Session, Term, Tree, source } from '../components/panels';
+import {
+  Drafts,
+  Highlighted,
+  Panel,
+  Prose,
+  Session,
+  Term,
+  Tree,
+  source,
+} from '../components/panels';
 import { ForYou, ForYourAgent, Or } from '../components/start';
 
 export const Route = createFileRoute('/')({ component: Home });
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section className="mt-20">
+    <section className="mt-16">
       {/* A real heading, not a styled label: it is the only thing between the
           page's h1 and the h3 on every example, and a document with no outline
           reads to a crawler as one undivided page. */}
@@ -89,30 +98,20 @@ function HowItWorks() {
 }
 
 /**
- * The whole pitch, in one figure. Two sessions down the left, the file they
- * write and then read down the right, and the file stays put while you scroll
- * from one to the other: a config is written once and used from then on, so the
- * page holds it still and moves the work past it.
- *
- * The order in the markup is setup, config, use, which is how it reads in one
- * column on a phone. On a wide screen the config takes the second column across
- * both rows instead.
+ * What the prompt above it does, watched once. The session runs on the left; the
+ * file appears on the right at the moment it is written and is replaced by the
+ * one the agent leaves after it finds more. Nothing is on the right before the
+ * `Write`, because before the `Write` there is no file.
  */
 function Hero() {
   return (
-    <div className="mt-10 grid gap-5 lg:grid-cols-2 lg:items-start">
+    <div className="mt-6 grid gap-5 lg:grid-cols-2 lg:items-start">
       <Panel tone="term" label="agent">
         <Session text={terminals.setup} reveal />
       </Panel>
-      <div className="lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+      <div className="rv rv-s3">
         <Panel label="agent-reference.json" copy={source('shared')}>
-          <Highlighted name="shared" reveal={{ chunks: heroChunks }} />
-        </Panel>
-      </div>
-      <div className="lg:col-start-1">
-        <p className="mb-4 text-muted">{copy.thenUse.note}</p>
-        <Panel tone="term" label="agent">
-          <Session text={terminals.session} />
+          <Drafts names={heroDrafts} />
         </Panel>
       </div>
     </div>
@@ -156,21 +155,30 @@ function Rows({ rows }: { rows: FormatRow[] }) {
 function Home() {
   return (
     <>
-      <section className="pt-12">
+      <section className="pt-8">
         <h1 className="text-2xl text-fg">{copy.title}</h1>
         <p className="mt-2 text-lg text-muted">{copy.tagline}</p>
-        <Hero />
       </section>
 
-      <Section label="Get started">
-        <div className="grid gap-6 md:grid-cols-[1fr_auto_1fr] md:gap-8">
+      <Section label={copy.getStarted.heading}>
+        <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:gap-6">
           <ForYourAgent text={setupPrompt} />
           <Or />
           <ForYou cd={cd} install={install} prompt={prompt} agents={agents} />
         </div>
+        <Hero />
       </Section>
 
-      <Section label="Examples">
+      <Section label={copy.thenUse.heading}>
+        <Prose text={copy.thenUse.note} className="mb-5 max-w-3xl text-muted" />
+        <div className="max-w-3xl">
+          <Panel tone="term" label="agent">
+            <Session text={terminals.session} />
+          </Panel>
+        </div>
+      </Section>
+
+      <Section label={copy.examples.heading}>
         {examples.map((example) => (
           <Example key={example.sample} {...example} />
         ))}

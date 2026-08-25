@@ -13,7 +13,12 @@
     // typo never is.
     "tailwindcss": { "entryPoint": "src/styles.css" }
   },
-  "ignorePatterns": ["src/routeTree.gen.ts"],
+  "ignorePatterns": [
+    "src/routeTree.gen.ts",
+    // The nashjs deck, built. It is committed so the site can serve it at
+    // /talk, which puts a bundler's output inside a linted directory.
+    "public/talk/"
+  ],
   "overrides": [
     {
       // The build config reads two JSON files out of this repository and names

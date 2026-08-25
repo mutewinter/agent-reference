@@ -12,43 +12,36 @@
   "references": {
     "effect": {
       "source": "npm:effect@4.0.0-rc.111",
-      "description": "We are on the v4 rc; every example online is v3"
+      "description": "Every example online is still v3"
     },
     "effect-docs": {
       "source": "github:Effect-TS/website",
       "directory": "apps/web/src/content/docs/v4",
-      "description": "The v4 docs, which the site does not publish"
+      "description": "The v4 docs the site does not publish"
     },
-    "pi": {
-      "source": "github:earendil-works/pi",
-      "description": "AI agent toolkit: LLM API, loop, TUI, CLI"
-    }
+    "pi": "github:earendil-works/pi"
   }
 }
 ```
 
 ```text
 > Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
-
 * Bash(npx agent-reference init)
   ⎿ 2,723 sessions across claude-code, codex and opencode
-    mine them for the sources this project reaches for
-
 * Read(pnpm-lock.yaml)
   ⎿ effect 4.0.0-rc.111
-
-* Bash(rg -o 'github:[^ ]+' ~/.claude/projects | sort | uniq -c | sort -rn)
+* Write(agent-reference.json)
+  ⎿ 1 reference
+* Bash(rg -o 'github:\S+' ~/.claude | sort | uniq -c)
   ⎿ 41 Effect-TS/website
     12 earendil-works/pi
-
-* Write(agent-reference.json)
+* Update(agent-reference.json)
   ⎿ 3 references
-
 * Bash(agent-reference validate)
   ⎿ ok: agent-reference.json defines 3 references in 0 sets
 ```
 
-Nothing about how you work changes. The agent notices what it needs, takes the source by name, and reads the version this project actually installs.
+That is it. From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs, without being asked twice.
 
 ```text
 > Implement an edit tool like pi's, using Effect v4

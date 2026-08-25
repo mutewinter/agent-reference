@@ -10,16 +10,26 @@ export const samples = {
   "references": {
     "effect": {
       "source": "npm:effect@4.0.0-rc.111",
-      "description": "We are on the v4 rc; every example online is v3"
+      "description": "Every example online is still v3"
     },
     "effect-docs": {
       "source": "github:Effect-TS/website",
       "directory": "apps/web/src/content/docs/v4",
-      "description": "The v4 docs, which the site does not publish"
+      "description": "The v4 docs the site does not publish"
     },
-    "pi": {
-      "source": "github:earendil-works/pi",
-      "description": "AI agent toolkit: LLM API, loop, TUI, CLI"
+    "pi": "github:earendil-works/pi"
+  }
+}`,
+  },
+
+  /** What `Write` puts on disk, before the transcript mining turns anything up. */
+  heroDraft: {
+    lang: 'jsonc',
+    code: `{
+  "references": {
+    "effect": {
+      "source": "npm:effect@4.0.0-rc.111",
+      "description": "Every example online is still v3"
     }
   }
 }`,
@@ -231,21 +241,17 @@ export const terminals = {
    * project keeps reaching for, and writes the config filling in beside it.
    */
   setup: `> Set this project up for agent-reference: run \`npx agent-reference init\` and follow the brief it prints.
-
 * Bash(npx agent-reference init)
   \u23BF 2,723 sessions across claude-code, codex and opencode
-    mine them for the sources this project reaches for
-
 * Read(pnpm-lock.yaml)
   \u23BF effect 4.0.0-rc.111
-
-* Bash(rg -o 'github:[^ ]+' ~/.claude/projects | sort | uniq -c | sort -rn)
+* Write(agent-reference.json)
+  \u23BF 1 reference
+* Bash(rg -o 'github:\\S+' ~/.claude | sort | uniq -c)
   \u23BF 41 Effect-TS/website
     12 earendil-works/pi
-
-* Write(agent-reference.json)
+* Update(agent-reference.json)
   \u23BF 3 references
-
 * Bash(agent-reference validate)
   \u23BF ok: agent-reference.json defines 3 references in 0 sets`,
 
@@ -394,12 +400,13 @@ export const howItWorks: HowItWorks = {
 };
 
 /**
- * How the hero config arrives: how many lines land together, in order. The
- * braces open, then one entry per thing the agent found, then the braces close.
- * When each group arrives is in styles.css, next to the session's own steps,
- * because the two have to be read against each other to be tuned at all.
+ * The two states the file is in, in order: what `Write` leaves and what `Update`
+ * leaves. The agent writes what it knows, keeps looking, and edits; the panel
+ * shows the same file twice rather than a document assembling itself line by
+ * line, which is not a thing that happens. When each lands is in styles.css,
+ * next to the session's own steps, because the two are tuned against each other.
  */
-export const heroChunks = [2, 4, 5, 4, 2];
+export const heroDrafts = ['heroDraft', 'shared'] as const;
 
 /**
  * The pieces of JSON the format section points at. Separate from `samples`
@@ -463,6 +470,17 @@ export const copy = {
   tagline: 'Give your agents the source',
   description:
     'Give your agents the source. Readable upstream code on disk, at the exact version your project installs.',
+  /**
+   * The two section headings the page states outright rather than taking from
+   * the data under them. They are here so the markdown the site serves and the
+   * README both head those sections the way the page does.
+   */
+  getStarted: {
+    heading: 'Get started',
+  },
+  examples: {
+    heading: 'Examples',
+  },
   agent: {
     heading: 'Let your agent do it',
     note: 'Instructs your agent to install the skill and set up a config for the folders, repositories, and packages you often reference.',
@@ -470,9 +488,9 @@ export const copy = {
   install: {
     heading: 'Install it yourself',
   },
-  /** The line between the two sessions in the hero figure, on both surfaces. */
   thenUse: {
-    note: 'Nothing about how you work changes. The agent notices what it needs, takes the source by name, and reads the version this project actually installs.',
+    heading: 'Then use your agent normally',
+    note: 'That is it. From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs, without being asked twice.',
   },
   commands: {
     heading: 'The commands',

@@ -31,6 +31,10 @@ function WithCode({ text }: { text: string }) {
  * offset shadow that presses in under the cursor. Nothing else here casts a
  * shadow, and a thick left border, the usual way to mark a block like this,
  * has been a trope for years.
+ *
+ * No caption under it: the figure below shows what the prompt does, which is
+ * what a caption would have said. The markdown surfaces keep the sentence,
+ * because they are read in one pass rather than looked at.
  */
 export function ForYourAgent({ text }: { text: string }) {
   const { copied, copy } = useCopy(text);
@@ -58,7 +62,6 @@ export function ForYourAgent({ text }: { text: string }) {
           <span className="inline-block w-11">{copied ? 'Copied' : 'Copy'}</span>
         </span>
       </button>
-      <p className="mt-3 text-sm text-muted">{pageCopy.agent.note}</p>
     </div>
   );
 }

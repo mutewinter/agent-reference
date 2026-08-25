@@ -115,26 +115,28 @@ export function Tree({ text }: { text: string }) {
  * markup is the finished file either way, so nothing about the page depends on
  * the animation having run.
  */
-export function Highlighted({ name, reveal }: { name: string; reveal?: { chunks: number[] } }) {
-  const html = reveal ? revealLines(highlighted[name].html, reveal) : highlighted[name].html;
-  return <div className="shiki-block" dangerouslySetInnerHTML={{ __html: html }} />;
+export function Highlighted({ name }: { name: string }) {
+  return (
+    <div className="shiki-block" dangerouslySetInnerHTML={{ __html: highlighted[name].html }} />
+  );
 }
 
 /**
- * Marks each line with the group it arrives in. Shiki emits exactly this opener
- * once per line, which is the seam the class rides on; the HTML comes from a
- * build-time highlighter, so nothing a config or a repository wrote reaches it.
- * `chunks` is how many lines land together, and the stylesheet says when.
+ * The same file, twice: what the agent wrote and what it left after finding
+ * more. They are stacked in one grid cell so the panel is the height of the
+ * finished file from the moment it appears, and swapping states cannot make the
+ * page jump. With motion turned down only the finished one is rendered.
  */
-function revealLines(html: string, reveal: { chunks: number[] }): string {
-  const groups = reveal.chunks.flatMap((count, group) =>
-    Array.from({ length: count }, () => group + 1),
+export function Drafts({ names }: { names: readonly string[] }) {
+  return (
+    <div className="cfg">
+      {names.map((name, i) => (
+        <div key={name} className={i === names.length - 1 ? 'cfg-final' : 'cfg-draft'}>
+          <Highlighted name={name} />
+        </div>
+      ))}
+    </div>
   );
-  let index = 0;
-  return html.replaceAll('<span class="line">', () => {
-    const group = groups[index++] ?? groups.at(-1) ?? 1;
-    return `<span class="line rv rv-w${group}">`;
-  });
 }
 
 /** The source behind a snippet, for the clipboard. */
@@ -233,8 +235,9 @@ export function Session({ text, reveal = false }: { text: string; reveal?: boole
       {lines.map((line, i) => {
         const element = sessionLine(line, i);
         if (!reveal) return element;
+        const step = STEP_CLASS[steps[i] ?? 0] ?? STEP_CLASS.at(-1);
         return cloneElement(element, {
-          className: `${element.props.className ?? ''} rv ${STEP_CLASS[steps[i] ?? 0]}`.trim(),
+          className: `${element.props.className ?? ''} rv ${step}`.trim(),
         });
       })}
     </pre>
@@ -256,7 +259,7 @@ function stepIndices(lines: string[]): number[] {
   return steps;
 }
 
-const STEP_CLASS = ['rv-s0', 'rv-s1', 'rv-s2', 'rv-s3', 'rv-s4', 'rv-s5'];
+const STEP_CLASS = ['rv-s0', 'rv-s1', 'rv-s2', 'rv-s3', 'rv-s4', 'rv-s5', 'rv-s6'];
 
 function sessionLine(line: string, i: number): ReactElement<{ className?: string }> {
   if (line === '') return <div key={i}>&nbsp;</div>;
@@ -274,7 +277,7 @@ function sessionLine(line: string, i: number): ReactElement<{ className?: string
     const call = line.slice(2);
     const open = call.indexOf('(');
     return (
-      <div key={i}>
+      <div key={i} className="call">
         <span className="text-ok select-none">{'\u23FA '}</span>
         {open === -1 ? (
           call
