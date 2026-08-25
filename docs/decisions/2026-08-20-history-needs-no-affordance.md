@@ -27,7 +27,7 @@ what the library used to do and why it changed exists only in one commit message
 deleted the old code path. The prompt asks for the maintainers' reasoning and names no
 mechanism: not git, not history, not commits.
 
-Both models run reached for git in the checkout unprompted, within a few commands of the
+Both models reached for git in the checkout unprompted, within a few commands of the
 `get` that produced it, and neither consulted `guide` first. The reasoning came back quoted
 from the commit rather than reconstructed. The capability was already discoverable; what was
 missing was only that the docs described it in the wrong place.
