@@ -22,7 +22,7 @@ before all of them: pointed at an ordinary task, does an agent reach for the too
 
 ```sh
 npm run build
-node evals/init/run.mjs                 # default: sonnet, prompt `npx agent-reference@latest init`
+node evals/init/run.mjs                 # default: sonnet, prompt `npx agent-reference init`
 node evals/init/grade.mjs               # grade the newest run
 node evals/init/grade.mjs <runDir>      # or a specific one
 ```

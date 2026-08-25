@@ -308,7 +308,7 @@ export const copy = {
  * The one command that sets a project up. Short enough to retype off a link
  * preview, which is the only place it appears without something to copy it.
  */
-export const quickStart = 'npx agent-reference@latest init'
+export const quickStart = 'npx agent-reference init'
 
 /** The one sentence a person hands their agent. The site and the README share it. */
 export const setupPrompt = `Set this project up for agent-reference: run \`${quickStart}\` and follow the brief it prints.`

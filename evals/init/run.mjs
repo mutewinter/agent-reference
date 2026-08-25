@@ -28,7 +28,7 @@ const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
  * answers. Anything past turn one resumes the same session.
  */
 const DEFAULT_TURNS = [
-  'Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.',
+  'Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.',
   'Machine-wide for the skill, and yes, go ahead and mine my sessions. Carry on through the rest of the brief.'
 ];
 const TIMEOUT_MS = 15 * 60 * 1000;

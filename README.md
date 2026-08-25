@@ -55,7 +55,7 @@ is fetched until an agent asks for it.
 ### Let your agent do it
 
 ```text
-Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.
+Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
 ```
 
 Instructs your agent to install the skill and set up a config for the folders, repositories,
