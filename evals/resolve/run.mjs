@@ -57,7 +57,7 @@ const registry = await startRegistry(repos);
 // The store lives inside the run, so a run never touches the operator's real checkouts.
 const storeDir = path.join(runDir, 'store');
 await fs.writeFile(
-  path.join(projectRoot, 'agent-reference.json'),
+  path.join(projectRoot, 'agent-reference.local.json'),
   `${JSON.stringify({ registry: registry.url, cacheDir: storeDir }, null, 2)}\n`,
 );
 
@@ -168,11 +168,7 @@ async function oneTurn({ env, projectRoot, model, turn, resume }) {
         reject(new Error(`claude exited ${code} with no output`));
         return;
       }
-      try {
-        resolve(JSON.parse(output));
-      } catch {
-        resolve({ raw: output, exitCode: code });
-      }
+      resolve(parseResult(output, code));
     });
   });
 }
@@ -231,4 +227,23 @@ function stamp() {
     .toISOString()
     .replaceAll(/[-:]/g, '')
     .replace(/\.\d+Z$/, '');
+}
+
+/**
+ * `claude --print --output-format json` writes one JSON object, but anything else on the
+ * operator's machine that logs to stdout lands ahead of it. One MCP server's warning line
+ * was enough to throw `JSON.parse`, and the catch that replaced it stored the raw text: no
+ * error, no warning, `session_id` undefined, `transcript: null`, and every transcript-derived
+ * check failing for free. That scores a good run badly and reads as a regression in the tool,
+ * so the parse starts at the first brace and walks forward until one object parses.
+ */
+function parseResult(output, code) {
+  for (let at = output.indexOf('{'); at !== -1; at = output.indexOf('{', at + 1)) {
+    try {
+      return JSON.parse(output.slice(at));
+    } catch {
+      // Not the start of the object; the next brace might be.
+    }
+  }
+  return { raw: output, exitCode: code };
 }

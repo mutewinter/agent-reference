@@ -21,7 +21,12 @@ const result = await readJson(path.join(runDir, 'result.json'));
 const records = await readTranscript(run?.transcript);
 const commands = records.flatMap(toolCommands);
 const finalMessage = result?.result ?? '';
-const config = (await read(path.join(projectRoot, 'agent-reference.json'))) ?? '';
+// Both files: a repository override pointing at a local path belongs in the
+// gitignored one, which is what the guide says and what `validate` enforces.
+const config = [
+  (await read(path.join(projectRoot, 'agent-reference.json'))) ?? '',
+  (await read(path.join(projectRoot, 'agent-reference.local.json'))) ?? '',
+].join('\n');
 
 report('run', runDir);
 report('model', Object.keys(result?.modelUsage ?? {}).join(', ') || (run?.model ?? 'unknown'));
@@ -72,7 +77,12 @@ check(
 );
 check(
   'listed tags in the mirror the failure named',
-  commands.some((command) => /git -C \S*\/git\/\S+ (tag|show|for-each-ref)/.test(command)),
+  // The path may arrive through a shell variable, which is what a run that set
+  // `GIT=…` and then ran `git -C "$GIT" tag --list` actually did, twice. Matching
+  // the literal path missed it and called a correct run a failure.
+  commands.some(
+    (command) => /\/git\/\S+/.test(command) && /git -C \S+ (tag|show|for-each-ref)/.test(command),
+  ),
   'the fix text names the mirror; using it is the loop working as designed',
 );
 check(
