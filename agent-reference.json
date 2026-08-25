@@ -1,24 +1,24 @@
 {
-  "$schema": "https://unpkg.com/agent-reference/schema/agent-reference.schema.json",
-  "git": {
+  "$schema": "https://unpkg.com/agent-reference@1/schema/agent-reference.schema.json",
+  "references": {
     "opencode": {
-      "repository": "github:anomalyco/opencode",
+      "source": "github:anomalyco/opencode",
       "description": "src/init.ts hard-codes where opencode keeps its sessions, so read it when that path or the session format needs checking. Also the kind of harness this tool exists to make readable: packages/core/src/tool/ holds the tool implementations, and the tests beside them are the specification."
     },
     "pi": {
-      "repository": "github:earendil-works/pi",
+      "source": "github:earendil-works/pi",
       "description": "The harness the README, the site, and the talk all use as their worked example, down to file paths and line counts. Read it before editing those: packages/coding-agent/src/core/tools/edit.ts is the file the hero transcript names."
     },
     "agent-browser": {
-      "repository": "github:vercel-labs/agent-browser",
+      "source": "github:vercel-labs/agent-browser",
       "description": "Prior art for how a CLI ships its own agent instructions. Read it when deciding how the skill reaches a project, how much of it lives in the binary rather than on disk, and what the install line should say. Site: agent-browser.dev"
     },
     "slidev": {
-      "repository": "github:slidevjs/slidev",
+      "source": "github:slidevjs/slidev",
       "description": "The deck under talks/ is a Slidev project, and the package the lockfile resolves to is packages/slidev, the CLI, which carries none of what writing slides needs. Read skills/slidev/ first, an agent skill the project ships with a reference file per feature, then docs/builtin/layouts.md and docs/builtin/components.md for what a slide may contain, docs/features/ for one file per capability, and demo/starter/ for a deck that runs."
     },
     "oxc": {
-      "repository": "github:oxc-project/oxc",
+      "source": "github:oxc-project/oxc",
       "description": "The linter and the formatter this repo runs both live here, and their npm packages are publish shims: oxlint resolves to npm/oxlint and oxfmt to npm/oxfmt, a binary downloader each. npm/oxlint/configuration_schema.json is what an .oxlintrc.json is checked against, crates/oxc_linter/src/rules/ is what a rule actually reports, and oxlintrc.json and oxfmtrc.jsonc at the root are how the project configures itself. Read a rule here before turning on a category in place of naming it."
     }
   }
