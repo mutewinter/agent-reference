@@ -8,7 +8,7 @@ Built with [Slidev](https://sli.dev). Slides live in [slides.md](./slides.md).
 pnpm install && pnpm dev
 ```
 
-The public view is <http://localhost:3030>, the presenter view with notes and a timer is <http://localhost:3030/presenter>, and `pnpm export` writes a PDF (add `playwright-chromium` first).
+The public view is <http://localhost:6181>, the presenter view with notes and a timer is <http://localhost:6181/presenter>, and `pnpm export` writes a PDF (add `playwright-chromium` first).
 
 This directory is its own project with its own lockfile, not a workspace package. The library's `files` allowlist already excludes it from the published tarball, so the only question a workspace would answer is whether `pnpm install` at the repository root should also install a presentation framework. It should not.
 
