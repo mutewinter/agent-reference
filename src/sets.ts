@@ -1,5 +1,4 @@
 import { CLI_COMMANDS } from './args.ts';
-import { setLabel } from './config.ts';
 import type {
   AgentReferenceConfig,
   AgentReferenceKind,
@@ -20,8 +19,8 @@ export function configuredReferences(
 
 /**
  * Sets resolve from containment: members are declared inside the set, and each parsed
- * reference carries the labels of the sets that declared it. The same reference listed in
- * two sets is one reference with two labels.
+ * reference carries the names of the sets that declared it. The same source listed in two
+ * sets is one reference with two labels.
  */
 export function resolveSets(config: AgentReferenceConfig | undefined): ReferenceSet[] {
   if (!config) return [];
@@ -31,14 +30,14 @@ export function resolveSets(config: AgentReferenceConfig | undefined): Reference
     name: set.name,
     description: set.description,
     members: references
-      .filter((reference) => reference.sets.includes(setLabel(set)))
+      .filter((reference) => reference.sets.includes(set.name))
       .map((reference) => ({ kind: reference.kind, name: reference.name })),
   }));
 }
 
 /** A selector the caller wrote that nothing in the config answered to. */
 export interface UnmatchedSelector {
-  /** How the message names it: `reference "zod"` or `set "engines"`. */
+  /** How the message names it: `reference "zod"`. */
   label: string;
   /** The raw word, for the hint that offers a command reading of it. */
   input: string;
@@ -53,31 +52,30 @@ export interface ReferenceSelection {
   unmatched: () => UnmatchedSelector[];
 }
 
+/**
+ * One namespace, so one selector. A name is a reference or a set, and a set stands for its
+ * members; nothing has to be qualified, because a name means exactly one thing in a config.
+ */
 export function selectionFilter(
   config: AgentReferenceConfig | undefined,
   options: ReferenceSelectionOptions,
 ): ReferenceSelection | null {
-  const setInputs = splitSelectors(options.sets);
-  const referenceSelectors = splitSelectors(options.references);
-  if (setInputs.length === 0 && referenceSelectors.length === 0) return null;
+  const inputs = splitSelectors(options.references);
+  if (inputs.length === 0) return null;
 
   // Per selector rather than one flat set: a run naming several references used to report
   // success as long as any one of them hit, so a typo was dropped in silence and the
   // reference it meant was never materialized.
   const selectors: Array<UnmatchedSelector & { keys: Set<string> }> = [];
   const sets = resolveSets(config);
+  const references = configuredReferences(config);
 
-  for (const input of setInputs) {
-    const keys = new Set(
-      matchSet(input, sets).members.map((member) => memberKey(member.kind, member.name)),
-    );
-    selectors.push({ label: `set "${input}"`, input, keys });
-  }
-
-  for (const input of referenceSelectors) {
-    const { kind, name } = parseSelector(input);
-    const keys = new Set((kind ? [kind] : KINDS).map((candidate) => memberKey(candidate, name)));
-    selectors.push({ label: `reference "${input}"`, input, keys });
+  for (const input of inputs) {
+    selectors.push({
+      label: `reference "${input}"`,
+      input,
+      keys: selectorKeys(input, sets, references),
+    });
   }
 
   const hits = new Set<string>();
@@ -96,6 +94,52 @@ export function selectionFilter(
   };
 }
 
+/**
+ * What one selector stands for. An exact name wins outright; a set expands to its members;
+ * anything left over is matched against descriptions, so the phrasing a user says in chat
+ * ("the documentation sources") works at the CLI without being the reference's name.
+ */
+function selectorKeys(
+  input: string,
+  sets: ReferenceSet[],
+  references: ConfiguredReference[],
+): Set<string> {
+  const set = sets.find((candidate) => candidate.name === input);
+  if (set) return new Set(set.members.map((member) => memberKey(member.kind, member.name)));
+
+  if (references.some((reference) => reference.name === input)) {
+    return new Set(KINDS.map((kind) => memberKey(kind, input)));
+  }
+
+  const described = matchDescription(input, sets, references);
+  if (described) return described;
+
+  // Nothing named it and nothing described it. The keys are still generated so the caller
+  // reports which selector missed rather than silently narrowing to nothing.
+  return new Set(KINDS.map((kind) => memberKey(kind, input)));
+}
+
+function matchDescription(
+  input: string,
+  sets: ReferenceSet[],
+  references: ConfiguredReference[],
+): Set<string> | null {
+  const needle = input.toLowerCase();
+  const setHits = sets.filter((set) => (set.description ?? '').toLowerCase().includes(needle));
+  const referenceHits = references.filter((reference) =>
+    (reference.description ?? '').toLowerCase().includes(needle),
+  );
+
+  if (setHits.length === 1 && referenceHits.length === 0) {
+    return new Set(setHits[0]!.members.map((member) => memberKey(member.kind, member.name)));
+  }
+  if (referenceHits.length === 1 && setHits.length === 0) {
+    const hit = referenceHits[0]!;
+    return new Set([memberKey(hit.kind, hit.name)]);
+  }
+  return null;
+}
+
 /** Says which selector missed and what could have been written instead. */
 export function missingSelectionMessage(
   missing: UnmatchedSelector[],
@@ -110,41 +154,16 @@ export function missingSelectionMessage(
     .join(' ');
 }
 
-/**
- * A set is addressed the way a human would say it: its short name, its exact description,
- * or any substring of either that matches exactly one set ("engines" finds "Chess engines
- * we study upstream").
- */
-function matchSet(input: string, sets: ReferenceSet[]): ReferenceSet {
-  const exact = sets.filter((set) => set.name === input || set.description === input);
-  const candidates =
-    exact.length > 0
-      ? exact
-      : sets.filter((set) =>
-          `${set.name ?? ''} ${set.description}`.toLowerCase().includes(input.toLowerCase()),
-        );
-
-  if (candidates.length === 1) return candidates[0]!;
-  if (candidates.length === 0) {
-    throw new Error(`No set matches "${input}". ${knownSetsMessage(sets)}`);
-  }
-  throw new Error(
-    `"${input}" matches ${candidates.length} sets: ${candidates.map((set) => `"${set.description}"`).join(', ')}. Be more specific.`,
-  );
-}
-
 /** Names an agent can actually pass, so a miss is one step from a hit. */
 export function knownSelectorsMessage(
   config: AgentReferenceConfig | undefined,
   installedNames: string[] = [],
 ): string {
-  const references = referenceLabels(configuredReferences(config));
-  const extraPackages = installedNames.filter((name) => !references.includes(`package:${name}`));
-
-  const parts = [
-    `Known references: ${[...references, ...extraPackages.map((name) => `package:${name}`)].join(', ') || 'none'}.`,
-  ];
+  const references = configuredReferences(config).map((reference) => reference.name);
   const sets = resolveSets(config);
+  const extraPackages = installedNames.filter((name) => !references.includes(name));
+
+  const parts = [`Known references: ${[...references, ...extraPackages].join(', ') || 'none'}.`];
   if (sets.length > 0) parts.push(knownSetsMessage(sets));
 
   return parts.join(' ');
@@ -166,7 +185,7 @@ export function unknownCommandHint(selectors: string[]): string | null {
 }
 
 function knownSetsMessage(sets: ReferenceSet[]): string {
-  return `Known sets: ${sets.map((set) => (set.name ? `${set.name} ("${set.description}")` : `"${set.description}"`)).join(', ') || 'none'}.`;
+  return `Known sets: ${sets.map((set) => set.name).join(', ') || 'none'}.`;
 }
 
 export function splitSelectors(values: string[] | undefined): string[] {
@@ -176,19 +195,6 @@ export function splitSelectors(values: string[] | undefined): string[] {
       .map((part) => part.trim())
       .filter(Boolean),
   );
-}
-
-function parseSelector(selector: string): { kind: AgentReferenceKind | null; name: string } {
-  const separator = selector.indexOf(':');
-  if (separator === -1) return { kind: null, name: selector };
-
-  const prefix = selector.slice(0, separator) as AgentReferenceKind;
-  if (!KINDS.includes(prefix)) return { kind: null, name: selector };
-  return { kind: prefix, name: selector.slice(separator + 1) };
-}
-
-function referenceLabels(references: ConfiguredReference[]): string[] {
-  return references.map((reference) => `${reference.kind}:${reference.name}`);
 }
 
 function memberKey(kind: AgentReferenceKind, name: string): string {

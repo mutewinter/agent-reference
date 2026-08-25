@@ -173,6 +173,6 @@ export function unsupportedEcosystemMessage(ecosystem: string, name: string): st
   return (
     `${ecosystem}: coordinates are not supported yet. agent-reference resolves ${SUPPORTED_ECOSYSTEM} packages today. ` +
     `Point it at the source repository instead: agent-reference get github:<owner>/<repo>#<tag>, ` +
-    `or declare ${name} under "git" in agent-reference.json with the ref you want.`
+    `or give ${name} a repository source in agent-reference.json with the ref you want.`
   );
 }

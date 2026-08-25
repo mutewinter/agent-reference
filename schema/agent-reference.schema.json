@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://unpkg.com/agent-reference/schema/agent-reference.schema.json",
+  "$id": "https://unpkg.com/agent-reference@1/schema/agent-reference.schema.json",
   "title": "agent-reference config",
   "description": "Desired state for the local reference source an agent can read. Lives at agent-reference.json (committed) or agent-reference.local.json (machine-specific, gitignored). Both are read as JSON with comments (// and /* */) and trailing commas, so a note beside an entry is part of the format; keep any the file already carries when editing it.",
   "type": "object",
@@ -10,324 +10,107 @@
       "type": "string",
       "description": "URL of this schema. Optional; ignored at runtime."
     },
-    "packages": {
+    "references": {
       "type": "object",
-      "description": "Registry packages to materialize, keyed by the package coordinate without its version: \"zod\", or \"npm:zod\" with the ecosystem said out loud. A bare key means npm, which is the only ecosystem resolved today. The version belongs in the value, never in the key.",
+      "description": "Every reference this project declares, keyed by the name an agent asks for. A value is a source string, an array of sources, or an object. An object with \"source\" is one reference; an object or array holding several is a set, a name that stands for all of them and that get, status and clone take like any other name.",
+      "propertyNames": { "minLength": 1 },
       "additionalProperties": {
-        "oneOf": [
-          {
-            "$ref": "#/$defs/packageVersion"
-          },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "version"
-            ],
-            "properties": {
-              "version": {
-                "$ref": "#/$defs/packageVersion"
-              },
-              "ref": {
-                "type": "string",
-                "description": "Commit, tag, or branch to check out, overriding automatic version resolution. Use this when a repository's tagging scheme cannot be guessed; a pinned ref always wins."
-              },
-              "repository": {
-                "type": "string",
-                "description": "Git remote to use when registry metadata has none or points at the wrong repo. github:owner/repo, a git URL, or file:../repo. Setting both repository and ref skips the registry entirely, which is how unpublished or private packages work."
-              },
-              "directory": {
-                "type": "string",
-                "description": "Package subdirectory within the repository, for monorepos where it cannot be detected."
-              },
-              "description": {
-                "$ref": "#/$defs/description"
-              }
-            }
-          }
+        "anyOf": [
+          { "$ref": "#/$defs/sourceString" },
+          { "$ref": "#/$defs/reference" },
+          { "$ref": "#/$defs/setArray" },
+          { "$ref": "#/$defs/set" }
         ]
-      },
-      "examples": [
-        {
-          "npm:prettier": "3.6.2",
-          "zod": {
-            "version": "3.25.0",
-            "description": "Schema shapes we mirror in our own validators"
-          }
-        }
-      ]
+      }
     },
-    "paths": {
-      "type": "object",
-      "description": "Files and folders already on this machine that should show up as agent references, keyed by shorthand name. Whether a path is a file or a folder is read from disk, not declared here.",
-      "additionalProperties": {
-        "oneOf": [
-          {
-            "type": "string",
-            "minLength": 1,
-            "description": "Path to a file or folder. Relative paths resolve from the project root; ~/ resolves from the home directory."
-          },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "path"
-            ],
-            "properties": {
-              "path": {
-                "type": "string",
-                "minLength": 1
-              },
-              "description": {
-                "$ref": "#/$defs/description"
-              }
-            }
-          }
-        ]
-      },
-      "examples": [
-        {
-          "design-notes": "./references/design-notes",
-          "api-docs": {
-            "path": "../platform/docs",
-            "description": "Source of truth for endpoint contracts"
-          },
-          "release-checklist": {
-            "path": "~/notes/release-checklist.md",
-            "description": "One file rather than a folder; both are paths"
-          }
-        }
-      ]
+    "registry": {
+      "type": "string",
+      "description": "npm registry base URL used to look up package metadata. Defaults to https://registry.npmjs.org."
     },
-    "git": {
-      "type": "object",
-      "description": "Arbitrary git repositories to materialize, keyed by shorthand name.",
-      "additionalProperties": {
-        "oneOf": [
-          {
-            "type": "string",
-            "minLength": 1,
-            "description": "github:owner/repo#ref, a git URL with an optional #ref, or file:../repo#ref."
-          },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "repository"
-            ],
-            "properties": {
-              "repository": {
-                "type": "string",
-                "minLength": 1,
-                "description": "github:owner/repo, a git URL, or file:../repo."
-              },
-              "ref": {
-                "type": "string",
-                "description": "Branch, tag, or commit. Defaults to the repository default branch."
-              },
-              "directory": {
-                "type": "string",
-                "minLength": 1,
-                "description": "Subtree of the checkout worth reading, for a repository that is a monorepo. Resolved against the checkout on every command, so a directory upstream has moved is reported rather than silently ignored."
-              },
-              "description": {
-                "$ref": "#/$defs/description"
-              }
-            }
-          }
-        ]
-      },
-      "examples": [
-        {
-          "typescript": "github:microsoft/TypeScript#main",
-          "design-system": {
-            "repository": "github:acme/monorepo",
-            "ref": "v4",
-            "directory": "packages/design-system"
-          }
-        }
-      ]
+    "cacheDir": {
+      "type": "string",
+      "description": "Where checkouts are stored. Defaults to ~/.agent-reference. A machine path here belongs in agent-reference.local.json; AGENT_REFERENCE_STORE_DIR overrides both."
     },
     "allImporters": {
       "type": "boolean",
       "deprecated": true,
-      "description": "No longer used. Every workspace importer is read, and a name installed at several versions is reported rather than picked."
-    },
-    "registry": {
-      "type": "string",
-      "description": "npm registry base URL. Defaults to https://registry.npmjs.org."
-    },
-    "cacheDir": {
-      "type": "string",
-      "description": "Override the machine-wide store location for bare repositories and shared worktrees."
-    },
-    "sets": {
-      "type": "array",
-      "description": "Labeled lists of references: a description saying what the collection is for, with members declared inline. Member names derive from the path or repository basename. The same reference may appear in several sets.",
-      "items": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "description"
-        ],
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "description": "Optional short handle for CLI selection (--set <name>). The description is the display heading either way."
-          },
-          "description": {
-            "type": "string",
-            "minLength": 1,
-            "description": "What this collection is for; doubles as the heading in status output."
-          },
-          "paths": {
-            "type": "array",
-            "items": {
-              "oneOf": [
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "description": "Path to a file or folder."
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "path"
-                  ],
-                  "properties": {
-                    "path": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "name": {
-                      "type": "string",
-                      "minLength": 1,
-                      "description": "Explicit reference name, overriding the one derived from the path or repository basename."
-                    },
-                    "description": {
-                      "$ref": "#/$defs/description"
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          "git": {
-            "type": "array",
-            "items": {
-              "oneOf": [
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "description": "github:owner/repo#ref, a git URL with an optional #ref, or file:../repo#ref."
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "repository"
-                  ],
-                  "properties": {
-                    "repository": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "ref": {
-                      "type": "string"
-                    },
-                    "directory": {
-                      "type": "string",
-                      "minLength": 1,
-                      "description": "Subtree of the checkout worth reading, for a repository that is a monorepo. Resolved against the checkout on every command, so a directory upstream has moved is reported rather than silently ignored."
-                    },
-                    "name": {
-                      "type": "string",
-                      "minLength": 1,
-                      "description": "Explicit reference name, overriding the one derived from the path or repository basename."
-                    },
-                    "description": {
-                      "$ref": "#/$defs/description"
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          "packages": {
-            "type": "array",
-            "items": {
-              "oneOf": [
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "description": "\"name@version\" with an exact version, such as \"zod@3.22.0\". The name may carry an ecosystem prefix (\"npm:zod@3.22.0\"); a bare name means npm."
-                },
-                {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "name"
-                  ],
-                  "properties": {
-                    "name": {
-                      "type": "string",
-                      "minLength": 1,
-                      "description": "Package name, optionally with an ecosystem prefix (\"npm:zod\"). A bare name means npm."
-                    },
-                    "version": {
-                      "$ref": "#/$defs/packageVersion"
-                    },
-                    "ref": {
-                      "type": "string"
-                    },
-                    "repository": {
-                      "type": "string"
-                    },
-                    "directory": {
-                      "type": "string"
-                    },
-                    "description": {
-                      "$ref": "#/$defs/description"
-                    }
-                  }
-                }
-              ]
-            },
-            "description": "Packages declared inline as members of this set."
-          }
-        }
-      },
-      "examples": [
-        [
-          {
-            "description": "Documentation sources to read before writing docs",
-            "paths": [
-              "./references/design-notes",
-              {
-                "path": "../platform/docs",
-                "name": "api-docs",
-                "description": "Source of truth for endpoint contracts"
-              }
-            ],
-            "git": [
-              "github:acme/design-system#v4"
-            ]
-          }
-        ]
-      ]
+      "description": "Does nothing. Every workspace importer is read now, and a name installed at several versions is reported rather than picked. The key still parses so a config that set it does not break; remove it."
     }
   },
   "$defs": {
-    "packageVersion": {
+    "sourceString": {
       "type": "string",
-      "pattern": "^\\d+\\.\\d+\\.\\d+(?:[-+][0-9A-Za-z.-]+)?$",
-      "description": "An exact published version, such as \"3.25.0\". Ranges, dist-tags, and \"installed\" are rejected: a config entry is a fixed coordinate that has to mean the same thing on every machine and next month. Run `agent-reference versions <name>` to see what this project installs."
+      "minLength": 1,
+      "description": "Where this reference comes from, written the way you would pass it to `agent-reference get`. What kind of reference it is follows from the shape, never from a declaration.\n\n  ./docs/decisions      a folder or file in this repo, read where it lives\n  ~/vault/brief.md      a path on this machine (agent-reference.local.json only)\n  github:openai/codex   a repository, at its default branch\n  openai/codex#v0.20.0  a repository, at a tag, branch, or commit\n  https://host/x.git    any git remote, ssh and git@ included\n  file:///abs/path      a git repository on this disk, cloned into the store\n  npm:zod@3.22.0        a package at an exact version\n  zod@3.22.0            the same; a bare name means npm\n\nA path source has to start with ./, ../, ~/ or /, because `docs/decisions` is also a valid owner/repo shorthand. A package source always carries an exact version: ranges, dist-tags and \"installed\" are refused, since a config entry has to mean the same thing on every machine and next month."
     },
-    "description": {
-      "type": "string",
-      "description": "Free-form note explaining what this reference is for. Shown to agents in `agent-reference status`."
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "description": "One reference, when there is more to say about it than its source.",
+      "properties": {
+        "source": { "$ref": "#/$defs/sourceString" },
+        "ref": {
+          "type": "string",
+          "description": "Commit, tag, or branch to check out. For a repository source it replaces the default branch; for a package source it overrides version resolution, which is what a repository whose tags do not match its published versions needs. Not accepted on a path source, which is read where it lives and has no other ref."
+        },
+        "repository": {
+          "type": "string",
+          "description": "Git remote to use instead of the one the registry reported. Package sources only: a repository source already names its own remote."
+        },
+        "directory": {
+          "type": "string",
+          "description": "Subtree of the checkout worth reading, for a repository that is a monorepo. The reference resolves to that subtree while status still reports the checkout root. Several subtrees of one repository are several entries with distinct names; they share one clone. Not accepted on a path source: point the source at the subfolder instead."
+        },
+        "description": {
+          "type": "string",
+          "description": "What this source is for and when to read it. This is the whole value of a reference to a future agent, so say when to open it, not what it is. Also where user policy travels (\"never name this folder in committed code\")."
+        }
+      }
+    },
+    "setArray": {
+      "type": "array",
+      "description": "A set with no heading: a name that stands for several references. Shorthand for an object with a \"references\" array.",
+      "items": { "$ref": "#/$defs/member" }
+    },
+    "set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["references"],
+      "description": "A reference that resolves to several paths. Its key is its name, exactly as a single reference's key is, so `get <name>` materializes every member and `status <name>` reports the group. A set holds references, never other sets.",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "What the collection is for. Printed under the set's name as its heading."
+        },
+        "references": {
+          "type": "array",
+          "description": "The members, declared inline. A member may be any kind, so one set can hold a package, a repository and a folder together.",
+          "items": { "$ref": "#/$defs/member" }
+        }
+      }
+    },
+    "member": {
+      "anyOf": [
+        { "$ref": "#/$defs/sourceString" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source"],
+          "description": "A member with more to say about it than its source. Same shape as a top-level reference, plus a \"name\", because inside an array there is no key to be one.",
+          "properties": {
+            "source": { "$ref": "#/$defs/sourceString" },
+            "name": {
+              "type": "string",
+              "description": "The name this member is asked for by. Defaults to the basename of the source. Names are one namespace, so it may not collide with another reference or with a set."
+            },
+            "ref": { "type": "string" },
+            "repository": { "type": "string" },
+            "directory": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        }
+      ]
     }
   }
 }

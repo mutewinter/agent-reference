@@ -38,20 +38,20 @@ export function committedPathLeaks(config: AgentReferenceConfig): CommittedPathL
       leaks.push({
         reference: `path:${reference.name}`,
         severity: 'error',
-        summary: `paths.${reference.name} puts the machine path ${reference.path} in the committed config.`,
+        summary: `references.${reference.name} puts the machine path ${reference.path} in the committed config.`,
         fix: MOVE_FIX,
       });
     } else if (verdict === 'escapes') {
       leaks.push({
         reference: `path:${reference.name}`,
         severity: 'warning',
-        summary: `paths.${reference.name} escapes the repo (${reference.path}).`,
+        summary: `references.${reference.name} escapes the repo (${reference.path}).`,
         fix: ESCAPE_FIX,
       });
     }
   }
 
-  // A `file:` repository is a machine path wearing a git costume: it clones from disk, so
+  // A `file://` repository is a machine path wearing a git costume: it clones from disk, so
   // it travels no better than a path reference does.
   for (const reference of config.git) {
     if (reference.scope === 'local') continue;
@@ -63,14 +63,14 @@ export function committedPathLeaks(config: AgentReferenceConfig): CommittedPathL
       leaks.push({
         reference: `git:${reference.name}`,
         severity: 'error',
-        summary: `git.${reference.name} points at the machine path ${reference.repository} in the committed config.`,
+        summary: `references.${reference.name} points at the machine path ${reference.repository} in the committed config.`,
         fix: MOVE_FIX,
       });
     } else if (verdict === 'escapes') {
       leaks.push({
         reference: `git:${reference.name}`,
         severity: 'warning',
-        summary: `git.${reference.name} escapes the repo (${reference.repository}).`,
+        summary: `references.${reference.name} escapes the repo (${reference.repository}).`,
         fix: ESCAPE_FIX,
       });
     }
@@ -115,7 +115,6 @@ function classifyConfiguredPath(value: string): PathVerdict {
 /** The path inside a repository spec that clones from disk, or null for a remote URL. */
 function localRepositoryPath(repository: string): string | null {
   if (repository.startsWith('file://')) return repository.slice('file://'.length);
-  if (repository.startsWith('file:')) return repository.slice('file:'.length);
   if (repository.startsWith('~') || path.isAbsolute(repository)) return repository;
   return null;
 }

@@ -1,21 +1,11 @@
 import path from 'node:path';
 
 import { pathExists, readJsoncFile } from './fs-utils.ts';
-import {
-  isExactRegistryVersion,
-  KNOWN_ECOSYSTEMS,
-  parsePackageAtVersion,
-  parsePackageKey,
-  SUPPORTED_ECOSYSTEM,
-  unknownEcosystemMessage,
-  unsupportedEcosystemMessage,
-} from './package-utils.ts';
-import { repositoryNameFromSpec } from './repository.ts';
+import { isExactRegistryVersion, SUPPORTED_ECOSYSTEM } from './package-utils.ts';
+import { classifySource, derivedName, UnknownSourceError } from './source.ts';
+import type { ClassifiedSource } from './source.ts';
 import type {
   AgentReferenceConfig,
-  ConfiguredPathReference,
-  ConfiguredGitReference,
-  ConfiguredPackageReference,
   ConfiguredReference,
   ConfiguredSet,
   LoadedAgentReferenceConfig,
@@ -24,79 +14,22 @@ import type {
 export const DEFAULT_CONFIG_FILE = 'agent-reference.json';
 export const DEFAULT_LOCAL_CONFIG_FILE = 'agent-reference.local.json';
 
-const TOP_LEVEL_KEYS = [
-  '$schema',
-  'packages',
-  'paths',
-  'git',
-  'sets',
-  'allImporters',
-  'registry',
-  'cacheDir',
-];
+const TOP_LEVEL_KEYS = ['$schema', 'references', 'allImporters', 'registry', 'cacheDir'];
+/** A reference: one name, one source, plus what has to be said about reaching it. */
+const REFERENCE_KEYS = ['source', 'ref', 'repository', 'directory', 'description'];
+/** The same, inside a set, where the key that would have named it is an array index. */
+const MEMBER_KEYS = [...REFERENCE_KEYS, 'name'];
+/** A set: a heading, and the references it holds. */
+const SET_KEYS = ['description', 'references'];
+
 /**
- * A package entry is a coordinate, not a question. `installed` used to mean "whatever the
- * lockfile says", which resolved differently depending on the directory the command ran in
- * and, in a workspace, could name a version this project does not install. Ranges and
+ * A package coordinate is a fixed point, not a question. `installed` used to mean "whatever
+ * the lockfile says", which resolved differently depending on the directory the command ran
+ * in and, in a workspace, could name a version this project does not install. Ranges and
  * dist-tags have the same defect one step removed: they answer differently next week.
  */
 const VERSION_HELP =
   'Run `agent-reference versions <name>` to see every version this project installs, then pin that number.';
-
-/**
- * Splits a `packages` key into the registry the name lives in and the name itself. The CLI
- * has taken an ecosystem prefix since coordinates were introduced, and prints one back as
- * the canonical spelling; the config could not hold one, so a key written the way `get`
- * printed it became a package literally called `npm:zod` that no lookup ever matched.
- */
-function parsePackageIdentity(
-  key: string,
-  configPath: string,
-  field: string,
-): { ecosystem: string; name: string } {
-  const { ecosystem, name, version } = parsePackageKey(key);
-
-  if (version !== null) {
-    fail(
-      configPath,
-      `${field} carries a version in the key. The key is the package, the value is the version: write "${ecosystem === SUPPORTED_ECOSYSTEM ? name : `${ecosystem}:${name}`}": "${version}".`,
-    );
-  }
-  if (!KNOWN_ECOSYSTEMS.includes(ecosystem))
-    fail(configPath, `${field}: ${unknownEcosystemMessage(ecosystem)}`);
-  if (ecosystem !== SUPPORTED_ECOSYSTEM)
-    fail(configPath, `${field}: ${unsupportedEcosystemMessage(ecosystem, name)}`);
-  requireNonEmpty(name, configPath, field);
-
-  return { ecosystem, name };
-}
-
-function requirePackageVersion(value: unknown, configPath: string, field: string): string {
-  if (value === undefined || value === null) {
-    fail(
-      configPath,
-      `${field} is required and must be an exact version such as "1.2.3". ${VERSION_HELP}`,
-    );
-  }
-
-  const version = requireNonEmpty(expectString(value, configPath, field), configPath, field);
-  if (!isExactRegistryVersion(version)) {
-    fail(
-      configPath,
-      `${field} is "${version}", which is not an exact version. Ranges, dist-tags, and "installed" are not accepted: a config entry has to mean the same thing on every machine and next month. ${VERSION_HELP}`,
-    );
-  }
-
-  return version;
-}
-
-const PACKAGE_KEYS = ['version', 'ref', 'repository', 'directory', 'description'];
-const PATH_KEYS = ['path', 'description'];
-const GIT_KEYS = ['repository', 'ref', 'directory', 'description'];
-const SET_KEYS = ['name', 'description', 'packages', 'paths', 'git'];
-const SET_PATH_KEYS = ['path', 'name', 'description'];
-const SET_GIT_KEYS = ['repository', 'ref', 'directory', 'name', 'description'];
-const SET_PACKAGE_KEYS = ['name', 'version', 'ref', 'repository', 'directory', 'description'];
 
 function emptyConfig(): AgentReferenceConfig {
   return { packages: [], paths: [], git: [], sets: [] };
@@ -141,22 +74,12 @@ async function readConfigJson(configPath: string): Promise<unknown> {
 
 export function parseConfig(value: unknown, configPath: string): AgentReferenceConfig {
   const object = expectObject(value, configPath, null);
-  assertRenamedKeys(object, configPath, null);
+  assertRenamedKeys(object, configPath);
   assertKnownKeys(object, TOP_LEVEL_KEYS, configPath, null);
 
   const config = emptyConfig();
-
-  for (const [name, entry] of recordEntries(object.packages, configPath, 'packages')) {
-    config.packages.push(parsePackageEntry(name, entry, configPath));
-  }
-  for (const [name, entry] of recordEntries(object.paths, configPath, 'paths')) {
-    config.paths.push(parsePathEntry(name, entry, configPath));
-  }
-  for (const [name, entry] of recordEntries(object.git, configPath, 'git')) {
-    config.git.push(parseGitEntry(name, entry, configPath));
-  }
-  parseSets(object.sets, configPath, config);
-  mergeDuplicateReferences(config, configPath);
+  parseReferences(object.references, configPath, config);
+  assertSetNamesAreFree(config, configPath);
 
   if (object.allImporters !== undefined)
     config.allImporters = expectBoolean(object.allImporters, configPath, 'allImporters');
@@ -169,421 +92,304 @@ export function parseConfig(value: unknown, configPath: string): AgentReferenceC
 }
 
 /**
- * A set is a labeled list: a required description saying what the collection is for, and
- * members declared inline, mirroring how humans actually keep these lists. Member names
- * derive from the path or repository basename unless overridden.
+ * One map, one namespace. A value is a source string, an array of members, or an object;
+ * an object holding `source` is a reference and one holding `references` is a set, which is
+ * the only rule a writer has to carry. What kind of reference it is comes out of the source
+ * rather than being declared, the way a path's file-or-folder shape already does.
  */
-function parseSets(value: unknown, configPath: string, config: AgentReferenceConfig): void {
+function parseReferences(value: unknown, configPath: string, config: AgentReferenceConfig): void {
   if (value === undefined || value === null) return;
-  if (!Array.isArray(value)) fail(configPath, 'sets must be an array of set objects.');
+  const object = expectObject(
+    value,
+    configPath,
+    'references',
+    'an object mapping names to sources',
+  );
 
-  for (const [index, entry] of value.entries()) {
-    const field = `sets[${index}]`;
-    const object = expectObject(entry, configPath, field);
-    assertRenamedKeys(object, configPath, field);
-    assertKnownKeys(object, SET_KEYS, configPath, field);
-    if (object.description === undefined) {
+  for (const [name, entry] of Object.entries(object)) {
+    if (!name.trim()) fail(configPath, 'references has an empty reference name.');
+    const field = `references.${name}`;
+
+    if (Array.isArray(entry)) {
+      parseSet(name, null, entry, configPath, field, config);
+      continue;
+    }
+
+    if (isObject(entry)) {
+      assertRenamedKeys(entry, configPath, field);
+      if (entry.references !== undefined) {
+        assertKnownKeys(entry, SET_KEYS, configPath, field);
+        const description = parseDescription(entry.description, configPath, field);
+        parseSet(name, description, entry.references, configPath, field, config);
+        continue;
+      }
+      if (entry.source === undefined) {
+        // Checked before the shape is judged: `sorce` is a typo to name, not an object that
+        // is neither of the two shapes.
+        assertKnownKeys(entry, [...REFERENCE_KEYS, 'references'], configPath, field);
+        fail(
+          configPath,
+          `${field} has neither "source" nor "references". A reference names one source; a set holds a "references" array of them.`,
+        );
+      }
+    }
+
+    pushReference(
+      config,
+      parseReference(name, entry, configPath, field, [], REFERENCE_KEYS),
+      configPath,
+    );
+  }
+}
+
+/** A set is a reference that resolves to several paths. Its key is its name, like any other. */
+function parseSet(
+  name: string,
+  description: string | null,
+  members: unknown,
+  configPath: string,
+  field: string,
+  config: AgentReferenceConfig,
+): void {
+  if (!Array.isArray(members)) {
+    fail(configPath, `${field}.references must be an array of sources.`);
+  }
+
+  config.sets.push({ name, description });
+
+  for (const [index, member] of members.entries()) {
+    const itemField = `${field}.references[${index}]`;
+    if (Array.isArray(member) || (isObject(member) && member.references !== undefined)) {
       fail(
         configPath,
-        `${field}.description is required: it is the heading that says what this set is for.`,
+        `${itemField} is a set inside a set. A set holds references, never other sets; give this one its own name in "references".`,
       );
     }
-
-    const description = requireNonEmpty(
-      expectString(object.description, configPath, `${field}.description`),
+    const declared = isObject(member)
+      ? optionalString(member.name, configPath, `${itemField}.name`)
+      : null;
+    pushReference(
+      config,
+      parseReference(declared, member, configPath, itemField, [name], MEMBER_KEYS),
       configPath,
-      `${field}.description`,
     );
-    const name = optionalString(object.name, configPath, `${field}.name`);
-    const set: ConfiguredSet = { name, description };
-    const label = setLabel(set);
-    config.sets.push(set);
+  }
+}
 
-    for (const [itemIndex, item] of memberEntries(object.paths, configPath, `${field}.paths`)) {
-      config.paths.push(parseSetPath(item, configPath, `${field}.paths[${itemIndex}]`, label));
+/**
+ * One reference, wherever it was written. `name` is null for a set member that declared
+ * none, which then takes the basename of its source the way `get` names an ad hoc spec.
+ */
+function parseReference(
+  name: string | null,
+  entry: unknown,
+  configPath: string,
+  field: string,
+  sets: string[],
+  knownKeys: string[],
+): ConfiguredReference {
+  let spec: string;
+  let ref: string | null = null;
+  let repository: string | null = null;
+  let directory: string | null = null;
+  let description: string | null = null;
+
+  if (typeof entry === 'string') {
+    spec = requireNonEmpty(entry, configPath, field);
+  } else {
+    const object = expectObject(entry, configPath, field, 'a source string or an object');
+    assertKnownKeys(object, knownKeys, configPath, field);
+    if (object.source === undefined) {
+      fail(
+        configPath,
+        `${field}.source is required. Write it the way you would pass it to get: a path, github:owner/repo, a git URL, or npm:name@version.`,
+      );
     }
-    for (const [itemIndex, item] of memberEntries(object.git, configPath, `${field}.git`)) {
-      config.git.push(parseSetGit(item, configPath, `${field}.git[${itemIndex}]`, label));
-    }
-    for (const [itemIndex, item] of memberEntries(
-      object.packages,
+    spec = requireNonEmpty(
+      expectString(object.source, configPath, `${field}.source`),
       configPath,
-      `${field}.packages`,
-    )) {
-      config.packages.push(
-        parseSetPackage(item, configPath, `${field}.packages[${itemIndex}]`, label),
+      `${field}.source`,
+    );
+    ref = optionalString(object.ref, configPath, `${field}.ref`);
+    repository = optionalString(object.repository, configPath, `${field}.repository`);
+    directory = optionalString(object.directory, configPath, `${field}.directory`);
+    description = parseDescription(object.description, configPath, field);
+  }
+
+  const source = classify(spec, configPath, `${field}.source`);
+  const referenceName = requireNonEmpty(name ?? derivedName(source), configPath, field);
+
+  if (source.kind === 'path') {
+    rejectKey(ref, 'ref', field, configPath, 'a checkout read where it lives has no other ref');
+    rejectKey(repository, 'repository', field, configPath, 'the source is already the location');
+    rejectKey(directory, 'directory', field, configPath, 'point the source at the subfolder');
+    return {
+      kind: 'path',
+      name: referenceName,
+      scope: 'shared',
+      path: source.path,
+      description,
+      sets,
+    };
+  }
+
+  if (source.kind === 'git') {
+    rejectKey(
+      repository,
+      'repository',
+      field,
+      configPath,
+      'the source is already the repository, and "repository" only overrides what a registry reported for a package',
+    );
+    if (ref && source.ref && ref !== source.ref) {
+      fail(
+        configPath,
+        `${field} sets ref "${ref}" but the source already pins "#${source.ref}". Use one or the other.`,
+      );
+    }
+    const resolved = ref ?? source.ref;
+    return {
+      kind: 'git',
+      name: referenceName,
+      scope: 'shared',
+      repository: source.repository,
+      ref: resolved,
+      spec: resolved ? `${source.repository}#${resolved}` : source.repository,
+      directory,
+      description,
+      sets,
+    };
+  }
+
+  // A package reference resolves through a registry and is audited against a lockfile, both
+  // of which key on the package's own name. Letting the handle differ would mean carrying
+  // two names for one entry, so the key is the name and the error says how to spell it.
+  if (name !== null && name !== source.name) {
+    fail(
+      configPath,
+      `${field} is named "${name}" but its source is the package ${source.name}. A package reference is keyed by its package name: write "${source.name}": "${spec}". To give a source a name of your own, point it at the repository instead.`,
+    );
+  }
+
+  if (!source.version) {
+    fail(
+      configPath,
+      `${field} names no version. A package source carries an exact one, as in "${SUPPORTED_ECOSYSTEM}:${source.name}@1.2.3". ${VERSION_HELP}`,
+    );
+  }
+  if (!isExactRegistryVersion(source.version)) {
+    fail(
+      configPath,
+      `${field} pins "${source.version}", which is not an exact version. Ranges, dist-tags, and "installed" are not accepted: a config entry has to mean the same thing on every machine and next month. ${VERSION_HELP}`,
+    );
+  }
+
+  return {
+    kind: 'package',
+    name: referenceName,
+    ecosystem: source.ecosystem,
+    scope: 'shared',
+    version: source.version,
+    ref,
+    repository,
+    directory,
+    description,
+    sets,
+  };
+}
+
+function classify(spec: string, configPath: string, field: string): ClassifiedSource {
+  try {
+    return classifySource(spec);
+  } catch (error) {
+    if (error instanceof UnknownSourceError) fail(configPath, `${field}: ${error.message}`);
+    throw error;
+  }
+}
+
+/** A key that does nothing where it was written is a config that is quietly wrong. */
+function rejectKey(
+  value: string | null,
+  key: string,
+  field: string,
+  configPath: string,
+  why: string,
+): void {
+  if (value === null) return;
+  fail(configPath, `${field}.${key} does nothing for this source: ${why}.`);
+}
+
+/**
+ * Names are one namespace now. The same source listed in two sets is repetition and merges
+ * into one reference carrying both labels; two declarations pointing somewhere different is
+ * a conflict to name rather than to resolve.
+ */
+function pushReference(
+  config: AgentReferenceConfig,
+  reference: ConfiguredReference,
+  configPath: string,
+): void {
+  const existing = findByName(config, reference.name);
+  if (!existing) {
+    if (reference.kind === 'package') config.packages.push(reference);
+    else if (reference.kind === 'path') config.paths.push(reference);
+    else config.git.push(reference);
+    return;
+  }
+
+  if (existing.kind !== reference.kind || identity(existing) !== identity(reference)) {
+    fail(
+      configPath,
+      `"${reference.name}" is declared more than once and the two point somewhere different. Give one of them its own "name".`,
+    );
+  }
+
+  existing.sets = [
+    ...existing.sets,
+    ...reference.sets.filter((label) => !existing.sets.includes(label)),
+  ];
+  existing.description ??= reference.description;
+}
+
+function findByName(config: AgentReferenceConfig, name: string): ConfiguredReference | undefined {
+  return [...config.packages, ...config.paths, ...config.git].find(
+    (reference) => reference.name === name,
+  );
+}
+
+function identity(reference: ConfiguredReference): string {
+  if (reference.kind === 'package') {
+    return [
+      reference.ecosystem,
+      reference.version,
+      reference.ref,
+      reference.repository,
+      reference.directory,
+    ].join(' ');
+  }
+  if (reference.kind === 'path') return reference.path;
+  return [reference.spec, reference.directory].join(' ');
+}
+
+/**
+ * A set name and a reference name are the same kind of handle, so they cannot both be
+ * taken. Checked after the whole map is read, because a set may be declared above the
+ * member that collides with it.
+ */
+function assertSetNamesAreFree(config: AgentReferenceConfig, configPath: string): void {
+  for (const set of config.sets) {
+    const clash = findByName(config, set.name);
+    if (clash) {
+      fail(
+        configPath,
+        `"${set.name}" is both a set and a ${clash.kind} reference. One name means one thing here: rename the set, or give that member its own "name".`,
       );
     }
   }
 }
 
 export function setLabel(set: ConfiguredSet): string {
-  return set.name ?? set.description;
-}
-
-function parseSetPath(
-  item: unknown,
-  configPath: string,
-  field: string,
-  label: string,
-): ConfiguredPathReference {
-  if (typeof item === 'string') {
-    const declared = requireNonEmpty(item, configPath, field);
-    return {
-      kind: 'path',
-      name: basenameOf(declared),
-      scope: 'shared',
-      path: declared,
-      description: null,
-      sets: [label],
-    };
-  }
-
-  const object = expectObject(item, configPath, field, 'a path string or an object');
-  assertKnownKeys(object, SET_PATH_KEYS, configPath, field);
-  if (object.path === undefined) fail(configPath, `${field}.path is required.`);
-  const declared = requireNonEmpty(
-    expectString(object.path, configPath, `${field}.path`),
-    configPath,
-    `${field}.path`,
-  );
-
-  return {
-    kind: 'path',
-    name: optionalString(object.name, configPath, `${field}.name`) ?? basenameOf(declared),
-    scope: 'shared',
-    path: declared,
-    description: parseDescription(object.description, configPath, field),
-    sets: [label],
-  };
-}
-
-function parseSetGit(
-  item: unknown,
-  configPath: string,
-  field: string,
-  label: string,
-): ConfiguredGitReference {
-  if (typeof item === 'string') {
-    const spec = requireNonEmpty(item, configPath, field);
-    const reference = gitReference(
-      repositoryNameFromSpec(spec),
-      spec,
-      null,
-      null,
-      null,
-      configPath,
-      field,
-    );
-    reference.sets = [label];
-    return reference;
-  }
-
-  const object = expectObject(item, configPath, field, 'a repository string or an object');
-  assertKnownKeys(object, SET_GIT_KEYS, configPath, field);
-  if (object.repository === undefined) {
-    fail(
-      configPath,
-      `${field}.repository is required. Use github:owner/repo, a git URL, or file:../repo.`,
-    );
-  }
-  const repository = requireNonEmpty(
-    expectString(object.repository, configPath, `${field}.repository`),
-    configPath,
-    `${field}.repository`,
-  );
-
-  const reference = gitReference(
-    optionalString(object.name, configPath, `${field}.name`) ?? repositoryNameFromSpec(repository),
-    repository,
-    object.ref === undefined || object.ref === null
-      ? null
-      : expectString(object.ref, configPath, `${field}.ref`),
-    optionalString(object.directory, configPath, `${field}.directory`),
-    parseDescription(object.description, configPath, field),
-    configPath,
-    field,
-  );
-  reference.sets = [label];
-  return reference;
-}
-
-function parseSetPackage(
-  item: unknown,
-  configPath: string,
-  field: string,
-  label: string,
-): ConfiguredPackageReference {
-  if (typeof item === 'string') {
-    const parsed = parsePackageAtVersion(requireNonEmpty(item, configPath, field));
-    if (!parsed) {
-      fail(
-        configPath,
-        `${field} must be "name@version" with an exact version, such as "react@18.2.0". ${VERSION_HELP}`,
-      );
-    }
-    const identity = parsePackageIdentity(parsed.name, configPath, field);
-    return {
-      kind: 'package',
-      name: identity.name,
-      ecosystem: identity.ecosystem,
-      configKey: parsed.name,
-      scope: 'shared',
-      version: parsed.version,
-      ref: null,
-      repository: null,
-      directory: null,
-      description: null,
-      sets: [label],
-    };
-  }
-
-  const object = expectObject(item, configPath, field, 'a package name string or an object');
-  assertKnownKeys(object, SET_PACKAGE_KEYS, configPath, field);
-  if (object.name === undefined) fail(configPath, `${field}.name is required.`);
-  const declared = requireNonEmpty(
-    expectString(object.name, configPath, `${field}.name`),
-    configPath,
-    `${field}.name`,
-  );
-  const identity = parsePackageIdentity(declared, configPath, `${field}.name`);
-
-  return {
-    kind: 'package',
-    name: identity.name,
-    ecosystem: identity.ecosystem,
-    configKey: declared,
-    scope: 'shared',
-    version: requirePackageVersion(object.version, configPath, `${field}.version`),
-    ref: optionalString(object.ref, configPath, `${field}.ref`),
-    repository: optionalString(object.repository, configPath, `${field}.repository`),
-    directory: optionalString(object.directory, configPath, `${field}.directory`),
-    description: parseDescription(object.description, configPath, field),
-    sets: [label],
-  };
-}
-
-/**
- * The same reference may be listed in several sets, or in a set and at top level; that is
- * repetition, not conflict, and merges into one reference belonging to every set. Two
- * declarations disagreeing about what the name points at is a real conflict.
- */
-function mergeDuplicateReferences(config: AgentReferenceConfig, configPath: string): void {
-  // Keyed on the ecosystem as well as the name, so a future `pypi:zod` is a second reference
-  // rather than a conflict, while `zod` and `npm:zod` are two spellings of one.
-  config.packages = mergeKind(
-    config.packages,
-    configPath,
-    (entry) => [entry.version, entry.ref, entry.repository, entry.directory].join('\u0000'),
-    (entry) => `${entry.ecosystem} ${entry.name}`,
-  );
-  config.paths = mergeKind(config.paths, configPath, (entry) => entry.path);
-  config.git = mergeKind(config.git, configPath, (entry) =>
-    [entry.spec, entry.directory].join('\u0000'),
-  );
-}
-
-function mergeKind<T extends ConfiguredReference>(
-  entries: T[],
-  configPath: string,
-  identity: (entry: T) => string,
-  keyOf: (entry: T) => string = (entry) => entry.name,
-): T[] {
-  const byName = new Map<string, T>();
-
-  for (const entry of entries) {
-    const key = keyOf(entry);
-    const existing = byName.get(key);
-    if (!existing) {
-      byName.set(key, entry);
-      continue;
-    }
-    if (identity(existing) !== identity(entry)) {
-      fail(
-        configPath,
-        `${entry.kind} "${entry.name}" is declared more than once with different targets. Give one of them an explicit "name".`,
-      );
-    }
-    existing.sets = [
-      ...existing.sets,
-      ...entry.sets.filter((label) => !existing.sets.includes(label)),
-    ];
-    existing.description ??= entry.description;
-  }
-
-  return [...byName.values()];
-}
-
-function basenameOf(declaredPath: string): string {
-  const normalized = declaredPath.replaceAll('\\', '/').replace(/\/+$/, '');
-  const base = path.posix.basename(normalized);
-  return base && base !== '.' && base !== '~' ? base : normalized;
-}
-
-function memberEntries(
-  value: unknown,
-  configPath: string,
-  field: string,
-): Array<[number, unknown]> {
-  if (value === undefined || value === null) return [];
-  if (!Array.isArray(value)) fail(configPath, `${field} must be an array.`);
-  return value.map((item, index) => [index, item]);
-}
-
-function parsePackageEntry(
-  key: string,
-  entry: unknown,
-  configPath: string,
-): ConfiguredPackageReference {
-  const field = `packages.${key}`;
-  const { ecosystem, name } = parsePackageIdentity(key, configPath, field);
-
-  if (typeof entry === 'string') {
-    return {
-      kind: 'package',
-      name,
-      ecosystem,
-      configKey: key,
-      scope: 'shared',
-      version: requirePackageVersion(entry, configPath, field),
-      ref: null,
-      repository: null,
-      directory: null,
-      description: null,
-      sets: [],
-    };
-  }
-
-  const object = expectObject(entry, configPath, field, 'a version string or an object');
-  assertKnownKeys(object, PACKAGE_KEYS, configPath, field);
-
-  return {
-    kind: 'package',
-    name,
-    ecosystem,
-    configKey: key,
-    scope: 'shared',
-    version: requirePackageVersion(object.version, configPath, `${field}.version`),
-    ref: optionalString(object.ref, configPath, `${field}.ref`),
-    repository: optionalString(object.repository, configPath, `${field}.repository`),
-    directory: optionalString(object.directory, configPath, `${field}.directory`),
-    description: parseDescription(object.description, configPath, field),
-    sets: [],
-  };
-}
-
-function parsePathEntry(name: string, entry: unknown, configPath: string): ConfiguredPathReference {
-  const field = `paths.${name}`;
-  if (typeof entry === 'string') {
-    return {
-      kind: 'path',
-      name,
-      scope: 'shared',
-      path: requireNonEmpty(entry, configPath, field),
-      description: null,
-      sets: [],
-    };
-  }
-
-  const object = expectObject(entry, configPath, field, 'a path string or an object');
-  assertKnownKeys(object, PATH_KEYS, configPath, field);
-  if (object.path === undefined) {
-    fail(configPath, `${field}.path is required.`);
-  }
-
-  return {
-    kind: 'path',
-    name,
-    scope: 'shared',
-    path: requireNonEmpty(
-      expectString(object.path, configPath, `${field}.path`),
-      configPath,
-      `${field}.path`,
-    ),
-    description: parseDescription(object.description, configPath, field),
-    sets: [],
-  };
-}
-
-function parseGitEntry(name: string, entry: unknown, configPath: string): ConfiguredGitReference {
-  const field = `git.${name}`;
-  if (typeof entry === 'string') {
-    return gitReference(
-      name,
-      requireNonEmpty(entry, configPath, field),
-      null,
-      null,
-      null,
-      configPath,
-      field,
-    );
-  }
-
-  const object = expectObject(entry, configPath, field, 'a repository string or an object');
-  assertKnownKeys(object, GIT_KEYS, configPath, field);
-  if (object.repository === undefined) {
-    fail(
-      configPath,
-      `${field}.repository is required. Use github:owner/repo, a git URL, or file:../repo.`,
-    );
-  }
-
-  return gitReference(
-    name,
-    requireNonEmpty(
-      expectString(object.repository, configPath, `${field}.repository`),
-      configPath,
-      `${field}.repository`,
-    ),
-    object.ref === undefined || object.ref === null
-      ? null
-      : expectString(object.ref, configPath, `${field}.ref`),
-    optionalString(object.directory, configPath, `${field}.directory`),
-    parseDescription(object.description, configPath, field),
-    configPath,
-    field,
-  );
-}
-
-function gitReference(
-  name: string,
-  repositorySpec: string,
-  explicitRef: string | null,
-  directory: string | null,
-  description: string | null,
-  configPath: string,
-  field: string,
-): ConfiguredGitReference {
-  const hashIndex = repositorySpec.lastIndexOf('#');
-  const repository = hashIndex === -1 ? repositorySpec : repositorySpec.slice(0, hashIndex);
-  const inlineRef = hashIndex === -1 ? null : repositorySpec.slice(hashIndex + 1) || null;
-
-  if (explicitRef && inlineRef && explicitRef !== inlineRef) {
-    fail(
-      configPath,
-      `${field} sets ref "${explicitRef}" but repository already pins "#${inlineRef}". Use one or the other.`,
-    );
-  }
-  if (!repository) {
-    fail(configPath, `${field} needs a repository before the "#" ref.`);
-  }
-
-  const ref = explicitRef ?? inlineRef;
-  return {
-    kind: 'git',
-    name,
-    scope: 'shared',
-    repository,
-    ref,
-    spec: gitSpec(repository, ref),
-    directory,
-    description,
-    sets: [],
-  };
-}
-
-function gitSpec(repository: string, ref: string | null): string {
-  return ref ? `${repository}#${ref}` : repository;
+  return set.name;
 }
 
 function parseDescription(value: unknown, configPath: string, field: string): string | null {
@@ -596,13 +402,17 @@ function optionalString(value: unknown, configPath: string, field: string): stri
   return expectString(value, configPath, field).trim() || null;
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
 function mergeConfigs(
   base: AgentReferenceConfig,
   local: AgentReferenceConfig,
 ): AgentReferenceConfig {
   const sets = [...base.sets];
   for (const set of local.sets) {
-    if (!sets.some((existing) => setLabel(existing) === setLabel(set))) sets.push(set);
+    if (!sets.some((existing) => existing.name === set.name)) sets.push(set);
   }
 
   const cacheDir = local.cacheDir ?? base.cacheDir;
@@ -626,19 +436,6 @@ function mergeByName<T extends { name: string }>(base: T[], local: T[]): T[] {
     byName.set(entry.name, entry);
   }
   return [...byName.values()];
-}
-
-function recordEntries(
-  value: unknown,
-  configPath: string,
-  field: string,
-): Array<[string, unknown]> {
-  if (value === undefined || value === null) return [];
-  const object = expectObject(value, configPath, field, 'an object mapping names to references');
-  for (const name of Object.keys(object)) {
-    if (!name.trim()) fail(configPath, `${field} has an empty reference name.`);
-  }
-  return Object.entries(object);
 }
 
 function expectObject(
@@ -669,25 +466,30 @@ function requireNonEmpty(value: string, configPath: string, field: string): stri
 }
 
 /**
- * Keys renamed before launch. "unknown key folders" would be true and useless: the fix is a
- * rename and the entries inside are untouched, so say that rather than leaving an agent to
- * guess which of the valid keys replaced it.
+ * The four keys that became one. "unknown key packages" would be true and useless: every
+ * entry inside keeps its name, its description and its options, so say where they go rather
+ * than leaving an agent to guess which of the valid keys replaced four of them.
  */
-const RENAMED_KEYS: Record<string, string> = {
-  folders: 'paths',
+const MIGRATION_HELP: Record<string, string> = {
+  folders: 'a path is a source, so an entry becomes "docs": "./docs"',
+  paths: 'a path is a source, so an entry becomes "docs": "./docs"',
+  packages:
+    'the version moves into the source, so an entry becomes "zod": "npm:zod@3.22.0", or an object with "source" beside "ref" and "directory"',
+  git: 'the repository moves into the source, so an entry becomes "pi": "github:earendil-works/pi", or an object with "source" beside "ref" and "directory"',
+  sets: 'a set is a reference holding several, keyed by its name: "harnesses": { "description": "...", "references": [ ... ] }',
 };
 
 function assertRenamedKeys(
   object: Record<string, unknown>,
   configPath: string,
-  field: string | null,
+  field: string | null = null,
 ): void {
-  for (const [previous, replacement] of Object.entries(RENAMED_KEYS)) {
+  for (const [previous, help] of Object.entries(MIGRATION_HELP)) {
     if (object[previous] === undefined) continue;
     const location = field ? `${field}.${previous}` : previous;
     fail(
       configPath,
-      `${location} was renamed to ${replacement}, which holds a folder or a file. Rename the key; every entry inside it is unchanged.`,
+      `${location} was folded into one "references" map keyed by name: ${help}. Nothing else about the entry changes.`,
     );
   }
 }

@@ -124,11 +124,12 @@ export interface GitReferenceWorktreeResult {
   mirrorStale: boolean;
 }
 
-/** Empty selects every configured reference. */
+/**
+ * Empty selects every configured reference. A selector is a name: a reference's, or a set's,
+ * which stands for its members. There is nothing to qualify, because a name means one thing.
+ */
 export interface ReferenceSelectionOptions {
   references?: string[];
-  /** Set labels: a set's name, its exact description, or an unambiguous substring of it. */
-  sets?: string[];
 }
 
 export interface CloneReferencesOptions
@@ -316,8 +317,8 @@ export interface AgentReferenceProblem {
 }
 
 export interface AgentReferenceStatusSet {
-  name: string | null;
-  description: string;
+  name: string;
+  description: string | null;
   references: string[];
 }
 
@@ -353,11 +354,6 @@ export interface ConfiguredPackageReference {
   name: string;
   /** The registry the name lives in. Part of the reference's identity, so it is declared. */
   ecosystem: string;
-  /**
-   * The key exactly as the config spelled it, `zod` or `npm:zod`. Config patches echo it, so
-   * a generated fix edits the entry that is there rather than adding a second one beside it.
-   */
-  configKey: string;
   scope: ConfigScope;
   /** An exact version. Ranges, dist-tags, and "installed" are rejected at parse time. */
   version: string;
@@ -401,13 +397,13 @@ export type ConfiguredReference =
   | ConfiguredGitReference;
 
 /**
- * A set is a labeled list: a description saying what the collection is for, holding
- * references declared inline. The description doubles as the display heading; `name` is an
- * optional short handle for CLI selection.
+ * A set is a reference that resolves to several paths: its key in `references` is its name,
+ * exactly as a single reference's key is, and its members are declared inline under it. The
+ * optional description is the heading `status` prints beneath the name.
  */
 export interface ConfiguredSet {
-  name: string | null;
-  description: string;
+  name: string;
+  description: string | null;
 }
 
 export interface ReferenceSetMember {
@@ -416,8 +412,8 @@ export interface ReferenceSetMember {
 }
 
 export interface ReferenceSet {
-  name: string | null;
-  description: string;
+  name: string;
+  description: string | null;
   members: ReferenceSetMember[];
 }
 
