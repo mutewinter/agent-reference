@@ -67,11 +67,11 @@ Your agent maintains this file, adding references as it needs them and cloning a
 * Skill(agent-reference)
   ⎿ Launching skill: agent-reference
 * Bash(agent-reference get pi)
-  ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd46192
+  ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd461925db2
 * Read(…/packages/coding-agent/src/core/tools/edit.ts)
   ⎿ Read 461 lines
 * Bash(agent-reference get effect-docs)
-  ⎿ ~/.agent-reference/src/…/website/6ee985b1/…/docs/v4
+  ⎿ ~/.agent-reference/src/…/website/6ee985b191a6/…/docs/v4
 * Read(…/docs/v4/platform/file-system.mdx)
   ⎿ Read 115 lines
 ```
@@ -151,11 +151,11 @@ Your agent reads the version this project installs, from the repository rather t
 ```text
 # your agent runs this, not you
 agent-reference get ai
-~/.agent-reference/src/…/vercel/ai/5b64c390/packages/ai
+~/.agent-reference/src/…/vercel/ai/5b64c3901f7e/packages/ai
 
 # nothing declares electron; the lockfile is the whole answer
 agent-reference get electron
-~/.agent-reference/src/…/electron/electron/22bbbc9f
+~/.agent-reference/src/…/electron/electron/22bbbc9fa06d
 ```
 
 ### Reference a skill from another project
@@ -231,11 +231,11 @@ $ codex "Implement context compaction based on how
   other coding harnesses do it"
 
 * Bash(agent-reference get harnesses)
-  ⎿ pi        ~/.agent-reference/src/…/earendil-works/pi/dcd46192
-    codex     ~/.agent-reference/src/…/openai/codex/a4f10b27
-    opencode  ~/.agent-reference/src/…/anomalyco/opencode/7b0e5c31
+  ⎿ pi        ~/.agent-reference/src/…/earendil-works/pi/dcd461925db2
+    codex     ~/.agent-reference/src/…/openai/codex/a4f10b27e83c
+    opencode  ~/.agent-reference/src/…/anomalyco/opencode/7b0e5c31d4a9
 
-* Read(…/pi/packages/coding-agent/src/core/compaction.ts)
+* Read(…/pi/packages/coding-agent/src/core/compaction/compaction.ts)
 ```
 
 ### A complex example
@@ -285,7 +285,7 @@ agent-reference.json (shared)
 
   harnesses  set · 2 references
              "How other agents solve the same problems"
-    pi     git · ready · ~/.agent-reference/src/…/pi/dcd46192
+    pi     git · ready · ~/.agent-reference/src/…/pi/dcd461925db2
     codex  git · declared · github:openai/codex
 
 package versions read from pnpm-lock.yaml
@@ -322,12 +322,12 @@ Skip this if you like: your agent handles all of it. It is here for anyone who w
 │   ├── github.com/Effect-TS/effect.git
 │   └── github.com/earendil-works/pi.git
 ├── src/ # one checked-out worktree per version
-│   ├── github.com/Effect-TS/effect/6ba41e59/
-│   ├── github.com/Effect-TS/effect/c41d80f2/
-│   └── github.com/earendil-works/pi/dcd46192/
+│   ├── github.com/Effect-TS/effect/6ba41e59c827/
+│   ├── github.com/Effect-TS/effect/c41d80f2b3e5/
+│   └── github.com/earendil-works/pi/dcd461925db2/
 └── state/ # one file per project
-    ├── web-a3f81c04.json
-    └── api-5c02e7d1.json
+    ├── web-a3f81c0426.json
+    └── api-5c02e7d1b8.json
 ```
 
 All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.

@@ -212,12 +212,12 @@ export const trees = {
 \u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect.git
 \u2502   \u2514\u2500\u2500 github.com/earendil-works/pi.git
 \u251C\u2500\u2500 src/ # one checked-out worktree per version
-\u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect/6ba41e59/
-\u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect/c41d80f2/
-\u2502   \u2514\u2500\u2500 github.com/earendil-works/pi/dcd46192/
+\u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect/6ba41e59c827/
+\u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect/c41d80f2b3e5/
+\u2502   \u2514\u2500\u2500 github.com/earendil-works/pi/dcd461925db2/
 \u2514\u2500\u2500 state/ # one file per project
-    \u251C\u2500\u2500 web-a3f81c04.json
-    \u2514\u2500\u2500 api-5c02e7d1.json`,
+    \u251C\u2500\u2500 web-a3f81c0426.json
+    \u2514\u2500\u2500 api-5c02e7d1b8.json`,
 };
 
 /**
@@ -259,31 +259,31 @@ export const terminals = {
 * Skill(agent-reference)
   \u23BF Launching skill: agent-reference
 * Bash(agent-reference get pi)
-  \u23BF ~/.agent-reference/src/\u2026/earendil-works/pi/dcd46192
+  \u23BF ~/.agent-reference/src/\u2026/earendil-works/pi/dcd461925db2
 * Read(\u2026/packages/coding-agent/src/core/tools/edit.ts)
   \u23BF Read 461 lines
 * Bash(agent-reference get effect-docs)
-  \u23BF ~/.agent-reference/src/\u2026/website/6ee985b1/\u2026/docs/v4
+  \u23BF ~/.agent-reference/src/\u2026/website/6ee985b191a6/\u2026/docs/v4
 * Read(\u2026/docs/v4/platform/file-system.mdx)
   \u23BF Read 115 lines`,
 
   pinned: `# your agent runs this, not you
 agent-reference get ai
-~/.agent-reference/src/\u2026/vercel/ai/5b64c390/packages/ai
+~/.agent-reference/src/\u2026/vercel/ai/5b64c3901f7e/packages/ai
 
 # nothing declares electron; the lockfile is the whole answer
 agent-reference get electron
-~/.agent-reference/src/\u2026/electron/electron/22bbbc9f`,
+~/.agent-reference/src/\u2026/electron/electron/22bbbc9fa06d`,
 
   set: `$ codex "Implement context compaction based on how
   other coding harnesses do it"
 
 * Bash(agent-reference get harnesses)
-  \u23BF pi        ~/.agent-reference/src/\u2026/earendil-works/pi/dcd46192
-    codex     ~/.agent-reference/src/\u2026/openai/codex/a4f10b27
-    opencode  ~/.agent-reference/src/\u2026/anomalyco/opencode/7b0e5c31
+  \u23BF pi        ~/.agent-reference/src/\u2026/earendil-works/pi/dcd461925db2
+    codex     ~/.agent-reference/src/\u2026/openai/codex/a4f10b27e83c
+    opencode  ~/.agent-reference/src/\u2026/anomalyco/opencode/7b0e5c31d4a9
 
-* Read(\u2026/pi/packages/coding-agent/src/core/compaction.ts)`,
+* Read(\u2026/pi/packages/coding-agent/src/core/compaction/compaction.ts)`,
 
   complex: `# your agent runs this, not you
 agent-reference status
@@ -295,7 +295,7 @@ agent-reference.json (shared)
 
   harnesses  set \u00B7 2 references
              "How other agents solve the same problems"
-    pi     git \u00B7 ready \u00B7 ~/.agent-reference/src/\u2026/pi/dcd46192
+    pi     git \u00B7 ready \u00B7 ~/.agent-reference/src/\u2026/pi/dcd461925db2
     codex  git \u00B7 declared \u00B7 github:openai/codex
 
 package versions read from pnpm-lock.yaml`,
