@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+env:
+  # turbo prints a first-run telemetry notice into every log otherwise.
+  TURBO_TELEMETRY_DISABLED: 1
+
 jobs:
   test:
     # The suite runs TypeScript sources directly, so it needs type stripping, and pnpm needs
@@ -24,8 +28,10 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
-      - run: pnpm test
+      # `test` depends on `build` in turbo.json, so this is both steps in order.
+      # Deliberately not cached between runs: this job exists to run the suite on
+      # two real runtimes, and a restored result is not a runtime having run it.
+      - run: pnpm exec turbo run test
 
   lint:
     # oxlint over both projects in this repository. The root config carries the
@@ -48,16 +54,17 @@ jobs:
       # to be installed rather than just checked out.
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir site install --frozen-lockfile
-      # One formatter for the whole repository, run from the root: unlike the
-      # type-aware rules it reads no TypeScript program, so it needs no install
-      # of its own and covers both projects in one pass.
-      - run: pnpm run format
-      - run: pnpm run lint
-      - run: pnpm --dir site run lint
-      # `tsconfig.json` emits from `src/` alone, so on its own it leaves the
-      # tests and scripts unchecked. `tsconfig.check.json` is what covers them.
-      - run: pnpm run check-types
-      - run: pnpm --dir site run check-types
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-lint-${{ github.sha }}
+          restore-keys: turbo-lint-
+      # Every gate that is not the test suite, in one pass. `format` is one
+      # formatter for the whole repository and covers both projects; `lint` and
+      # `check-types` are per project, because type-aware rules and
+      # `tsconfig.check.json` each read one project's TypeScript program.
+      # `--continue` so a failure in one reports the rest rather than hiding it.
+      - run: pnpm exec turbo run format lint check-types site:lint site:check-types --continue=dependencies-successful
 
   site:
     # Cloudflare Workers Builds deploys this on every push to main, so a build
@@ -81,7 +88,12 @@ jobs:
       # this checkout against a throwaway project.
       - run: pnpm install --frozen-lockfile
       - run: pnpm --dir site install --frozen-lockfile
-      - run: pnpm --dir site run build
+      - uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: turbo-site-${{ github.sha }}
+          restore-keys: turbo-site-
+      - run: pnpm exec turbo run site:build
 
   install:
     # What `npm install -g agent-reference` actually produces, on the oldest Node the
