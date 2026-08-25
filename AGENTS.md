@@ -1,7 +1,7 @@
 # agent-reference
 
 A CLI that materializes readable upstream source for coding agents: dependencies at their
-exact installed version, git repositories, and local folders, all by name.
+exact installed version, git repositories, and local files and folders, all by name.
 
 `docs/README.md` maps the knowledge base. `docs/decisions/` records why the design is what
 it is; read the relevant one before treating a design as a bug, particularly before adding

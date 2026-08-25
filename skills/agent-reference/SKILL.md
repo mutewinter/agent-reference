@@ -1,6 +1,6 @@
 ---
 name: agent-reference
-description: Get readable upstream source on demand - any dependency at its exact installed version, any git repository, any declared local folder - by name, via the agent-reference CLI. Use whenever a task needs a library's real source rather than a memory of it. That covers writing code against an API you cannot recall exactly ("use the combobox from this component library", "wire this up with X"), because the checkout carries that version's own README, docs, examples, and changelog while a docs site carries whatever shipped last, and it covers asking how X implements something, how its maintainers test it, why it behaves this way, or whether it is worth adopting. Also whenever the user asks to add something as a reference, whenever the user asks to set up or initialize agent-reference in a project, whenever the user names a repository, app, or folder that is not in this repo and gives no path for it, and whenever a repo contains agent-reference.json or agent-reference.local.json.
+description: Get readable upstream source on demand - any dependency at its exact installed version, any git repository, any declared local file or folder - by name, via the agent-reference CLI. Use whenever a task needs a library's real source rather than a memory of it. That covers writing code against an API you cannot recall exactly ("use the combobox from this component library", "wire this up with X"), because the checkout carries that version's own README, docs, examples, and changelog while a docs site carries whatever shipped last, and it covers asking how X implements something, how its maintainers test it, why it behaves this way, or whether it is worth adopting. Also whenever the user asks to add something as a reference, whenever the user asks to set up or initialize agent-reference in a project, whenever the user names a repository, app, folder, or file that is not in this repo and gives no path for it, and whenever a repo contains agent-reference.json or agent-reference.local.json.
 ---
 
 # agent-reference
@@ -28,7 +28,7 @@ Run it before adding a reference, before editing `agent-reference.json` or `agen
 
 ## Finding where something is
 
-When the user names a repository, app, or folder and you have no path for it, read `agent-reference.json` and `agent-reference.local.json` directly. They are the index: names, paths, and descriptions, resolved without fetching anything or running a command. A name that is not there is not declared, so say so and ask for the path rather than searching the filesystem for it. `get` is for when you need the source itself.
+When the user names a repository, app, folder, or file and you have no path for it, read `agent-reference.json` and `agent-reference.local.json` directly. They are the index: names, paths, and descriptions, resolved without fetching anything or running a command. A name that is not there is not declared, so say so and ask for the path rather than searching the filesystem for it. `get` is for when you need the source itself.
 
 ## Safety rules
 
