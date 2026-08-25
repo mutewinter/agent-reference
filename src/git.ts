@@ -697,7 +697,7 @@ async function resolvePinnedCheckout(
   }
 
   throw new Error(
-    `packages.${dependency.name}.ref is "${pinnedRef}", which is not a commit, tag, or branch in ${bareRepositoryPath}.`,
+    `references.${dependency.name}.ref is "${pinnedRef}", which is not a commit, tag, or branch in ${bareRepositoryPath}.`,
   );
 }
 

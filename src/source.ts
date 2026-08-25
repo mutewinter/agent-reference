@@ -23,7 +23,7 @@ export type ClassifiedSource =
  * plausible folder, and nothing in the string says which was meant; requiring the prefix
  * makes the answer local to the value rather than dependent on what happens to be on disk.
  */
-const ROOTED_PATH = /^(\.\.?[/\\]|~[/\\]?$|~[/\\]|[/\\])/;
+const ROOTED_PATH = /^(\.\.?([/\\]|$)|~([/\\]|$)|[/\\])/;
 /** `C:\...` and `\\server\share`, absolute on Windows and read on every other platform. */
 const WINDOWS_ABSOLUTE = /^(?:[A-Za-z]:[\\/]|\\\\)/;
 const GIT_URL = /^(github:|git@|ssh:|git\+|https?:\/\/|file:\/\/)/;
@@ -45,7 +45,7 @@ export function classifySource(spec: string): ClassifiedSource {
   // like any other and still clones.
   if (value.startsWith('file:') && !value.startsWith('file://')) {
     throw new UnknownSourceError(
-      `"${value}" is not a source. A local checkout is read where it lives, so write the path on its own: "${value.slice('file:'.length)}". To clone one into the store instead, use a file:// URL with an absolute path.`,
+      `"${value}" is not a source. Write "${value.slice('file:'.length)}" to read that checkout where it lives, which keeps its history and its uncommitted work with it. That is not the same thing: a file:// URL with an absolute path clones it into the store at one commit instead, which is a snapshot and goes stale.`,
     );
   }
 

@@ -55,7 +55,7 @@ export async function cloneReferences(
 
   if (packages.length === 0 && gitReferences.length === 0 && paths.length === 0) {
     throw new Error(
-      `No references configured. Add packages, paths, or git entries to ${loadedConfig?.path ?? DEFAULT_CONFIG_FILE}.`,
+      `No references configured. Add entries to the "references" map in ${loadedConfig?.path ?? DEFAULT_CONFIG_FILE}.`,
     );
   }
 
