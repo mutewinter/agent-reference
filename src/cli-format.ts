@@ -121,8 +121,14 @@ export function formatValidationReport(
     const references =
       report.references.length === 1 ? '1 reference' : `${report.references.length} references`;
     const sets = report.sets.length === 1 ? '1 set' : `${report.sets.length} sets`;
+    // Both files, when both exist. The count has always been of the two together, and
+    // naming only the first made the line say that agent-reference.json defines references
+    // that are in the local file. `init` tells the agent to quote this to the user.
+    const files = [report.configPath, report.localConfigPath]
+      .filter((file): file is string => file !== null)
+      .map((file) => displayPath(file, options));
     lines.push(
-      `ok: ${displayPath(report.configPath ?? report.localConfigPath, options)} defines ${references} in ${sets}.`,
+      `ok: ${files.join(' and ')} define${files.length === 1 ? 's' : ''} ${references} in ${sets}.`,
     );
   }
 
