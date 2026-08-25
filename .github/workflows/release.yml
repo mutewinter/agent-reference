@@ -5,7 +5,9 @@ on:
     tags: ['v*']
 
 permissions:
-  contents: read
+  # Writing a release is the only thing here that touches the repository. Scoping it to its
+  # own job would be theater next to the `id-token: write` below, which can publish to npm.
+  contents: write
   # Trusted publishing: npm exchanges this token for a short-lived credential, so nothing
   # long-lived is stored anywhere. There is no token fallback, by design.
   id-token: write
@@ -52,3 +54,19 @@ jobs:
             *) tag=latest ;;
           esac
           npm publish --access public --tag "$tag"
+      - name: release
+        # A tag on its own leaves the repository's sidebar counting tags instead of naming a
+        # version, which is the first thing a visitor who has not heard of this looks at.
+        #
+        # After the publish rather than before: a release pointing at a version npm does not
+        # have is worse than no release. A prerelease is marked as one so it does not displace
+        # the last release anyone should be running, the same call the dist-tag above makes.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          case "$version" in
+            *-*) flags=--prerelease ;;
+            *) flags= ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" --generate-notes $flags
