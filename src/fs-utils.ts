@@ -15,10 +15,16 @@ export function resolveConfigPath(
 }
 
 /** Path references accept `~/`, absolute, and project-relative forms. */
+/**
+ * Where a declared path actually is. `~` is expanded here and nowhere else, in every
+ * spelling the source grammar accepts: bare, and with either separator, because a Windows
+ * config may reasonably write `~\code\thing`. Matching only `~/` left the other two
+ * resolving against the project root, which silently invents a directory literally named
+ * `~` beside it.
+ */
 export function resolveReferencePath(projectRoot: string, requested: string): string {
-  if (requested.startsWith('~/')) {
-    return path.join(os.homedir(), requested.slice(2));
-  }
+  const home = /^~([/\\](.*))?$/u.exec(requested);
+  if (home) return home[2] ? path.join(os.homedir(), home[2]) : os.homedir();
   if (path.isAbsolute(requested)) return requested;
   return path.resolve(projectRoot, requested);
 }

@@ -10,6 +10,8 @@ import { loadAgentReferenceConfig, parseConfig } from '../src/config.ts';
 import { parseJsonc } from '../src/jsonc.ts';
 import { runGit } from '../src/git.ts';
 import { missingSelectionMessage, resolveSets, selectionFilter } from '../src/sets.ts';
+import { resolveReferencePath } from '../src/fs-utils.ts';
+import { classifySource } from '../src/source.ts';
 import { validateConfig } from '../src/validate.ts';
 
 test('one map holds every kind, and the kind comes out of the source', () => {
@@ -193,6 +195,22 @@ test('two declarations disagreeing about a name is a conflict, not repetition', 
       ),
     /"notes" is declared more than once and the two point somewhere different/,
   );
+});
+
+test('every spelling of ~ the grammar accepts is expanded, not resolved against the project', () => {
+  // The classifier takes `~`, `~/x` and `~\\x`; the resolver took only `~/x`, so the other
+  // two resolved against the project root and invented a directory named `~` beside it.
+  for (const spec of ['~', '~/notes', '~\\notes']) {
+    assert.equal(classifySource(spec).kind, 'path', spec);
+    assert.equal(
+      resolveReferencePath('/project', spec).startsWith(os.homedir()),
+      true,
+      `${spec} resolved outside the home directory`,
+    );
+  }
+
+  assert.equal(resolveReferencePath('/project', '~'), os.homedir());
+  assert.equal(resolveReferencePath('/project', './docs'), path.resolve('/project', 'docs'));
 });
 
 test('a set may not take a name a reference already has', () => {
