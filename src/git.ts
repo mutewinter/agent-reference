@@ -59,6 +59,33 @@ export function gitArgv(args: string[]): string[] {
   return [...GIT_SAFETY_CONFIG, ...args];
 }
 
+/**
+ * The environment every git invocation runs under. Nothing here may wait for a human: this
+ * runs inside an agent's tool call, where there is no one to type a password and often no
+ * terminal to ask on. Git for Windows configures a credential helper by default, so a
+ * private or missing repository went into the credential flow and came back as a wall about
+ * `wincredman` and `/dev/tty`, none of which names the actual problem.
+ */
+export function gitEnv(): NodeJS.ProcessEnv {
+  return { ...process.env, GIT_TERMINAL_PROMPT: '0' };
+}
+
+/**
+ * What a clone failure actually means, when git's own words are about the machinery it
+ * asked for credentials with rather than about the repository. Everything else is relayed
+ * as git wrote it.
+ */
+export function describeCloneFailure(repoUrl: string, detail: string): string | null {
+  if (
+    !/could not read (Username|Password)|Authentication failed|terminal prompts disabled/iu.test(
+      detail,
+    )
+  ) {
+    return null;
+  }
+  return `${repoUrl} could not be read: there is no repository there, or it is private and this machine has no credentials for it. agent-reference clones with your own git credentials and never prompts, so check that \`git ls-remote ${repoUrl}\` works before anything else.`;
+}
+
 const ALLOWED_GIT_PROTOCOLS = new Set(['https:', 'http:', 'ssh:', 'git:', 'file:']);
 
 /**
@@ -182,6 +209,17 @@ export async function ensureGitReferenceWorktree(
   };
 }
 
+/**
+ * Whether a checkout still belongs to a mirror that is there. A worktree's `.git` is a file
+ * naming the directory inside the mirror that holds its metadata, so a mirror that was
+ * pruned or deleted by hand leaves a directory full of files that git will not read.
+ */
+async function worktreeIsLinked(worktreePath: string): Promise<boolean> {
+  const marker = await fs.readFile(path.join(worktreePath, '.git'), 'utf8').catch(() => null);
+  const gitdir = marker === null ? null : /^gitdir:\s*(.+)$/mu.exec(marker)?.[1]?.trim();
+  return gitdir ? pathExists(gitdir) : false;
+}
+
 function sharedWorktreePath(storeDir: string, repositoryUrl: string, sha: string): string {
   const parts = repositoryCacheParts(repositoryUrl);
   const repo = (parts.pop() ?? 'repository').replace(/\.git$/, '');
@@ -261,7 +299,18 @@ async function ensureWorktree<RefSource extends string>(
   // The path is keyed by commit, so an existing one is already the right checkout. Agents
   // materialize several references at once, so two runs reach this together: the loser of
   // that race finds the worktree already there, which is success rather than a failure.
-  if (!(await pathExists(worktreePath))) {
+  //
+  // Present is not the same as usable, though. A checkout is a worktree, so it is only as
+  // good as the mirror it points into: delete that mirror and the files stay put while
+  // every `git -C <path>` fails, which is most of what the printed path is for. Repairing
+  // it is a re-add, and the directory has to go first because `worktree add` refuses a
+  // path that already exists.
+  if (!(await worktreeIsLinked(worktreePath))) {
+    if (await pathExists(worktreePath)) {
+      await fs.rm(worktreePath, { recursive: true, force: true });
+      // The mirror may still be holding a registration for the path just removed.
+      await runGit(['-C', bareRepositoryPath, 'worktree', 'prune'], { allowFailure: true });
+    }
     await fs.mkdir(path.dirname(worktreePath), { recursive: true });
     const added = await runGit(
       ['-C', bareRepositoryPath, 'worktree', 'add', '--detach', worktreePath, checkout.sha],
@@ -290,6 +339,7 @@ export async function runGit(
     const result = await execFileAsync('git', gitArgv(args), {
       encoding: 'utf8',
       maxBuffer: 1024 * 1024 * 64,
+      env: gitEnv(),
     });
     return {
       stdout: result.stdout,
@@ -394,10 +444,17 @@ async function ensureBareRepository(
   }
 
   await fs.mkdir(path.dirname(bareRepositoryPath), { recursive: true });
-  await reportProgress(
-    ['clone', '--bare', '--filter=blob:none', repoUrl, bareRepositoryPath],
-    `cloning ${describeRepository(repoUrl)}`,
-  );
+  try {
+    await reportProgress(
+      ['clone', '--bare', '--filter=blob:none', repoUrl, bareRepositoryPath],
+      `cloning ${describeRepository(repoUrl)}`,
+    );
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    const described = describeCloneFailure(repoUrl, detail);
+    if (!described) throw error;
+    throw new Error(described, { cause: error });
+  }
   await ensureFetchRefspec(bareRepositoryPath);
   return { updated: true };
 }
@@ -433,6 +490,7 @@ async function reportProgress(
     // choice must not decide which transports git will speak.
     const child = spawn('git', gitArgv([...args, '--progress']), {
       stdio: ['ignore', 'ignore', 'inherit'],
+      env: gitEnv(),
     });
     child.on('error', (error: NodeJS.ErrnoException) => {
       reject(error.code === 'ENOENT' ? new Error(GIT_MISSING_MESSAGE) : error);

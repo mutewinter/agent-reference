@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 
 import { getReferences } from '../src/get.ts';
 import { parseConfig } from '../src/config.ts';
-import { gitArgv } from '../src/git.ts';
+import { describeCloneFailure, gitArgv, gitEnv } from '../src/git.ts';
 import { getStatusReport } from '../src/status.ts';
 import { formatVersionsReport, getVersionsReport } from '../src/versions.ts';
 import { workspaceVersionDirectory } from '../src/pnpm-lock.ts';
@@ -416,6 +416,32 @@ test('a repository that is not a URL is refused, not reported as a failed clone'
     assert.doesNotMatch(error.message, /HTTP 404/);
     return true;
   });
+});
+
+test('nothing git runs may stop and ask a human for a password', () => {
+  // This runs inside an agent's tool call: there is nobody to type a password and often no
+  // terminal to ask on. Git for Windows configures a credential helper by default, so a
+  // private or missing repository went into the credential flow and came back as a wall
+  // about `wincredman` and `/dev/tty`, none of which names the actual problem.
+  assert.equal(gitEnv().GIT_TERMINAL_PROMPT, '0');
+});
+
+test('a clone that failed for want of credentials says so, in those words', () => {
+  const url = 'https://github.com/acme/private-thing.git';
+  const windows = [
+    "fatal: Unable to persist credentials with the 'wincredman' credential store.",
+    'fatal: could not read Username for https://github.com: No such file or directory',
+  ].join('\n');
+
+  const described = describeCloneFailure(url, windows);
+  assert.match(described ?? '', /no repository there, or it is private/u);
+  assert.match(described ?? '', /git ls-remote https:\/\/github\.com\/acme\/private-thing\.git/u);
+  // The credential store is machinery, not the problem, and naming it sent a run three
+  // extra turns deep into a dead end.
+  assert.doesNotMatch(described ?? '', /wincredman/u);
+
+  // Anything git says clearly is relayed exactly as git said it.
+  assert.equal(describeCloneFailure(url, 'remote: Repository not found.'), null);
 });
 
 test('the transport policy rides on the argv, not on how git is started', async () => {

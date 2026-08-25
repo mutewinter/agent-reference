@@ -7,6 +7,8 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { cloneReferences } from '../src/core.ts';
+import { getReferences } from '../src/get.ts';
+import { runGit } from '../src/git.ts';
 import { getStatusReport } from '../src/status.ts';
 
 const execFileAsync = promisify(execFile);
@@ -173,6 +175,32 @@ test('a subtree that upstream moved is reported, and the checkout root is still 
   assert.match(problem?.summary ?? '', /packages\/renamed-away, which is not in this checkout/);
   assert.match(problem?.summary ?? '', /whole repository rather than that subtree/);
   assert.match(problem?.fix ?? '', /references\.design-system\.directory/);
+});
+
+test('a checkout whose mirror is gone is rebuilt, not reported ready', async () => {
+  const { projectRoot, storeDir, sourcePath } = await createSubtreeScenario('orphaned-worktree');
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.local.json'),
+    JSON.stringify({ references: { upstream: `file://${sourcePath}` } }),
+  );
+
+  const [first] = await getReferences(projectRoot, ['upstream'], { storeDir });
+  const checkout = first?.path ?? '';
+  assert.equal((await runGit(['-C', checkout, 'log', '--oneline'])).exitCode, 0);
+
+  // What a prune that took the mirror with it leaves behind: the files are all
+  // still there, and every git command the guide sells against this path fails.
+  await fs.rm(path.join(storeDir, 'git'), { recursive: true, force: true });
+  assert.notEqual(
+    (await runGit(['-C', checkout, 'log', '--oneline'], { allowFailure: true })).exitCode,
+    0,
+  );
+
+  // Present is not usable. Reusing the directory on sight handed back a green
+  // result and a checkout with no history behind it.
+  const [second] = await getReferences(projectRoot, ['upstream'], { storeDir });
+  assert.equal(second?.path, checkout);
+  assert.equal((await runGit(['-C', checkout, 'log', '--oneline'])).exitCode, 0);
 });
 
 async function createSubtreeScenario(
