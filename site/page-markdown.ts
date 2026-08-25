@@ -104,10 +104,12 @@ export function renderRegions(): Record<string, string> {
     // Bold, so a lone sentence under the title reads as the tagline it is.
     tagline: `**${copy.tagline}**`,
     hero: [
-      labeled('agent-reference.json', 'shared'),
       fence('text', terminals.setup),
-      copy.thenUse.note,
+      labeled('agent-reference.json', 'shared'),
+      copy.demo.configNote,
+      `### ${copy.thenUse.heading}`,
       fence('text', terminals.session),
+      copy.thenUse.note,
     ].join('\n\n'),
     agent: [`### ${copy.agent.heading}`, fence('text', setupPrompt), copy.agent.note].join('\n\n'),
     install: renderInstall(),
@@ -138,10 +140,11 @@ export function renderHomeMarkdown(): string {
     [
       `# ${copy.title}`,
       regions.tagline,
-      regions.hero,
       `## ${copy.getStarted.heading}`,
       regions.agent,
       regions.install,
+      `## ${copy.demo.heading}`,
+      regions.hero,
       `## ${copy.examples.heading}`,
       regions.examples,
       `## ${howItWorks.heading}`,

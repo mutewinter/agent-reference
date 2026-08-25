@@ -55,6 +55,7 @@ test('index.md carries the page sections, in the page order', () => {
   const headings = [...served('index.md').matchAll(/^## (.+)$/gm)].map((match) => match[1]);
   assert.deepEqual(headings, [
     copy.getStarted.heading,
+    copy.demo.heading,
     copy.examples.heading,
     howItWorks.heading,
     format.heading,

@@ -1,62 +1,12 @@
 # agent-reference
 
+[![npm](https://img.shields.io/npm/v/agent-reference?color=ffb964&label=npm)](https://www.npmjs.com/package/agent-reference) [![ci](https://img.shields.io/github/actions/workflow/status/mutewinter/agent-reference/ci.yml?branch=main&label=ci)](https://github.com/mutewinter/agent-reference/actions/workflows/ci.yml) [![license](https://img.shields.io/npm/l/agent-reference?color=555)](LICENSE)
+
 <!-- generated:tagline -->
 **Give your agents the source**
 <!-- /generated -->
 
-<!-- generated:hero -->
-`agent-reference.json`
-
-```jsonc
-{
-  "references": {
-    "effect": {
-      "source": "npm:effect@4.0.0-rc.111",
-      "description": "Every example online is still v3"
-    },
-    "effect-docs": {
-      "source": "github:Effect-TS/website",
-      "directory": "apps/web/src/content/docs/v4",
-      "description": "The v4 docs the site does not publish"
-    },
-    "pi": "github:earendil-works/pi"
-  }
-}
-```
-
-```text
-> Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
-* Bash(npx agent-reference init)
-  ⎿ 2,723 sessions across claude-code, codex and opencode
-* Read(pnpm-lock.yaml)
-  ⎿ effect 4.0.0-rc.111
-* Write(agent-reference.json)
-  ⎿ 1 reference
-* Bash(rg -o 'github:\S+' ~/.claude | sort | uniq -c)
-  ⎿ 41 Effect-TS/website
-    12 earendil-works/pi
-* Update(agent-reference.json)
-  ⎿ 3 references
-* Bash(agent-reference validate)
-  ⎿ ok: agent-reference.json defines 3 references in 0 sets
-```
-
-That is it. From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs, without being asked twice.
-
-```text
-> Implement an edit tool like pi's, using Effect v4
-* Skill(agent-reference)
-  ⎿ Launching skill: agent-reference
-* Bash(agent-reference get pi)
-  ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd46192
-* Read(…/packages/coding-agent/src/core/tools/edit.ts)
-  ⎿ Read 461 lines
-* Bash(agent-reference get effect-docs)
-  ⎿ ~/.agent-reference/src/…/website/6ee985b1/…/docs/v4
-* Read(…/docs/v4/platform/file-system.mdx)
-  ⎿ Read 115 lines
-```
-<!-- /generated -->
+[agent-reference.dev](https://agent-reference.dev) &middot; [npm](https://www.npmjs.com/package/agent-reference) &middot; [the guide your agent reads](guide/agent-reference.md)
 
 ## Get started
 
@@ -78,6 +28,66 @@ npm install -g agent-reference
 cd ~/code/acme/web
 claude "Help me set up agent-reference"       # or codex, opencode, pi
 ```
+<!-- /generated -->
+
+## How it works
+
+<!-- generated:hero -->
+```text
+> Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
+* Bash(npx agent-reference init)
+  ⎿ 2,723 sessions across claude-code, codex and opencode
+* Read(pnpm-lock.yaml)
+  ⎿ effect 4.0.0-rc.111
+* Write(agent-reference.json)
+  ⎿ 1 reference
+* Bash(rg -o 'github:\S+' ~/.claude | sort | uniq -c)
+  ⎿ 41 Effect-TS/website
+    12 earendil-works/pi
+* Update(agent-reference.json)
+  ⎿ 3 references
+* Bash(agent-reference validate)
+  ⎿ ok: agent-reference.json defines 3 references in 0 sets
+```
+
+`agent-reference.json`
+
+```jsonc
+{
+  "references": {
+    "effect": {
+      "source": "npm:effect@4.0.0-rc.111",
+      "description": "Every example online is still v3"
+    },
+    "effect-docs": {
+      "source": "github:Effect-TS/website",
+      "directory": "apps/web/src/content/docs/v4",
+      "description": "The v4 docs the site does not publish"
+    },
+    "pi": "github:earendil-works/pi"
+  }
+}
+```
+
+Your agent maintains this file, adding references as it needs them and cloning anything new on first use.
+
+### Now use your agent normally
+
+```text
+> Implement an edit tool like pi's, using Effect v4
+* Skill(agent-reference)
+  ⎿ Launching skill: agent-reference
+* Bash(agent-reference get pi)
+  ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd46192
+* Read(…/packages/coding-agent/src/core/tools/edit.ts)
+  ⎿ Read 461 lines
+* Bash(agent-reference get effect-docs)
+  ⎿ ~/.agent-reference/src/…/website/6ee985b1/…/docs/v4
+* Read(…/docs/v4/platform/file-system.mdx)
+  ⎿ Read 115 lines
+```
+
+That is it. From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs, without being asked twice.
 <!-- /generated -->
 
 ## Examples
@@ -295,7 +305,7 @@ package versions read from pnpm-lock.yaml
 ```
 <!-- /generated -->
 
-## How it works
+## Where the source lands
 
 <!-- generated:how-it-works -->
 Skip this if you like: your agent handles all of it. It is here for anyone who wants to see where the source it reads lands. Two projects, pinning two versions of the same dependency, sharing one store.

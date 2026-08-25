@@ -2,6 +2,43 @@
 
 **Give your agents the source**
 
+## Get started
+
+### Let your agent do it
+
+```text
+Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
+```
+
+Instructs your agent to install the skill and set up a config for the folders, repositories, and packages you often reference.
+
+### Install it yourself
+
+```sh
+npm install -g agent-reference
+cd ~/code/acme/web
+claude "Help me set up agent-reference"       # or codex, opencode, pi
+```
+
+## How it works
+
+```text
+> Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
+* Bash(npx agent-reference init)
+  ⎿ 2,723 sessions across claude-code, codex and opencode
+* Read(pnpm-lock.yaml)
+  ⎿ effect 4.0.0-rc.111
+* Write(agent-reference.json)
+  ⎿ 1 reference
+* Bash(rg -o 'github:\S+' ~/.claude | sort | uniq -c)
+  ⎿ 41 Effect-TS/website
+    12 earendil-works/pi
+* Update(agent-reference.json)
+  ⎿ 3 references
+* Bash(agent-reference validate)
+  ⎿ ok: agent-reference.json defines 3 references in 0 sets
+```
+
 `agent-reference.json`
 
 ```jsonc
@@ -21,24 +58,9 @@
 }
 ```
 
-```text
-> Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
-* Bash(npx agent-reference init)
-  ⎿ 2,723 sessions across claude-code, codex and opencode
-* Read(pnpm-lock.yaml)
-  ⎿ effect 4.0.0-rc.111
-* Write(agent-reference.json)
-  ⎿ 1 reference
-* Bash(rg -o 'github:\S+' ~/.claude | sort | uniq -c)
-  ⎿ 41 Effect-TS/website
-    12 earendil-works/pi
-* Update(agent-reference.json)
-  ⎿ 3 references
-* Bash(agent-reference validate)
-  ⎿ ok: agent-reference.json defines 3 references in 0 sets
-```
+Your agent maintains this file, adding references as it needs them and cloning anything new on first use.
 
-That is it. From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs, without being asked twice.
+### Now use your agent normally
 
 ```text
 > Implement an edit tool like pi's, using Effect v4
@@ -54,23 +76,7 @@ That is it. From here your agent reads the real source of the libraries you depe
   ⎿ Read 115 lines
 ```
 
-## Get started
-
-### Let your agent do it
-
-```text
-Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
-```
-
-Instructs your agent to install the skill and set up a config for the folders, repositories, and packages you often reference.
-
-### Install it yourself
-
-```sh
-npm install -g agent-reference
-cd ~/code/acme/web
-claude "Help me set up agent-reference"       # or codex, opencode, pi
-```
+That is it. From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs, without being asked twice.
 
 ## Examples
 
@@ -285,7 +291,7 @@ agent-reference.json (shared)
 package versions read from pnpm-lock.yaml
 ```
 
-## How it works
+## Where the source lands
 
 Skip this if you like: your agent handles all of it. It is here for anyone who wants to see where the source it reads lands. Two projects, pinning two versions of the same dependency, sharing one store.
 
