@@ -48,7 +48,7 @@ now, all of them answering questions rather than deciding outcomes:
   project installs, offline and for free. It reports; it never follows. A pin is a decision
   somebody made.
 
-Two rules about what a path is allowed to mean:
+Four rules about what a path is allowed to mean:
 
 - A package subdirectory is used only when a `package.json` there reports this exact name
   **and** version. A name alone is not enough, because repositories bundle demo apps that

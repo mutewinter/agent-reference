@@ -44,8 +44,8 @@ avoid.
 
 Every config declaring `folders` fails until the key is renamed, which is the intended migration
 and is cheap while the package is pre-launch and its configs are countable. Qualified selectors
-change with it: `folder:notes` is now `path:notes`, in `--reference` and in the ambiguity error
-that suggests them.
+change with it: `folder:notes` is now `path:notes`, as a positional selector and in the
+ambiguity error that suggests them.
 
 `paths` does not settle what a reference to a *set* of files should be, a glob or a directory
 plus a filter. Nothing asks for that yet, and a path stays a coordinate until something does.

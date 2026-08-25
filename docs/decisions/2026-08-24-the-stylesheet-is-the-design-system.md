@@ -31,9 +31,9 @@ color written into a class instead of declared in `@theme`, and a misspelled cla
 unknown class rather than a rule that silently produces nothing.
 
 The values the linter found were moved into `@theme` rather than allowlisted. The page now
-carries a type scale of its own — an editor's scale, 14px of body text over 13px of chrome
+carries a type scale of its own (an editor's scale, 14px of body text over 13px of chrome
 and code, which is why the three small Tailwind steps are redefined rather than a fourth
-added beside them — and two named shadows for the one thing on the page you click.
+added beside them) and two named shadows for the one thing on the page you click.
 
 ## Consequences
 
