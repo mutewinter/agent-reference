@@ -34,11 +34,27 @@ its users; the repo holds itself to it everywhere.
 
 ## Conventions
 
-- `pnpm test`, `pnpm run build`, `pnpm run lint`, `pnpm run check-types`, and `pnpm run format`
-  before handing work back. The site is its own project: `pnpm --dir site run lint` and
-  `pnpm --dir site run check-types`. `lint:fix` and `format:fix` write; the bare names check,
-  which is the form CI runs.
+- `pnpm check` before handing work back: turbo runs every gate in this repository in one
+  pass, the root's and the site's alike, and caches each one so a second run redoes only
+  what changed. The individual scripts still exist and still work on their own. `lint:fix`
+  and `format:fix` write; the bare names check, which is the form CI runs.
+- Dev servers are named after what they serve: `pnpm site:dev`, `pnpm talk:dev`, and
+  `pnpm dev:all` for both at once. `pnpm dev` remains the CLI run from source.
 - Commit subjects: `scope: description`, lowercase, imperative.
+
+## Turborepo
+
+[turbo.json](turbo.json) runs the tasks, in single-package mode: three projects live here,
+and each one keeps its own `node_modules` and its own lockfile, so there is no pnpm
+workspace for turbo to walk. Every task is a script in the root `package.json`, and the
+`site:` and `talk:` ones shell into the other two projects with `pnpm --dir`. See
+[the decision](docs/decisions/2026-08-25-one-command-three-installs.md) before reaching for
+a workspace; the cost is not the config, it is what a root install then has to pull down.
+
+A task that reads another project's files says so in its `inputs`, which is how `test` and
+`check-types` know about `site/cli-reference.ts`: the README test renders it. A new task
+without `inputs` is hashed against the whole repository and will almost never hit its
+cache.
 
 ## The Node version
 
