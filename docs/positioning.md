@@ -14,9 +14,9 @@ The alternative is not "nothing." It is a hand-written `AGENTS.md` or `CLAUDE.md
 
 | # | Claim | What an instructions file does instead | Backed by | The line for a slide |
 | --- | --- | --- | --- | --- |
-| 1 | References are validated, so a path that only exists on your machine cannot reach a commit | A path in prose is never checked: it can be wrong, stale, or personal, and nothing says so | `validate` errors on a machine path or `file:` repo in the committed config, errors when the gitignored file is actually tracked by git, and warns when a folder is missing or escapes the repo | "Your agent's references are a config, not a paragraph. Configs get checked." |
+| 1 | References are validated, so a path that only exists on your machine cannot reach a commit | A path in prose is never checked: it can be wrong, stale, or personal, and nothing says so | `validate` errors on a machine path or `file:` repo in the committed config, errors when the gitignored file is actually tracked by git, and warns when a path is missing or escapes the repo | "Your agent's references are a config, not a paragraph. Configs get checked." |
 | 2 | References stay pinned to what you actually install, and drift is reported | Prose says React 18 forever, including the week after you upgrade | `status` compares each pin against what the lockfile installs, offline, and emits the exact patch that fixes it | "The day you upgrade, the reference is wrong and nothing tells you. Now something does." |
-| 3 | It costs nothing until the agent asks | Every line of an instructions file is in context on every turn | 4,693 bytes of stub on disk; the guide, the reference list, and the source itself load only on request | "One paragraph in context. Thirty-four gigabytes on demand." |
+| 3 | It costs nothing until the agent asks | Every line of an instructions file is in context on every turn | 1,012 bytes of skill description is all that sits in context; the 4,713-byte stub loads when the skill fires, and the guide, the reference list, and the source itself only when asked for | "One paragraph in context. Thirty-four gigabytes on demand." |
 | 4 | An agent maintains it for you | An agent editing prose has to guess the conventions from the prose | One config file, a `schema` verb, an `init` that briefs rather than scaffolds, and problems that carry a machine-applicable `configPatch` | "You do not write this file. You ask for a reference and your agent writes it." |
 | 5 | Teammates inherit the shared half | Personal paths and shared ones live in the same file, so neither is safe | Two files, one committed and one gitignored, merged at read time | Weakest of the five. See below before putting it on a slide. |
 
@@ -37,9 +37,9 @@ Every fourth conversation, a human was the retrieval layer.
 | The dependency you are debugging | "Why does this library behave this way?" | Reads the original source, its tests, its comments, and its history at the exact version the lockfile installs |
 | The library you might adopt | "Take a look at this, I might use it" | Materializes the repository once, at a real commit, instead of guessing from a docs site that is a version ahead |
 | Exact versions for what you install | Nothing; it is already declared | A pin per package, checked against the lockfile, reported when it drifts |
-| A folder of context that is not code | "Add my notes vault as a reference" | Reads a declared local folder by name, with the path in the gitignored file |
-| A meta folder above your repos | "Work on the API repo" | Reads a config in the parent directory that names every repository below it, so a session can start anywhere |
-| Global references | "Where do my dotfiles live?" | Resolves a declared folder rather than searching the disk |
+| Context that is not code | "Add my notes vault as a reference" | Reads a declared path, a folder or a single file, by name, with the path in the gitignored file |
+| A meta folder above your repos | "Work on the API repo" | Reads the config in the directory above them, which names every repository below it, so a session starting there reaches any of them by name |
+| Global references | "Where do my dotfiles live?" | Resolves a declared path rather than searching the disk, wherever that config is the nearest one above the working directory |
 
 ## Ethos
 
@@ -61,4 +61,5 @@ Claims are worth more when the exceptions are stated first.
 | --- | --- |
 | Drift warns the human, not the agent | Drift is reported by `status`. An agent that reaches straight for `get` is not warned that the reference it is about to read is pinned to a version this project no longer installs. |
 | The shared-config case is thin | See claim 5. |
-| Only one ecosystem resolves | npm. Other ecosystem prefixes are accepted and rejected with a pointer, rather than silently guessed. |
+| There is no user-global scope | Config discovery walks up and the nearest `agent-reference.json` wins; nothing merges across directories. A config above a set of repositories serves every directory below it that has none of its own, and a project's own config shadows it entirely. |
+| Only one ecosystem resolves | npm. A prefix naming another ecosystem is rejected at parse time, pointing at `git` as the way to reach that source, rather than being read as part of the name. |
