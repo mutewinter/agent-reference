@@ -87,8 +87,8 @@ test('clones config-declared packages that are not in package.json', async () =>
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        packages: {
-          'tiny-warning': '1.0.3',
+        references: {
+          'tiny-warning': 'npm:tiny-warning@1.0.3',
         },
       },
       null,
@@ -134,14 +134,13 @@ test('clones configured git references', async () => {
     'tool.js',
     'export const tool = true;\n',
   );
-  const relativeSourceRepo = path.relative(projectRoot, sourceRepo.path);
 
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        git: {
-          tooling: `file:${relativeSourceRepo}#${sourceRepo.commit}`,
+        references: {
+          tooling: `file://${sourceRepo.path}#${sourceRepo.commit}`,
         },
       },
       null,
@@ -198,8 +197,8 @@ test('preserves existing manifest references after a partial clone', async () =>
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        git: {
-          tooling: `file:${path.relative(projectRoot, gitRepo.path)}#${gitRepo.commit}`,
+        references: {
+          tooling: `file://${gitRepo.path}#${gitRepo.commit}`,
         },
       },
       null,
@@ -289,7 +288,7 @@ async function createUpgradeScenario(label: string): Promise<{
       await fs.writeFile(
         path.join(projectRoot, 'agent-reference.json'),
         JSON.stringify({
-          packages: { 'tiny-warning': version },
+          references: { 'tiny-warning': `npm:tiny-warning@${version}` },
         }),
       );
     },

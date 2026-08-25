@@ -65,8 +65,8 @@ test('reports config-only packages as configured references', async () => {
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        packages: {
-          'tiny-warning': '1.0.3',
+        references: {
+          'tiny-warning': 'npm:tiny-warning@1.0.3',
         },
       },
       null,
@@ -98,9 +98,9 @@ test('a path reference may name a file, and status reports which it found', asyn
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        paths: {
+        references: {
           checklist: './references/release-checklist.md',
-          references: './references',
+          notes: './references',
           gone: './references/missing.md',
         },
       },
@@ -117,7 +117,7 @@ test('a path reference may name a file, and status reports which it found', asyn
   assert.equal(byName.get('checklist')?.status, 'ready');
   assert.equal(byName.get('checklist')?.pathType, 'file');
   assert.equal(byName.get('checklist')?.path, notePath);
-  assert.equal(byName.get('references')?.pathType, 'folder');
+  assert.equal(byName.get('notes')?.pathType, 'folder');
   // Nothing is on disk, so there is no shape to report.
   assert.equal(byName.get('gone')?.status, 'missing');
   assert.equal(byName.get('gone')?.pathType, null);
@@ -132,7 +132,7 @@ test('reports local folder references with absolute paths', async () => {
     path.join(projectRoot, 'agent-reference.local.json'),
     JSON.stringify(
       {
-        paths: {
+        references: {
           'design-notes': './references/design-notes',
         },
       },
@@ -159,7 +159,7 @@ test('reports stale git references when configured spec changes', async () => {
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        git: {
+        references: {
           tooling: 'github:example/tooling#main',
         },
       },
@@ -197,8 +197,7 @@ test('works in a directory with no package.json or lockfile at all', async () =>
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        paths: { notes: './notes' },
-        git: { tooling: 'github:example/tooling' },
+        references: { notes: './notes', tooling: 'github:example/tooling' },
       },
       null,
       2,
@@ -230,7 +229,7 @@ test('finds the nearest config walking up from a subdirectory', async () => {
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        git: { tooling: 'github:example/tooling' },
+        references: { tooling: 'github:example/tooling' },
       },
       null,
       2,
@@ -302,8 +301,7 @@ test('a machine path in the committed config is a warning here, not a blocked re
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      paths: { notes: '~/notes' },
-      git: { internal: 'file:/opt/checkouts/internal' },
+      references: { notes: '~/notes', internal: 'file:///opt/checkouts/internal' },
     }),
   );
 
@@ -323,11 +321,11 @@ test('a machine path in the committed config is a warning here, not a blocked re
   assert.deepEqual(report.nextSteps, []);
 });
 
-test('a drift patch edits the key the config spelled, not the bare name', async () => {
+test('a drift patch edits the entry that is there, as a whole coordinate', async () => {
   const projectRoot = await copyFixtureProject();
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ packages: { 'npm:tiny-invariant': '1.0.0' } }, null, 2),
+    JSON.stringify({ references: { 'tiny-invariant': 'npm:tiny-invariant@1.0.0' } }, null, 2),
   );
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
@@ -336,10 +334,12 @@ test('a drift patch edits the key the config spelled, not the bare name', async 
 
   assert.equal(report.references[0]?.name, 'tiny-invariant');
   const drift = report.problems.find((problem) => problem.summary.includes('is pinned to 1.0.0'));
-  // Keyed by the bare name, the patch would add a second entry for the same package, and the
-  // two versions would then disagree, which the parser refuses outright.
-  assert.deepEqual(drift?.configPatch, { packages: { 'npm:tiny-invariant': '1.3.3' } });
-  assert.match(drift?.fix ?? '', /packages\.npm:tiny-invariant/);
+  // The version lives in the source, so the patch replaces the whole coordinate rather than
+  // a separate version field that could disagree with it.
+  assert.deepEqual(drift?.configPatch, {
+    references: { 'tiny-invariant': 'npm:tiny-invariant@1.3.3' },
+  });
+  assert.match(drift?.fix ?? '', /references\.tiny-invariant/);
 });
 
 test('the report names the lockfile package versions were read from', async () => {
@@ -363,7 +363,7 @@ async function useConfig(projectRoot: string): Promise<void> {
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        packages: { 'tiny-invariant': '1.3.3' },
+        references: { 'tiny-invariant': 'npm:tiny-invariant@1.3.3' },
       },
       null,
       2,

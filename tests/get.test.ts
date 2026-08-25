@@ -78,7 +78,7 @@ test('materializes an ad hoc git spec without touching project state', async () 
 
   const [result] = await getReferences(
     path.join(projectRoot, 'package.json'),
-    [`file:${path.relative(projectRoot, source.path)}#${source.commit}`],
+    [`file://${source.path}#${source.commit}`],
     { storeDir },
   );
 
@@ -94,7 +94,7 @@ test('resolves a configured folder reference to its absolute path', async () => 
   await fs.mkdir(folderPath, { recursive: true });
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ paths: { notes: './notes' } }),
+    JSON.stringify({ references: { notes: './notes' } }),
   );
 
   const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['notes'], {
@@ -116,8 +116,10 @@ test('materializes configured references in a directory that is not a Node proje
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        paths: { notes: './notes' },
-        git: { tooling: `file:${path.relative(projectRoot, source.path)}#${source.commit}` },
+        references: {
+          notes: './notes',
+          tooling: `file://${source.path}#${source.commit}`,
+        },
       },
       null,
       2,
@@ -133,54 +135,110 @@ test('materializes configured references in a directory that is not a Node proje
   assert.equal(results[1]?.recorded, true);
 });
 
-test('a name shared by two kinds must be qualified', async () => {
-  const { projectRoot, storeDir } = await scenario('ambiguous');
+test('one name means one thing, so nothing has to be qualified', async () => {
+  const { projectRoot, storeDir } = await scenario('one-namespace');
   await fs.mkdir(path.join(projectRoot, 'tooling'), { recursive: true });
+  // Two kinds sharing a name used to be legal and needed a `path:`/`git:` prefix at every
+  // lookup. One map refuses it once, where it is written.
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      paths: { tooling: './tooling' },
-      git: { tooling: 'github:example/tooling' },
+      references: { tooling: './tooling', 'tooling-upstream': 'github:example/tooling' },
     }),
   );
 
-  await assert.rejects(
-    getReferences(path.join(projectRoot, 'package.json'), ['tooling'], { storeDir }),
-    /Qualify it: path:tooling or git:tooling/,
-  );
-
-  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['path:tooling'], {
+  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['tooling'], {
     storeDir,
   });
   assert.equal(result?.kind, 'path');
 });
 
-test('a config key written with the ecosystem prefix still answers to the package name', async () => {
-  const { projectRoot, storeDir, tempDir } = await scenario('prefixed-key');
-  const source = await createSourceRepo(tempDir, 'tiny-invariant', '1.3.3');
-  // The spelling `get` prints back as canonical. Stored as the reference's name it matched
-  // nothing, so the pin below was inert and every surface reported the config as healthy.
+test('a set is a name that resolves to every reference in it', async () => {
+  const { projectRoot, storeDir, tempDir } = await scenario('set-expansion');
+  const first = await createSourceRepo(tempDir, 'first-tool', '0.0.1');
+  const second = await createSourceRepo(tempDir, 'second-tool', '0.0.1');
+  await fs.mkdir(path.join(projectRoot, 'notes'), { recursive: true });
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      packages: {
-        'npm:tiny-invariant': {
-          version: '1.3.3',
-          repository: `file:${source.path}`,
+      references: {
+        notes: './notes',
+        harnesses: {
+          description: 'Two little repositories',
+          references: [
+            { source: `file://${first.path}`, name: 'first' },
+            { source: `file://${second.path}`, name: 'second' },
+          ],
+        },
+      },
+    }),
+  );
+
+  const results = await getReferences(path.join(projectRoot, 'package.json'), ['harnesses'], {
+    storeDir,
+  });
+  assert.deepEqual(
+    results.map((entry) => entry.name),
+    ['first', 'second'],
+  );
+
+  // A set and a plain reference sit in one namespace, so one call takes both.
+  const mixed = await getReferences(
+    path.join(projectRoot, 'package.json'),
+    ['harnesses', 'notes'],
+    {
+      storeDir,
+    },
+  );
+  assert.deepEqual(
+    mixed.map((entry) => entry.name),
+    ['first', 'second', 'notes'],
+  );
+});
+
+test('a package source carries its ecosystem, and the entry answers to the package name', async () => {
+  const { projectRoot, storeDir, tempDir } = await scenario('prefixed-key');
+  const source = await createSourceRepo(tempDir, 'tiny-invariant', '1.3.3');
+  // The spelling `get` prints back as canonical. It is now what the config stores, so the
+  // pin below is reachable rather than silently inert.
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({
+      references: {
+        'tiny-invariant': {
+          source: 'npm:tiny-invariant@1.3.3',
+          repository: `file://${source.path}`,
           ref: source.commit,
         },
       },
     }),
   );
 
-  for (const spec of ['tiny-invariant', 'npm:tiny-invariant', 'package:tiny-invariant']) {
-    const [result] = await getReferences(path.join(projectRoot, 'package.json'), [spec], {
-      storeDir,
-    });
-    assert.equal(result?.name, 'tiny-invariant', spec);
-    assert.equal(result?.confidence, 'pinned', spec);
-    assert.equal(result?.checkoutSha, source.commit, spec);
-  }
+  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['tiny-invariant'], {
+    storeDir,
+  });
+  assert.equal(result?.name, 'tiny-invariant');
+  assert.equal(result?.confidence, 'pinned');
+  assert.equal(result?.checkoutSha, source.commit);
+});
+
+test('a path spec nothing declares resolves where it points', async () => {
+  const { projectRoot, storeDir } = await scenario('ad-hoc-path');
+  const folderPath = path.join(projectRoot, 'notes');
+  await fs.mkdir(folderPath, { recursive: true });
+
+  // One grammar: a source the config would accept is a spec `get` accepts, declared or not.
+  const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['./notes'], {
+    storeDir,
+  });
+  assert.equal(result?.kind, 'path');
+  assert.equal(result?.path, folderPath);
+  assert.equal(result?.recorded, false);
+
+  await assert.rejects(
+    getReferences(path.join(projectRoot, 'package.json'), ['./nowhere'], { storeDir }),
+    /which does not exist/,
+  );
 });
 
 async function scenario(

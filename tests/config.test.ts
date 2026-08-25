@@ -12,20 +12,16 @@ import { runGit } from '../src/git.ts';
 import { missingSelectionMessage, resolveSets, selectionFilter } from '../src/sets.ts';
 import { validateConfig } from '../src/validate.ts';
 
-test('accepts shorthand strings and longhand objects for every reference kind', () => {
+test('one map holds every kind, and the kind comes out of the source', () => {
   const config = parseConfig(
     {
-      packages: {
-        react: '18.2.0',
-        zod: { version: '3.25.0', description: 'Schema shapes' },
-      },
-      paths: {
+      references: {
+        react: 'npm:react@18.2.0',
+        zod: { source: 'zod@3.25.0', description: 'Schema shapes' },
         notes: './notes',
-        'api-docs': { path: '../platform/docs', description: 'Endpoint contracts' },
-      },
-      git: {
+        'api-docs': { source: '../platform/docs', description: 'Endpoint contracts' },
         typescript: 'github:microsoft/TypeScript#main',
-        tooling: { repository: 'github:acme/tooling', ref: 'v4', description: 'Build tooling' },
+        tooling: { source: 'github:acme/tooling', ref: 'v4', description: 'Build tooling' },
       },
     },
     'agent-reference.json',
@@ -35,7 +31,6 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
     kind: 'package',
     name: 'react',
     ecosystem: 'npm',
-    configKey: 'react',
     scope: 'shared',
     version: '18.2.0',
     ref: null,
@@ -45,6 +40,14 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
     sets: [],
   });
   assert.equal(config.packages[1]?.description, 'Schema shapes');
+  // A bare name still means npm, so the two spellings land on the same ecosystem.
+  assert.deepEqual(
+    config.packages.map((entry) => [entry.name, entry.ecosystem, entry.version]),
+    [
+      ['react', 'npm', '18.2.0'],
+      ['zod', 'npm', '3.25.0'],
+    ],
+  );
   assert.equal(config.paths[1]?.path, '../platform/docs');
   assert.deepEqual(
     config.git.map((entry) => [entry.repository, entry.ref, entry.spec]),
@@ -57,72 +60,84 @@ test('accepts shorthand strings and longhand objects for every reference kind', 
 
 test('rejects malformed config with a located, actionable message', () => {
   assert.throws(
-    () => parseConfig({ package: { react: '18.2.0' } }, 'agent-reference.json'),
-    /unknown key package\. Did you mean "packages"\?/,
-  );
-  assert.throws(
-    () => parseConfig({ packages: { react: { descripton: 'typo' } } }, 'agent-reference.json'),
-    /unknown key packages\.react\.descripton\. Did you mean "description"\?/,
-  );
-  assert.throws(
-    () => parseConfig({ packages: { react: {} } }, 'agent-reference.json'),
-    /packages\.react\.version is required/,
-  );
-  assert.throws(
-    () => parseConfig({ paths: { notes: 42 } }, 'agent-reference.json'),
-    /paths\.notes must be a path string or an object/,
+    () => parseConfig({ refrences: { react: 'npm:react@18.2.0' } }, 'agent-reference.json'),
+    /unknown key refrences\. Did you mean "references"\?/,
   );
   assert.throws(
     () =>
       parseConfig(
-        { git: { tooling: { repository: 'github:a/b#main', ref: 'v4' } } },
+        { references: { react: { source: 'npm:react@18.2.0', descripton: 'typo' } } },
         'agent-reference.json',
       ),
-    /sets ref "v4" but repository already pins "#main"/,
+    /unknown key references\.react\.descripton\. Did you mean "description"\?/,
+  );
+  // The typo is named before the shape is judged, or every misspelled key reads as an
+  // object that is neither a reference nor a set.
+  assert.throws(
+    () => parseConfig({ references: { react: { sorce: './x' } } }, 'agent-reference.json'),
+    /unknown key references\.react\.sorce\. Did you mean "source"\?/,
   );
   assert.throws(
-    () => parseConfig({ sets: [{ paths: ['./notes'] }] }, 'agent-reference.json'),
-    /sets\[0\]\.description is required/,
+    () =>
+      parseConfig({ references: { react: { description: 'no source' } } }, 'agent-reference.json'),
+    /references\.react has neither "source" nor "references"/,
+  );
+  assert.throws(
+    () => parseConfig({ references: { notes: 42 } }, 'agent-reference.json'),
+    /references\.notes must be a source string or an object/,
+  );
+  assert.throws(
+    () =>
+      parseConfig(
+        { references: { tooling: { source: 'github:a/b#main', ref: 'v4' } } },
+        'agent-reference.json',
+      ),
+    /sets ref "v4" but the source already pins "#main"/,
   );
 });
 
-test('the folders key names its replacement rather than reading as a typo', () => {
+test('the four keys that became one name where their entries go', () => {
   assert.throws(
     () => parseConfig({ folders: { notes: './notes' } }, 'agent-reference.json'),
-    /folders was renamed to paths, which holds a folder or a file/,
+    /folders was folded into one "references" map keyed by name.*a path is a source/s,
   );
-
   assert.throws(
-    () =>
-      parseConfig(
-        { sets: [{ description: 'Notes', folders: ['./notes'] }] },
-        'agent-reference.json',
-      ),
-    /sets\[0\]\.folders was renamed to paths/,
+    () => parseConfig({ packages: { zod: '3.22.0' } }, 'agent-reference.json'),
+    /packages was folded into one "references" map keyed by name.*the version moves into the source/s,
+  );
+  assert.throws(
+    () => parseConfig({ git: { pi: 'github:a/b' } }, 'agent-reference.json'),
+    /git was folded into one "references" map keyed by name.*the repository moves into the source/s,
+  );
+  assert.throws(
+    () => parseConfig({ sets: [{ description: 'Notes' }] }, 'agent-reference.json'),
+    /sets was folded into one "references" map keyed by name.*a set is a reference holding several/s,
   );
 });
 
-test('a set is a labeled list: description first, members inline, names derived', () => {
+test('a set is a reference that resolves to several paths, keyed by its own name', () => {
   const config = parseConfig(
     {
-      sets: [
-        {
+      references: {
+        docs: {
           description: 'Documentation sources to read before writing docs',
-          paths: [
+          references: [
             './docs/design-notes',
-            { path: '../platform/docs', name: 'api-docs', description: 'Endpoint contracts' },
+            { source: '../platform/docs', name: 'api-docs', description: 'Endpoint contracts' },
+            'github:acme/design-system#v4',
+            'npm:zod@3.25.0',
           ],
-          git: ['github:acme/design-system#v4'],
-          packages: ['zod@3.25.0'],
         },
-      ],
+      },
     },
     'agent-reference.json',
   );
 
   const sets = resolveSets(config);
   assert.equal(sets.length, 1);
+  assert.equal(sets[0]?.name, 'docs');
   assert.equal(sets[0]?.description, 'Documentation sources to read before writing docs');
+  // One array holds every kind, so a set can mix a package, a repository and a folder.
   assert.deepEqual(
     sets[0]?.members.map((member) => `${member.kind}:${member.name}`),
     ['package:zod', 'path:design-notes', 'path:api-docs', 'git:design-system'],
@@ -131,19 +146,37 @@ test('a set is a labeled list: description first, members inline, names derived'
   assert.equal(config.packages[0]?.version, '3.25.0');
 });
 
-test('the same reference in two sets merges into one with both labels', () => {
+test('a bare array is a set with no heading', () => {
+  const config = parseConfig(
+    { references: { engines: ['github:acme/chess-engine', './notes'] } },
+    'agent-reference.json',
+  );
+
+  const [set] = resolveSets(config);
+  assert.equal(set?.name, 'engines');
+  assert.equal(set?.description, null);
+  assert.deepEqual(
+    set?.members.map((member) => member.name),
+    ['notes', 'chess-engine'],
+  );
+});
+
+test('the same source in two sets merges into one reference with both labels', () => {
   const config = parseConfig(
     {
-      sets: [
-        { name: 'engines', description: 'Engines we study', git: ['github:acme/chess-engine'] },
-        { description: 'Everything to read before a rewrite', git: ['github:acme/chess-engine'] },
-      ],
+      references: {
+        engines: { description: 'Engines we study', references: ['github:acme/chess-engine'] },
+        rewrite: {
+          description: 'Everything to read before a rewrite',
+          references: ['github:acme/chess-engine'],
+        },
+      },
     },
     'agent-reference.json',
   );
 
   assert.equal(config.git.length, 1);
-  assert.deepEqual(config.git[0]?.sets, ['engines', 'Everything to read before a rewrite']);
+  assert.deepEqual(config.git[0]?.sets, ['engines', 'rewrite']);
 });
 
 test('two declarations disagreeing about a name is a conflict, not repetition', () => {
@@ -151,43 +184,113 @@ test('two declarations disagreeing about a name is a conflict, not repetition', 
     () =>
       parseConfig(
         {
-          paths: { notes: './notes' },
-          sets: [{ description: 'Other notes', paths: ['../elsewhere/notes'] }],
+          references: {
+            notes: './notes',
+            other: { description: 'Other notes', references: ['../elsewhere/notes'] },
+          },
         },
         'agent-reference.json',
       ),
-    /path "notes" is declared more than once with different targets/,
+    /"notes" is declared more than once and the two point somewhere different/,
   );
 });
 
-test('selects references by set name, description substring, and qualified name', () => {
+test('a set may not take a name a reference already has', () => {
+  // The set's members derive `instrument` from the basename, which is also the set's name.
+  // Two namespaces hid this; one namespace has to name it.
+  assert.throws(
+    () => parseConfig({ references: { instrument: ['./instrument'] } }, 'agent-reference.json'),
+    /"instrument" is both a set and a path reference/,
+  );
+});
+
+test('a set holds references, never other sets', () => {
+  assert.throws(
+    () =>
+      parseConfig(
+        { references: { outer: { references: [{ source: './a', references: [] }] } } },
+        'agent-reference.json',
+      ),
+    /references\.outer\.references\[0\] is a set inside a set/,
+  );
+  assert.throws(
+    () => parseConfig({ references: { outer: [['./a']] } }, 'agent-reference.json'),
+    /is a set inside a set/,
+  );
+});
+
+test('a key that does nothing for its source is refused rather than ignored', () => {
+  assert.throws(
+    () =>
+      parseConfig(
+        { references: { n: { source: './notes', ref: 'main' } } },
+        'agent-reference.json',
+      ),
+    /references\.n\.ref does nothing for this source/,
+  );
+  assert.throws(
+    () =>
+      parseConfig(
+        { references: { n: { source: './notes', directory: 'sub' } } },
+        'agent-reference.json',
+      ),
+    /references\.n\.directory does nothing for this source/,
+  );
+  assert.throws(
+    () =>
+      parseConfig(
+        { references: { n: { source: 'github:a/b', repository: 'github:c/d' } } },
+        'agent-reference.json',
+      ),
+    /references\.n\.repository does nothing for this source/,
+  );
+});
+
+test('a local checkout is read where it lives, so the file: prefix names the path to write', () => {
+  assert.throws(
+    () => parseConfig({ references: { ui: 'file:../company-ui' } }, 'agent-reference.json'),
+    /"file:\.\.\/company-ui" is not a source.*write the path on its own: "\.\.\/company-ui"/s,
+  );
+
+  // A `file://` URL is a git URL like any other, and still clones into the store.
+  const config = parseConfig(
+    { references: { ui: 'file:///opt/checkouts/company-ui' } },
+    'agent-reference.json',
+  );
+  assert.equal(config.git[0]?.repository, 'file:///opt/checkouts/company-ui');
+});
+
+test('selects references by name, by set name, and by description substring', () => {
   const config = parseConfig(
     {
-      packages: { react: '18.2.0' },
-      paths: { react: './react-notes' },
-      sets: [{ name: 'docs', description: 'Documentation sources', paths: ['./notes'] }],
+      references: {
+        react: 'npm:react@18.2.0',
+        'react-notes': './react-notes',
+        docs: { description: 'Documentation sources', references: ['./notes'] },
+      },
     },
     'agent-reference.json',
   );
 
-  const byName = selectionFilter(config, { sets: ['docs'] });
-  assert.equal(byName?.matches('path', 'notes'), true);
-  assert.equal(byName?.matches('package', 'react'), false);
+  const bySetName = selectionFilter(config, { references: ['docs'] });
+  assert.equal(bySetName?.matches('path', 'notes'), true);
+  assert.equal(bySetName?.matches('package', 'react'), false);
 
-  const bySubstring = selectionFilter(config, { sets: ['documentation'] });
+  // The phrasing a user says in chat still works at the CLI, and now for any reference
+  // rather than only for a set.
+  const bySubstring = selectionFilter(config, { references: ['documentation'] });
   assert.equal(bySubstring?.matches('path', 'notes'), true);
 
-  const byQualifiedName = selectionFilter(config, { references: ['path:react'] });
-  assert.equal(byQualifiedName?.matches('path', 'react'), true);
-  assert.equal(byQualifiedName?.matches('package', 'react'), false);
+  const byName = selectionFilter(config, { references: ['react-notes'] });
+  assert.equal(byName?.matches('path', 'react-notes'), true);
+  assert.equal(byName?.matches('package', 'react'), false);
 
   assert.equal(selectionFilter(config, {}), null);
-  assert.throws(() => selectionFilter(config, { sets: ['nope'] }), /No set matches "nope"/);
 });
 
 test('a selector that matched nothing is named, not dropped', () => {
   const config = parseConfig(
-    { packages: { react: '18.2.0' }, paths: { notes: './notes' } },
+    { references: { react: 'npm:react@18.2.0', notes: './notes' } },
     'agent-reference.json',
   );
 
@@ -207,12 +310,12 @@ test('a selector that matched nothing is named, not dropped', () => {
   ]);
   assert.match(
     missingSelectionMessage(selection?.unmatched() ?? [], config),
-    /Nothing matched reference "tanstck-router"\. Known references: package:react, path:notes\./,
+    /Nothing matched reference "tanstck-router"\. Known references: react, notes\./,
   );
 });
 
 test('every selector hitting leaves nothing unmatched', () => {
-  const config = parseConfig({ packages: { react: '18.2.0' } }, 'agent-reference.json');
+  const config = parseConfig({ references: { react: 'npm:react@18.2.0' } }, 'agent-reference.json');
   const selection = selectionFilter(config, { references: ['react'] });
 
   assert.equal(selection?.matches('package', 'react'), true);
@@ -223,12 +326,16 @@ test('local config overrides shared entries by name', async () => {
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-config-test-'));
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ paths: { 'company-ui': './vendor/company-ui', notes: './notes' } }),
+    JSON.stringify({
+      references: { 'company-ui': './vendor/company-ui', notes: './notes' },
+    }),
   );
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.local.json'),
     JSON.stringify({
-      paths: { 'company-ui': { path: '~/code/company-ui', description: 'Local checkout' } },
+      references: {
+        'company-ui': { source: '~/code/company-ui', description: 'Local checkout' },
+      },
     }),
   );
 
@@ -249,14 +356,12 @@ test('config files are JSONC, and the same characters inside a string stay data'
     path.join(projectRoot, 'agent-reference.json'),
     `{
   // Sources for the engine work.
-  "git": {
+  "references": {
     "chess-engine": {
-      "repository": "github:acme/chess-engine",
+      "source": "github:acme/chess-engine",
       /* A description is prose: whatever it holds is a value, not syntax. */
-      "description": "Docs at https://acme.example/docs, and the config shape is { \\"zod\\": \\"3.25.0\\", }"
+      "description": "Docs at https://acme.example/docs, and the config shape is { \\"zod\\": \\"npm:zod@3.25.0\\", }"
     },
-  },
-  "paths": {
     "notes": "./notes" // where the write-ups live
   },
 }
@@ -264,14 +369,14 @@ test('config files are JSONC, and the same characters inside a string stay data'
   );
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.local.json'),
-    '{ "paths": { "vault": "~/notes" } } // the gitignored file reads the same way\n',
+    '{ "references": { "vault": "~/notes" } } // the gitignored file reads the same way\n',
   );
 
   const loaded = await loadAgentReferenceConfig(projectRoot);
 
   assert.equal(
     loaded?.config.git[0]?.description,
-    'Docs at https://acme.example/docs, and the config shape is { "zod": "3.25.0", }',
+    'Docs at https://acme.example/docs, and the config shape is { "zod": "npm:zod@3.25.0", }',
   );
   assert.deepEqual(
     loaded?.config.paths.map((entry) => [entry.name, entry.path]),
@@ -286,7 +391,12 @@ test('validate reports errors and warnings without needing a lockfile', async ()
   const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-validate-test-'));
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ paths: { notes: './missing' }, sets: [{ description: 'nothing here yet' }] }),
+    JSON.stringify({
+      references: {
+        notes: './missing',
+        empty: { description: 'nothing here yet', references: [] },
+      },
+    }),
   );
 
   const report = await validateConfig(projectRoot);
@@ -295,15 +405,34 @@ test('validate reports errors and warnings without needing a lockfile', async ()
   assert.equal(report.references.length, 1);
   assert.match(
     report.warnings.join('\n'),
-    /paths\.notes points at .*missing, which does not exist/,
+    /references\.notes points at .*missing, which does not exist/,
   );
-  assert.match(report.warnings.join('\n'), /Set "nothing here yet" has no members/);
+  assert.match(report.warnings.join('\n'), /Set "empty" has no members/);
 
   await fs.writeFile(path.join(projectRoot, 'agent-reference.json'), '{ not json');
   const broken = await validateConfig(projectRoot);
 
   assert.equal(broken.valid, false);
   assert.match(broken.errors.join('\n'), /is not valid JSON/);
+});
+
+test('an owner/repo shorthand that is also a folder here is worth saying out loud', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-shorthand-test-'));
+  await fs.mkdir(path.join(projectRoot, 'docs', 'decisions'), { recursive: true });
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({ references: { decisions: 'docs/decisions', upstream: 'acme/chess-engine' } }),
+  );
+
+  // Parsing stays pure, so it answers the same on every machine; only the disk can tell
+  // these apart, and only here.
+  const report = await validateConfig(projectRoot);
+
+  assert.match(
+    report.warnings.join('\n'),
+    /references\.decisions reads as the GitHub repository github:docs\/decisions.*Write "\.\/docs\/decisions"/s,
+  );
+  assert.doesNotMatch(report.warnings.join('\n'), /references\.upstream reads as/);
 });
 
 test('the printed schema and the parser accept the same top-level keys', async () => {
@@ -326,9 +455,9 @@ test('a local repository in the committed config leaks a machine path the same w
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      git: {
-        secret: 'file:/opt/checkouts/secret',
-        sibling: 'file:../company-ui',
+      references: {
+        secret: 'file:///opt/checkouts/secret',
+        sibling: '../company-ui',
         upstream: 'github:acme/chess-engine',
       },
     }),
@@ -339,14 +468,14 @@ test('a local repository in the committed config leaks a machine path the same w
   assert.equal(report.valid, false);
   assert.match(
     report.errors.join('\n'),
-    /git\.secret points at the machine path file:\/opt\/checkouts\/secret/,
+    /references\.secret points at the machine path file:\/\/\/opt\/checkouts\/secret/,
   );
   assert.match(
     report.warnings.join('\n'),
-    /git\.sibling escapes the repo \(file:\.\.\/company-ui\)/,
+    /references\.sibling escapes the repo \(\.\.\/company-ui\)/,
   );
   // A remote is portable by construction and has no business in either list.
-  assert.doesNotMatch([...report.errors, ...report.warnings].join('\n'), /git\.upstream/);
+  assert.doesNotMatch([...report.errors, ...report.warnings].join('\n'), /references\.upstream/);
 });
 
 test('a windows machine path is a leak wherever validate runs', async () => {
@@ -356,8 +485,11 @@ test('a windows machine path is a leak wherever validate runs', async () => {
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      paths: { ui: 'C:\\Users\\somebody\\code\\company-ui', share: '\\\\fileserver\\team\\docs' },
-      git: { vendored: 'file:D:/checkouts/vendor' },
+      references: {
+        ui: 'C:\\Users\\somebody\\code\\company-ui',
+        share: '\\\\fileserver\\team\\docs',
+        vendored: 'file://D:/checkouts/vendor',
+      },
     }),
   );
 
@@ -366,9 +498,9 @@ test('a windows machine path is a leak wherever validate runs', async () => {
   const report = await validateConfig(projectRoot);
 
   assert.equal(report.valid, false);
-  assert.match(report.errors.join('\n'), /paths\.ui puts the machine path C:/);
-  assert.match(report.errors.join('\n'), /paths\.share puts the machine path/);
-  assert.match(report.errors.join('\n'), /git\.vendored points at the machine path/);
+  assert.match(report.errors.join('\n'), /references\.ui puts the machine path C:/);
+  assert.match(report.errors.join('\n'), /references\.share puts the machine path/);
+  assert.match(report.errors.join('\n'), /references\.vendored points at the machine path/);
 });
 
 test('cacheDir is a leak in the committed file and unremarkable in the local one', async () => {
@@ -417,25 +549,23 @@ test('a committed local config is reported as tracked, because .gitignore cannot
 test('two subtrees of one repository are two references, not one repeated declaration', () => {
   const withNames = parseConfig(
     {
-      sets: [
-        {
+      references: {
+        platform: {
           description: 'acme platform surface',
-          git: [
+          references: [
             {
               name: 'design-system',
-              repository: 'github:acme/monorepo',
-              ref: 'v2',
+              source: 'github:acme/monorepo#v2',
               directory: 'packages/design-system',
             },
             {
               name: 'api-client',
-              repository: 'github:acme/monorepo',
-              ref: 'v2',
+              source: 'github:acme/monorepo#v2',
               directory: 'packages/api-client',
             },
           ],
         },
-      ],
+      },
     },
     'agent-reference.json',
   );
@@ -454,114 +584,90 @@ test('two subtrees of one repository are two references, not one repeated declar
     () =>
       parseConfig(
         {
-          sets: [
-            {
+          references: {
+            platform: {
               description: 'acme platform surface',
-              git: [
-                {
-                  repository: 'github:acme/monorepo',
-                  ref: 'v2',
-                  directory: 'packages/design-system',
-                },
-                { repository: 'github:acme/monorepo', ref: 'v2', directory: 'packages/api-client' },
+              references: [
+                { source: 'github:acme/monorepo#v2', directory: 'packages/design-system' },
+                { source: 'github:acme/monorepo#v2', directory: 'packages/api-client' },
               ],
             },
-          ],
+          },
         },
         'agent-reference.json',
       ),
-    /git "monorepo" is declared more than once with different targets. Give one of them an explicit "name"/,
+    /"monorepo" is declared more than once and the two point somewhere different/,
   );
 });
 
-test('a packages key may carry the ecosystem prefix that get prints back', () => {
+test('a package source may carry the ecosystem prefix that get prints back', () => {
   const config = parseConfig(
-    { packages: { 'npm:zod': '3.22.0', react: '18.2.0' } },
+    { references: { zod: 'npm:zod@3.22.0', react: 'react@18.2.0' } },
     'agent-reference.json',
   );
 
   const zod = config.packages.find((entry) => entry.name === 'zod');
-  // The prefix is taken off the name, so every lookup that has only the package name still
-  // finds the entry. Storing `npm:zod` as the name made a pin unreachable and silently inert.
+  // The prefix names the registry, never the name, so every lookup that has only the
+  // package name still finds the entry.
   assert.equal(zod?.name, 'zod');
   assert.equal(zod?.ecosystem, 'npm');
-  assert.equal(zod?.configKey, 'npm:zod');
 
   const react = config.packages.find((entry) => entry.name === 'react');
   assert.equal(react?.ecosystem, 'npm');
-  assert.equal(react?.configKey, 'react');
+  assert.equal(react?.version, '18.2.0');
 });
 
-test('the prefixed and bare spellings of one package are one reference', () => {
-  const config = parseConfig(
-    {
-      packages: {
-        zod: '3.22.0',
-        'npm:zod': { version: '3.22.0', description: 'Same package, spelled twice' },
-      },
-    },
-    'agent-reference.json',
-  );
-
-  assert.equal(config.packages.length, 1);
-  assert.equal(config.packages[0]?.description, 'Same package, spelled twice');
-
+test('a package source naming an ecosystem this build cannot resolve fails at parse time', () => {
   assert.throws(
-    () => parseConfig({ packages: { zod: '3.22.0', 'npm:zod': '3.23.0' } }, 'agent-reference.json'),
-    /package "zod" is declared more than once with different targets/,
-  );
-});
-
-test('a packages key naming an ecosystem this build cannot resolve fails at parse time', () => {
-  assert.throws(
-    () => parseConfig({ packages: { 'pypi:requests': '2.32.0' } }, 'agent-reference.json'),
-    /pypi: coordinates are not supported yet.*declare requests under "git"/s,
+    () => parseConfig({ references: { requests: 'pypi:requests@2.32.0' } }, 'agent-reference.json'),
+    /pypi: coordinates are not supported yet/s,
   );
 
   // Not a known ecosystem at all, so the fix is a different one: the prefix is the mistake.
   assert.throws(
-    () => parseConfig({ packages: { 'nmp:zod': '3.22.0' } }, 'agent-reference.json'),
-    /"nmp:" is not an ecosystem.*a key with no prefix means npm/s,
+    () => parseConfig({ references: { zod: 'nmp:zod@3.22.0' } }, 'agent-reference.json'),
+    /"nmp:" is not an ecosystem/s,
   );
 });
 
-test('a version in a packages key is rejected, naming the shape that works', () => {
+test('a package source without an exact version is refused, naming the command that finds one', () => {
   assert.throws(
-    () => parseConfig({ packages: { 'zod@3.22.0': '3.22.0' } }, 'agent-reference.json'),
-    /carries a version in the key.*write "zod": "3.22.0"/s,
+    () => parseConfig({ references: { zod: 'npm:zod' } }, 'agent-reference.json'),
+    /names no version.*agent-reference versions <name>/s,
+  );
+  assert.throws(
+    () => parseConfig({ references: { zod: 'npm:zod@^3.22.0' } }, 'agent-reference.json'),
+    /pins "\^3\.22\.0", which is not an exact version/,
+  );
+  assert.throws(
+    () => parseConfig({ references: { zod: 'npm:zod@latest' } }, 'agent-reference.json'),
+    /is not an exact version/,
   );
 
   // A scoped name's leading @ is not a version separator.
-  const config = parseConfig({ packages: { '@scope/thing': '1.0.0' } }, 'agent-reference.json');
-  assert.equal(config.packages[0]?.name, '@scope/thing');
-});
-
-test('a set member may carry the ecosystem prefix too', () => {
   const config = parseConfig(
-    {
-      sets: [
-        {
-          description: 'validators we mirror',
-          packages: ['npm:zod@3.22.0', { name: 'npm:yup', version: '1.4.0' }],
-        },
-      ],
-    },
+    { references: { '@scope/thing': '@scope/thing@1.0.0' } },
     'agent-reference.json',
   );
+  assert.equal(config.packages[0]?.name, '@scope/thing');
+  assert.equal(config.packages[0]?.version, '1.0.0');
+});
 
-  assert.deepEqual(
-    config.packages.map((entry) => [entry.name, entry.ecosystem, entry.configKey]),
-    [
-      ['zod', 'npm', 'npm:zod'],
-      ['yup', 'npm', 'npm:yup'],
-    ],
+test('a package reference is keyed by its package name', () => {
+  // It resolves through a registry and is audited against a lockfile, and both key on the
+  // package's own name. A handle of your own is what a repository source is for.
+  assert.throws(
+    () => parseConfig({ references: { 'zod-pinned': 'npm:zod@3.22.0' } }, 'agent-reference.json'),
+    /named "zod-pinned" but its source is the package zod.*write "zod": "npm:zod@3\.22\.0"/s,
+  );
+  assert.doesNotThrow(() =>
+    parseConfig({ references: { zod: 'npm:zod@3.22.0' } }, 'agent-reference.json'),
   );
 });
 
 test('every config the docs show is a config this parser accepts', () => {
   // The site and the README render these, so a sample that does not parse is a copy-paste
-  // trap sitting on the front page. The complex example carried one: a set member and a
-  // top-level entry named the same repository at different refs, which is a hard error.
+  // trap sitting on the front page.
   for (const [name, sample] of Object.entries(samples)) {
     if (sample.lang !== 'jsonc') continue;
     assert.doesNotThrow(() => parseConfig(parseJsonc(sample.code), 'agent-reference.json'), name);

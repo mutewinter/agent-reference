@@ -9,7 +9,9 @@
  * describe the behavior and cannot explain it.
  *
  * Nothing here touches the network. Upstream is a local git repository, reached through a
- * relative `file:` spec so the committed config holds no machine path.
+ * relative path so the committed config holds no machine path. It is read where it lives,
+ * which is the point: the checkout carries its own history, so `git log` answers from it
+ * without anything being cloned.
  */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -344,7 +346,7 @@ async function assertHistoryOnly(repoPath) {
 
 /** A project that speaks the protocol and has already been set up for agent-reference. */
 async function buildProject(projectRoot, upstreamPath) {
-  const spec = `file:${path.relative(projectRoot, upstreamPath).split(path.sep).join('/')}`;
+  const spec = `./${path.relative(projectRoot, upstreamPath).split(path.sep).join('/')}`;
 
   await writeFiles(projectRoot, {
     'package.json': `${JSON.stringify({ name: 'telemetry-gateway', version: '0.4.0', type: 'module', private: true }, null, 2)}\n`,
@@ -361,10 +363,9 @@ async function buildProject(projectRoot, upstreamPath) {
     ].join('\n'),
     'agent-reference.json': `${JSON.stringify(
       {
-        git: {
+        references: {
           'wire-format': {
-            repository: spec,
-            ref: 'main',
+            source: spec,
             description:
               'The wire protocol the collector speaks. Read it when frames are rejected or the header layout is in question.',
           },

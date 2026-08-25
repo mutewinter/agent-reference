@@ -41,9 +41,11 @@ test('renders scope sections with sets as labeled-list subsections', () => {
     PLAIN,
   );
 
+  // The heading leads with the name, because that is what an agent passes back to `get`.
+  // Printing only the description left the handle discoverable in --json and nowhere else.
   assert.match(
     output,
-    /agent-reference\.json \(shared\)\n  Engines we study upstream\n    chess-engine {2,}git · declared · github:acme\/chess-engine/,
+    /agent-reference\.json \(shared\)\n  engines {2,}set · 1 reference\n {2,}"Engines we study upstream"\n    chess-engine {2,}git · declared · github:acme\/chess-engine/,
   );
   assert.match(
     output,

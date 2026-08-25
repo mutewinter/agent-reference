@@ -98,7 +98,7 @@ test('advances cached branch refs when the upstream default branch moves', async
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      git: { tooling: { repository: `file:${path.relative(projectRoot, source)}`, ref: 'main' } },
+      references: { tooling: { source: `file://${source}`, ref: 'main' } },
     }),
   );
 
@@ -172,7 +172,7 @@ test('a subtree that upstream moved is reported, and the checkout root is still 
   assert.equal(problem?.severity, 'error');
   assert.match(problem?.summary ?? '', /packages\/renamed-away, which is not in this checkout/);
   assert.match(problem?.summary ?? '', /whole repository rather than that subtree/);
-  assert.match(problem?.fix ?? '', /git\.design-system\.directory/);
+  assert.match(problem?.fix ?? '', /references\.design-system\.directory/);
 });
 
 async function createSubtreeScenario(
@@ -201,13 +201,16 @@ async function declareSubtrees(
   sourcePath: string,
   directories: Record<string, string>,
 ): Promise<void> {
-  const git = Object.fromEntries(
+  const references = Object.fromEntries(
     Object.entries(directories).map(([name, directory]) => [
       name,
-      { repository: `file:${sourcePath}`, directory },
+      { source: `file://${sourcePath}`, directory },
     ]),
   );
-  await fs.writeFile(path.join(projectRoot, 'agent-reference.local.json'), JSON.stringify({ git }));
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.local.json'),
+    JSON.stringify({ references }),
+  );
 }
 
 async function createMonorepoScenario(
@@ -222,7 +225,7 @@ async function createMonorepoScenario(
   const projectRoot = await copyFixtureProject(tempDir);
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ packages: { '@scope/thing': requestedVersion } }),
+    JSON.stringify({ references: { '@scope/thing': `npm:@scope/thing@${requestedVersion}` } }),
   );
 
   const sourcePath = await initRepo(path.join(tempDir, 'monorepo-source'));

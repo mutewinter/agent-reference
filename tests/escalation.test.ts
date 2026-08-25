@@ -17,7 +17,7 @@ const repoRoot = path.resolve(import.meta.dirname, '..');
 
 test('a package with no repository stays unresolvable instead of looping on clone', async () => {
   const { projectRoot, storeDir } = await scenario('no-repository', {
-    packages: { orphan: '1.0.0' },
+    references: { orphan: 'npm:orphan@1.0.0' },
   });
 
   const clone = await cloneReferences(path.join(projectRoot, 'package.json'), {
@@ -39,17 +39,21 @@ test('a package with no repository stays unresolvable instead of looping on clon
 
   const problem = report.problems.find((candidate) => candidate.reference === 'package:orphan');
   assert.equal(problem?.severity, 'error');
-  assert.match(problem?.fix ?? '', /set packages\.orphan\.repository/);
+  assert.match(problem?.fix ?? '', /set references\.orphan\.repository/);
   assert.deepEqual(problem?.configPatch, {
-    packages: {
-      orphan: { version: '1.0.0', repository: '<github:owner/repo>', ref: '<commit-or-tag>' },
+    references: {
+      orphan: {
+        source: 'npm:orphan@1.0.0',
+        repository: '<github:owner/repo>',
+        ref: '<commit-or-tag>',
+      },
     },
   });
 });
 
 test('editing the failed overrides makes the reference worth cloning again', async () => {
   const { projectRoot, storeDir, tempDir } = await scenario('retry', {
-    packages: { orphan: '1.0.0' },
+    references: { orphan: 'npm:orphan@1.0.0' },
   });
   const source = await createPackageRepo(tempDir, 'orphan', '1.0.0');
 
@@ -59,10 +63,10 @@ test('editing the failed overrides makes the reference worth cloning again', asy
   });
 
   await writeConfig(projectRoot, {
-    packages: {
+    references: {
       orphan: {
-        version: '1.0.0',
-        repository: `file:${path.relative(projectRoot, source.path)}`,
+        source: 'npm:orphan@1.0.0',
+        repository: `file://${source.path}`,
         ref: source.commit,
       },
     },
@@ -87,13 +91,13 @@ test('editing the failed overrides makes the reference worth cloning again', asy
 test('a pinned ref overrides version resolution and re-pinning marks the checkout stale', async () => {
   const { projectRoot, storeDir, tempDir } = await scenario('pin', {});
   const source = await createPackageRepo(tempDir, 'thing', '1.0.0');
-  const repository = `file:${path.relative(projectRoot, source.path)}`;
+  const repository = `file://${source.path}`;
   const olderCommit = source.commit;
   const newerCommit = await addCommit(source.path, 'thing', '2.0.0');
 
   // Ask for 2.0.0 but pin the 1.0.0 commit: the pin has to win.
   await writeConfig(projectRoot, {
-    packages: { thing: { version: '2.0.0', repository, ref: olderCommit } },
+    references: { thing: { source: 'npm:thing@2.0.0', repository, ref: olderCommit } },
   });
   const pinned = await cloneReferences(path.join(projectRoot, 'package.json'), { storeDir });
   assert.equal(pinned.cloned[0]?.checkoutSha, olderCommit);
@@ -105,7 +109,7 @@ test('a pinned ref overrides version resolution and re-pinning marks the checkou
   assert.equal(pinnedReport.references[0]?.confidence, 'pinned');
 
   await writeConfig(projectRoot, {
-    packages: { thing: { version: '2.0.0', repository, ref: newerCommit } },
+    references: { thing: { source: 'npm:thing@2.0.0', repository, ref: newerCommit } },
   });
   const repinned = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir });
   assert.equal(repinned.references[0]?.status, 'stale');
@@ -116,10 +120,10 @@ test('an unresolvable pin reports the ref that does not exist', async () => {
   const source = await createPackageRepo(tempDir, 'thing', '1.0.0');
 
   await writeConfig(projectRoot, {
-    packages: {
+    references: {
       thing: {
-        version: '1.0.0',
-        repository: `file:${path.relative(projectRoot, source.path)}`,
+        source: 'npm:thing@1.0.0',
+        repository: `file://${source.path}`,
         ref: 'v9.9.9',
       },
     },
@@ -131,7 +135,7 @@ test('an unresolvable pin reports the ref that does not exist', async () => {
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir });
   const problem = report.problems[0];
   assert.match(problem?.summary ?? '', /is not a commit, tag, or branch/);
-  assert.match(problem?.fix ?? '', /pinned packages\.thing\.ref does not exist/);
+  assert.match(problem?.fix ?? '', /pinned references\.thing\.ref does not exist/);
 });
 
 test('one unresolvable reference does not stop the others from cloning', async () => {
@@ -139,11 +143,11 @@ test('one unresolvable reference does not stop the others from cloning', async (
   const source = await createPackageRepo(tempDir, 'good', '1.0.0');
 
   await writeConfig(projectRoot, {
-    packages: {
-      orphan: '1.0.0',
+    references: {
+      orphan: 'npm:orphan@1.0.0',
       good: {
-        version: '1.0.0',
-        repository: `file:${path.relative(projectRoot, source.path)}`,
+        source: 'npm:good@1.0.0',
+        repository: `file://${source.path}`,
         ref: source.commit,
       },
     },
@@ -166,7 +170,7 @@ test('one unresolvable reference does not stop the others from cloning', async (
 
 test('status reports a default-branch fallback as an error with a pin fix', async () => {
   const { projectRoot, storeDir, tempDir } = await scenario('fallback', {
-    packages: { thing: '9.9.9' },
+    references: { thing: 'npm:thing@9.9.9' },
   });
   const source = await createPackageRepo(tempDir, 'thing', '1.0.0');
 
@@ -201,7 +205,7 @@ test('a mirror that could not be updated is said out loud, not blamed on tag nam
       repository: { type: 'git', url: source.path },
     },
   };
-  await writeConfig(projectRoot, { packages: { 'tiny-invariant': '2.0.0' } });
+  await writeConfig(projectRoot, { references: { 'tiny-invariant': 'npm:tiny-invariant@2.0.0' } });
 
   // Fill the mirror while the remote is readable, then take the remote away: a fetch that
   // fails is allowed to fail, so what is left is a mirror that predates the asked-for tag.
@@ -221,7 +225,7 @@ test('a fix names the file the reference was actually declared in', async () => 
   await fs.rm(path.join(projectRoot, 'agent-reference.json'));
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.local.json'),
-    JSON.stringify({ packages: { orphan: '1.0.0' } }),
+    JSON.stringify({ references: { orphan: 'npm:orphan@1.0.0' } }),
   );
 
   const clone = await cloneReferences(projectRoot, {
@@ -245,10 +249,14 @@ test('one unreachable git reference does not discard the packages that cloned', 
   const { projectRoot, storeDir, tempDir } = await scenario('git-failure', {});
   const source = await createPackageRepo(tempDir, 'tiny-invariant', '1.3.1');
   await writeConfig(projectRoot, {
-    packages: {
-      'tiny-invariant': { version: '1.3.1', repository: `file:${source.path}`, ref: 'main' },
+    references: {
+      'tiny-invariant': {
+        source: 'npm:tiny-invariant@1.3.1',
+        repository: `file://${source.path}`,
+        ref: 'main',
+      },
+      gone: `file://${path.join(tempDir, 'no-such-repo')}`,
     },
-    git: { gone: `file:${path.join(tempDir, 'no-such-repo')}` },
   });
 
   const clone = await cloneReferences(projectRoot, { storeDir });
@@ -267,7 +275,7 @@ test('one unreachable git reference does not discard the packages that cloned', 
   );
   const problem = clone.problems.find((candidate) => candidate.reference === 'git:gone');
   assert.equal(problem?.severity, 'error');
-  assert.match(problem?.fix ?? '', /correct git\.gone in agent-reference\.json/);
+  assert.match(problem?.fix ?? '', /correct references\.gone\.source in agent-reference\.json/);
 });
 
 async function scenario(
