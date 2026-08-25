@@ -24,6 +24,7 @@ import { loadReferenceContext, type LoadedReferenceContext } from './reference-c
 import { configuredReferences, knownSelectorsMessage } from './sets.ts';
 import { classifySource, derivedName, type ClassifiedSource } from './source.ts';
 import {
+  formatCoordinate,
   parsePackageCoordinate,
   selectInstalledPackage,
   SUPPORTED_ECOSYSTEM,
@@ -171,7 +172,7 @@ async function getConfigured(
     const resolvedPath = resolveReferencePath(worktreeOptions.projectRoot, reference.path);
     if (!(await pathExists(resolvedPath))) {
       throw new Error(
-        `paths.${reference.name} points at ${resolvedPath}, which does not exist. A path reference is already on this machine and cannot be materialized; create or correct that path.`,
+        `references.${reference.name} points at ${resolvedPath}, which does not exist. A path reference is already on this machine and cannot be materialized; create or correct that path.`,
       );
     }
     return {
@@ -223,7 +224,7 @@ async function getConfigured(
   const dependency = context.configPackages.packages.find((entry) => entry.name === reference.name);
   if (!dependency) {
     throw new Error(
-      `packages.${reference.name} is declared but carries no version. Give it an exact version such as "1.2.3".`,
+      `references.${reference.name} is declared but carries no version. Give it an exact version such as "npm:${reference.name}@1.2.3".`,
     );
   }
 
@@ -430,7 +431,9 @@ function resultProblem(
       fix: result.mirrorStale
         ? `The mirror could not be updated on this run, so the release commit may not be here yet rather than missing. With the remote reachable, run ${getCommand(name)} again. If it still misses, ${pinFix(name, version, result.metadata.repositoryUrl, storeDir, configFile)}`
         : pinFix(name, version, result.metadata.repositoryUrl, storeDir, configFile),
-      configPatch: { packages: { [name]: { version, ref: '<commit-or-tag>' } } },
+      configPatch: {
+        references: { [name]: { source: formatCoordinate(name, version), ref: '<commit-or-tag>' } },
+      },
       configFile,
     };
   }
@@ -444,7 +447,7 @@ function resultProblem(
       directory && directory !== '.'
         ? `${directory}/ inside the checkout`
         : directory === '.'
-          ? `the repository root, as packages.${name}.directory asks for`
+          ? `the repository root, as references.${name}.directory asks for`
           : `the repository root${nearMiss}`;
     return {
       reference: `package:${name}`,
@@ -542,6 +545,7 @@ export function gitDirectoryProblem(
   if (!result.directoryMissing || !result.directory) return null;
   return missingDirectoryProblem(
     reference.name,
+    reference.spec,
     result.directory,
     result.checkoutRef,
     result.worktreePath,

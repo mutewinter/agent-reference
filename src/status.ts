@@ -133,6 +133,7 @@ export async function getStatusReport(
     sets: resolveSets(config).map((set) => ({
       name: set.name,
       description: set.description,
+      scope: set.scope,
       references: set.members.map(setMemberKey),
     })),
     references,
@@ -173,6 +174,7 @@ function collectProblems(
         problems.push(
           missingDirectoryProblem(
             entry.name,
+            configured.spec,
             configured.directory,
             configured.ref,
             entry.repositoryPath ?? '',
@@ -197,8 +199,11 @@ function collectProblems(
         reference,
         severity: 'warning',
         summary: `${entry.name} is pinned to ${drifted.pinned}, but this project installs ${drifted.installed.join(' and ')} (${drifted.importers.join(', ')}).`,
-        fix: `If the pin is deliberate, say so in references.${entry.name}.description. Otherwise set references.${entry.name} in ${configFile} to ${source} and run ${getCommand(entry.name)}.`,
-        configPatch: { references: { [entry.name]: source } },
+        fix: `If the pin is deliberate, say so in references.${entry.name}.description. Otherwise set references.${entry.name}.source in ${configFile} to ${source} and run ${getCommand(entry.name)}.`,
+        // The object form, so a shallow merge leaves `ref`, `directory` and the
+        // description that explains the pin where they are. A bare string would
+        // replace the entry the fix above tells you to annotate.
+        configPatch: { references: { [entry.name]: { source } } },
         configFile,
       });
     }
@@ -465,7 +470,7 @@ function actionForPackageStatus(
 ): string {
   if (status === 'ready') return READY_ACTION;
   if (status === 'unresolvable') {
-    return `Materializing already failed for this reference; trying again unchanged will fail the same way. See problems for the fix, which usually means setting packages.${dependency.name}.ref or .repository.`;
+    return `Materializing already failed for this reference; trying again unchanged will fail the same way. See problems for the fix, which usually means setting references.${dependency.name}.ref or .repository.`;
   }
   if (status === 'stale') {
     return `The lockfile now has ${dependency.version}; run ${getCommand(dependency.name)} for it. The existing checkout is still valid for ${clonedVersion ?? 'the old version'}.`;

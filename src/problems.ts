@@ -79,6 +79,7 @@ export function gitUnresolvedProblem(
  */
 export function missingDirectoryProblem(
   name: string,
+  source: string,
   directory: string,
   ref: string | null,
   repositoryPath: string,
@@ -91,7 +92,11 @@ export function missingDirectoryProblem(
     severity: 'error',
     summary: `references.${name} asks for ${directory}, which is not in this checkout${at}. The path is the repository root, so it is the whole repository rather than that subtree.`,
     fix: `List what is actually there with: ls ${repositoryPath}. Set references.${name}.directory in ${configFile} to the current path, or remove it to read from the root on purpose. Upstream moving a directory is the usual cause.`,
-    configPatch: { references: { [name]: { directory: '<path-in-repository>' } } },
+    // The source rides along because the entry being patched is usually a bare
+    // string, so there is no object for `directory` to merge into.
+    configPatch: {
+      references: { [name]: { source, directory: '<path-in-repository>' } },
+    },
     configFile,
   };
 }

@@ -336,8 +336,10 @@ test('a drift patch edits the entry that is there, as a whole coordinate', async
   const drift = report.problems.find((problem) => problem.summary.includes('is pinned to 1.0.0'));
   // The version lives in the source, so the patch replaces the whole coordinate rather than
   // a separate version field that could disagree with it.
+  // The object form, so a shallow merge leaves a ref, a directory and the description
+  // that explains the pin where they are.
   assert.deepEqual(drift?.configPatch, {
-    references: { 'tiny-invariant': 'npm:tiny-invariant@1.3.3' },
+    references: { 'tiny-invariant': { source: 'npm:tiny-invariant@1.3.3' } },
   });
   assert.match(drift?.fix ?? '', /references\.tiny-invariant/);
 });
