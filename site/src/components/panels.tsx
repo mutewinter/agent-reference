@@ -22,7 +22,7 @@ export function Panel({
 }) {
   return (
     <div
-      className={`group flex flex-col border border-line ${
+      className={`group flex min-w-0 flex-col border border-line ${
         tone === 'term' ? 'bg-term' : 'bg-panel'
       }`}
     >
@@ -51,6 +51,9 @@ export function Panel({
  */
 export function Tree({ text }: { text: string }) {
   return (
+    // The one block that does not wrap: a wrapped continuation lands under the
+    // box-drawing and reads as another entry, so the shape is gone. It scrolls
+    // inside the panel instead, which `min-w-0` up there is what allows.
     <pre className="leading-code">
       {text.split('\n').map((line, i) => {
         const match = line.match(/^([\u2500-\u257F ]*)(.*)$/u)
@@ -162,7 +165,7 @@ function Line({ text, inline = false }: { text: string; inline?: boolean }) {
  */
 export function Session({ text }: { text: string }) {
   return (
-    <pre className="leading-code">
+    <pre className="code-wrap leading-code">
       {text.split('\n').map((line, i) => {
         if (line === '') return <div key={i}>&nbsp;</div>
 
@@ -213,7 +216,7 @@ export function Session({ text }: { text: string }) {
 
 export function Term({ text }: { text: string }) {
   return (
-    <pre className="leading-code">
+    <pre className="code-wrap leading-code">
       {text.split('\n').map((line, i) => (
         <Line key={`${i}-${line}`} text={line} />
       ))}

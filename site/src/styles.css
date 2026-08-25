@@ -96,3 +96,29 @@ a {
   margin: 0;
   padding: 0;
 }
+
+/* Code wraps rather than scrolls. A line only breaks when the box is too narrow
+   for it, so nothing moves on a desktop; on a phone the alternative is a page of
+   boxes you drag sideways one at a time. `anywhere` is what lets a path with no
+   spaces in it break at all, and it also tells the grid this block can be narrow,
+   which is what keeps a long line from widening the page instead. */
+.code-wrap,
+.shiki-block pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A continuation is pulled in under the line it belongs to, so a wrapped path
+   reads as the rest of that path rather than as the next entry down. */
+.code-wrap > div,
+.shiki-block .line {
+  padding-left: 3ch;
+  text-indent: -3ch;
+}
+
+/* Shiki emits one inline span per line with a newline between them, and the
+   indent above only applies to a block. */
+.shiki-block .line {
+  display: inline-block;
+  width: 100%;
+}

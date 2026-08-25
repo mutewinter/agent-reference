@@ -115,7 +115,7 @@ export function ForYou({
     <div>
       <Heading>{pageCopy.install.heading}</Heading>
       <div className="group border border-line bg-term p-4 text-sm">
-        <pre className="leading-code">
+        <pre className="code-wrap leading-code">
           {/* The button sits on the line it copies. In the corner it was
               ambiguous which of three commands it would take. */}
           <div className="flex items-center gap-3">
