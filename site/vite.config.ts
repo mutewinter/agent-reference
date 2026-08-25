@@ -9,7 +9,7 @@ import type { ThemeRegistrationRaw } from 'shiki';
 import { defineConfig } from 'vite';
 
 import { renderCliReference } from './cli-reference.ts';
-import { samples } from './code-samples.ts';
+import { fragments, samples } from './code-samples.ts';
 
 // The site states the version of the CLI it documents, read from the package
 // at the repository root rather than restated here, so the two cannot disagree.
@@ -44,18 +44,21 @@ function highlightedSnippets() {
     },
     async load(loaded: string) {
       if (loaded !== resolved) return;
+      // Fragments ride along: they are highlighted the same way and read back
+      // through the same map, they are simply not whole configs.
+      const blocks: Record<string, { lang: string; code: string }> = { ...samples, ...fragments };
       const highlighter = await createHighlighter({
         themes: [THEME],
-        langs: [...new Set(Object.values(samples).map((s) => s.lang))],
+        langs: [...new Set(Object.values(blocks).map((block) => block.lang))],
       });
       // The raw source travels with the rendered HTML: the page offers these
       // for copying, and a clipboard wants the text, not the markup.
       const rendered = Object.fromEntries(
-        Object.entries(samples).map(([name, sample]) => [
+        Object.entries(blocks).map(([name, block]) => [
           name,
           {
-            html: highlighter.codeToHtml(sample.code, { lang: sample.lang, theme: THEME.name }),
-            code: sample.code,
+            html: highlighter.codeToHtml(block.code, { lang: block.lang, theme: THEME.name }),
+            code: block.code,
           },
         ]),
       );

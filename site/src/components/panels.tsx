@@ -263,8 +263,8 @@ function sessionLine(line: string, i: number): ReactElement<{ className?: string
 
   if (line.startsWith('> ')) {
     return (
-      <div key={i} className="text-muted">
-        <span className="select-none">{'> '}</span>
+      <div key={i} className="prompt">
+        <span className="text-dim select-none">{'> '}</span>
         {line.slice(2)}
       </div>
     );

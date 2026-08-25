@@ -34,18 +34,37 @@
   ⎿ 2,723 sessions across claude-code, codex and opencode
     mine them for the sources this project reaches for
 
+* Read(pnpm-lock.yaml)
+  ⎿ effect 4.0.0-rc.111
+
 * Bash(rg -o 'github:[^ ]+' ~/.claude/projects | sort | uniq -c | sort -rn)
   ⎿ 41 Effect-TS/website
     12 earendil-works/pi
-
-* Read(pnpm-lock.yaml)
-  ⎿ effect 4.0.0-rc.111
 
 * Write(agent-reference.json)
   ⎿ 3 references
 
 * Bash(agent-reference validate)
   ⎿ ok: agent-reference.json defines 3 references in 0 sets
+```
+
+Nothing about how you work changes. The agent notices what it needs, takes the source by name, and reads the version this project actually installs.
+
+```text
+> Implement an edit tool like pi's, using Effect v4
+
+* Skill(agent-reference)
+  ⎿ Launching skill: agent-reference
+
+* Bash(agent-reference get pi)
+  ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd46192
+* Read(…/packages/coding-agent/src/core/tools/edit.ts)
+  ⎿ Read 461 lines
+
+* Bash(agent-reference get effect-docs)
+  ⎿ ~/.agent-reference/src/…/website/6ee985b1/…/docs/v4
+* Read(…/docs/v4/platform/file-system.mdx)
+  ⎿ Read 115 lines
 ```
 <!-- /generated -->
 
@@ -69,51 +88,6 @@ npm install -g agent-reference
 cd ~/code/acme/web
 claude "Help me set up agent-reference"       # or codex, opencode, pi
 ```
-<!-- /generated -->
-
-## Then use your agent normally
-
-<!-- generated:then-use -->
-Nothing about how you work changes. The agent notices what it needs, takes the source by name, and reads the version this project actually installs.
-
-```text
-$ claude "Implement an edit tool like pi's, using Effect v4"
-
-* Skill(agent-reference)
-  ⎿ Launching skill: agent-reference
-
-* Bash(agent-reference get pi)
-  ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd46192
-* Read(…/packages/coding-agent/src/core/tools/edit.ts)
-  ⎿ Read 461 lines
-
-* Bash(agent-reference get effect-docs)
-  ⎿ ~/.agent-reference/src/…/website/6ee985b1/…/docs/v4
-* Read(…/docs/v4/platform/file-system.mdx)
-  ⎿ Read 115 lines
-```
-<!-- /generated -->
-
-## The format
-
-<!-- generated:format -->
-One `references` map, from the name your agent asks for to where that source comes from. An object with `source` is a reference; an object with `references` is a set. That is the only rule.
-
-| a value may be | |
-| --- | --- |
-| `"github:openai/codex"` | a reference: one name, one source |
-| `{ "source": "…", "ref": "…" }` | a reference, with more said about it |
-| `["openai/codex", "./docs"]` | a set: one name, several sources |
-| `{ "references": ["…", "…"] }` | a set, with a heading |
-
-| a source may be | |
-| --- | --- |
-| `./docs/decisions` | a folder or a file, read where it lives |
-| `github:openai/codex` | a repository, at its default branch |
-| `openai/codex#v0.20.0` | the same, at a tag, branch, or commit |
-| `npm:zod@3.22.0` | a package, at an exact version |
-
-A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. There is no flag for it and no second namespace.
 <!-- /generated -->
 
 ## Examples
@@ -372,6 +346,28 @@ Skip this if you like: your agent handles all of it. It is here for anyone who w
 ```
 
 All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.
+<!-- /generated -->
+
+## The format
+
+<!-- generated:format -->
+One `references` map, from the name your agent asks for to where that source comes from. An object with `source` is a reference; an object with `references` is a set. That is the only rule.
+
+| a value may be | |
+| --- | --- |
+| `"github:openai/codex"` | a reference: one name, one source |
+| `{ "source": "…", "ref": "…" }` | a reference, with more said about it |
+| `["openai/codex", "./docs"]` | a set: one name, several sources |
+| `{ "references": ["…", "…"] }` | a set, with a heading |
+
+| a source may be | |
+| --- | --- |
+| `"./docs/decisions"` | a folder or a file, read where it lives |
+| `"github:openai/codex"` | a repository, at its default branch |
+| `"openai/codex#v0.20.0"` | the same, at a tag, branch, or commit |
+| `"npm:zod@3.22.0"` | a package, at an exact version |
+
+A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. There is no flag for it and no second namespace.
 <!-- /generated -->
 
 ## The commands

@@ -13,6 +13,7 @@ import {
   copy,
   examples,
   format,
+  fragments,
   howItWorks,
   install,
   prompt,
@@ -65,11 +66,11 @@ function renderCommands(): string {
  * no columns, so the panel labels become the table headings instead.
  */
 function renderFormat(): string {
-  const table = (heading: string, rows: Array<{ code: string; means: string }>) =>
+  const table = (heading: string, rows: typeof format.values) =>
     [
       `| ${heading} | |`,
       '| --- | --- |',
-      ...rows.map((row) => `| \`${row.code}\` | ${row.means} |`),
+      ...rows.map((row) => `| \`${fragments[row.fragment].code}\` | ${row.means} |`),
     ].join('\n');
 
   return [
@@ -94,10 +95,14 @@ function renderHowItWorks(): string {
 const generated: Record<string, string> = {
   // Bold, so a lone sentence under the title reads as the tagline it is.
   tagline: `**${copy.tagline}**`,
-  hero: [labeled('agent-reference.json', 'shared'), fence('text', terminals.setup)].join('\n\n'),
+  hero: [
+    labeled('agent-reference.json', 'shared'),
+    fence('text', terminals.setup),
+    copy.thenUse.note,
+    fence('text', terminals.session),
+  ].join('\n\n'),
   agent: [`### ${copy.agent.heading}`, fence('text', setupPrompt), copy.agent.note].join('\n\n'),
   install: renderInstall(),
-  'then-use': [copy.thenUse.note, fence('text', terminals.session)].join('\n\n'),
   format: renderFormat(),
   examples: examples.map(renderExample).join('\n\n'),
   'how-it-works': renderHowItWorks(),

@@ -236,12 +236,12 @@ export const terminals = {
   \u23BF 2,723 sessions across claude-code, codex and opencode
     mine them for the sources this project reaches for
 
+* Read(pnpm-lock.yaml)
+  \u23BF effect 4.0.0-rc.111
+
 * Bash(rg -o 'github:[^ ]+' ~/.claude/projects | sort | uniq -c | sort -rn)
   \u23BF 41 Effect-TS/website
     12 earendil-works/pi
-
-* Read(pnpm-lock.yaml)
-  \u23BF effect 4.0.0-rc.111
 
 * Write(agent-reference.json)
   \u23BF 3 references
@@ -249,7 +249,7 @@ export const terminals = {
 * Bash(agent-reference validate)
   \u23BF ok: agent-reference.json defines 3 references in 0 sets`,
 
-  session: `$ claude "Implement an edit tool like pi's, using Effect v4"
+  session: `> Implement an edit tool like pi's, using Effect v4
 
 * Skill(agent-reference)
   \u23BF Launching skill: agent-reference
@@ -402,23 +402,51 @@ export const howItWorks: HowItWorks = {
 export const heroChunks = [2, 4, 5, 4, 2];
 
 /**
+ * The pieces of JSON the format section points at. Separate from `samples`
+ * because none of them is a config: they are the shapes a value or a source may
+ * take, and running them through the parser the way a sample is run would ask
+ * a fragment to be a whole file.
+ */
+export const fragments = {
+  valueString: { lang: 'jsonc', code: '"github:openai/codex"' },
+  valueObject: { lang: 'jsonc', code: '{ "source": "…", "ref": "…" }' },
+  valueArray: { lang: 'jsonc', code: '["openai/codex", "./docs"]' },
+  valueSet: { lang: 'jsonc', code: '{ "references": ["…", "…"] }' },
+  sourcePath: { lang: 'jsonc', code: '"./docs/decisions"' },
+  sourceRepo: { lang: 'jsonc', code: '"github:openai/codex"' },
+  sourceRef: { lang: 'jsonc', code: '"openai/codex#v0.20.0"' },
+  sourcePackage: { lang: 'jsonc', code: '"npm:zod@3.22.0"' },
+} as const;
+
+/**
  * The whole format, which is short enough to put on the page now that it is one
  * map. The first table is what a value may be, the second what a source may be.
  */
-export const format = {
+export interface FormatRow {
+  fragment: keyof typeof fragments;
+  means: string;
+}
+
+export const format: {
+  heading: string;
+  lead: string;
+  values: FormatRow[];
+  sources: FormatRow[];
+  note: string;
+} = {
   heading: 'The format',
   lead: 'One `references` map, from the name your agent asks for to where that source comes from. An object with `source` is a reference; an object with `references` is a set. That is the only rule.',
   values: [
-    { code: '"github:openai/codex"', means: 'a reference: one name, one source' },
-    { code: '{ "source": "…", "ref": "…" }', means: 'a reference, with more said about it' },
-    { code: '["openai/codex", "./docs"]', means: 'a set: one name, several sources' },
-    { code: '{ "references": ["…", "…"] }', means: 'a set, with a heading' },
+    { fragment: 'valueString', means: 'a reference: one name, one source' },
+    { fragment: 'valueObject', means: 'a reference, with more said about it' },
+    { fragment: 'valueArray', means: 'a set: one name, several sources' },
+    { fragment: 'valueSet', means: 'a set, with a heading' },
   ],
   sources: [
-    { code: './docs/decisions', means: 'a folder or a file, read where it lives' },
-    { code: 'github:openai/codex', means: 'a repository, at its default branch' },
-    { code: 'openai/codex#v0.20.0', means: 'the same, at a tag, branch, or commit' },
-    { code: 'npm:zod@3.22.0', means: 'a package, at an exact version' },
+    { fragment: 'sourcePath', means: 'a folder or a file, read where it lives' },
+    { fragment: 'sourceRepo', means: 'a repository, at its default branch' },
+    { fragment: 'sourceRef', means: 'the same, at a tag, branch, or commit' },
+    { fragment: 'sourcePackage', means: 'a package, at an exact version' },
   ],
   note: 'A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. There is no flag for it and no second namespace.',
 };
@@ -442,8 +470,8 @@ export const copy = {
   install: {
     heading: 'Install it yourself',
   },
+  /** The line between the two sessions in the hero figure, on both surfaces. */
   thenUse: {
-    heading: 'Then use your agent normally',
     note: 'Nothing about how you work changes. The agent notices what it needs, takes the source by name, and reads the version this project actually installs.',
   },
   commands: {

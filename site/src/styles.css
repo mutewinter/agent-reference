@@ -135,42 +135,45 @@ a {
    just after the Write that produced it. */
 .rv {
   opacity: 0;
-  animation: rv-in 400ms ease-out var(--d, 0ms) forwards;
+  animation: rv-in 500ms ease-out var(--d, 0ms) forwards;
 }
 
+/* Paced to be read rather than watched: a tool call lands, you take it in, and
+   the file grows by the entry that call found. Each `rv-w` sits just after the
+   `rv-s` that discovered it, and the last lands with the Write. */
 .rv-s0 {
   --d: 0ms;
 }
 .rv-s1 {
-  --d: 900ms;
+  --d: 1400ms;
 }
 .rv-s2 {
-  --d: 1800ms;
+  --d: 2800ms;
 }
 .rv-s3 {
-  --d: 2700ms;
+  --d: 4200ms;
 }
 .rv-s4 {
-  --d: 3600ms;
+  --d: 5600ms;
 }
 .rv-s5 {
-  --d: 4500ms;
+  --d: 7000ms;
 }
 
 .rv-w1 {
-  --d: 1400ms;
+  --d: 2000ms;
 }
 .rv-w2 {
-  --d: 2100ms;
+  --d: 3400ms;
 }
 .rv-w3 {
-  --d: 2600ms;
+  --d: 4800ms;
 }
 .rv-w4 {
-  --d: 3100ms;
+  --d: 5200ms;
 }
 .rv-w5 {
-  --d: 3800ms;
+  --d: 5600ms;
 }
 
 @keyframes rv-in {
@@ -188,4 +191,22 @@ a {
     opacity: 1;
     animation: none;
   }
+}
+
+/* What the human sent, set the way the deck sets it: a full-bleed band inside
+   the panel body rather than another line of prose among the tool calls. The
+   negative margin is the panel's own padding, so the band runs edge to edge,
+   and the wrapped-code indent is undone because a prompt is a sentence rather
+   than a path. */
+.code-wrap > .prompt {
+  /* The band runs to the panel edge, the text sits on the panel's own left
+     margin, and a wrapped prompt hangs under the first word rather than under
+     the `>`. Written against `.code-wrap >` so it outranks the hanging indent
+     every other line in a transcript uses, which is measured for paths. */
+  margin: 0 -1rem 1.1em;
+  padding: 3px 1rem;
+  padding-left: calc(1rem + 2ch);
+  background: var(--color-panel);
+  color: var(--color-fg);
+  text-indent: -2ch;
 }

@@ -9,6 +9,7 @@ import {
   type Example as ExampleData,
   examples,
   format,
+  type FormatRow,
   heroChunks,
   howItWorks,
   install,
@@ -88,20 +89,32 @@ function HowItWorks() {
 }
 
 /**
- * The one block on the page that moves. A first run, left to right: the agent
- * reads the brief and mines the machine for what this project reaches for, and
- * the config fills in beside it. The pairing is the pitch, so it sits above
- * everything else and nothing is asked of the reader to see it.
+ * The whole pitch, in one figure. Two sessions down the left, the file they
+ * write and then read down the right, and the file stays put while you scroll
+ * from one to the other: a config is written once and used from then on, so the
+ * page holds it still and moves the work past it.
+ *
+ * The order in the markup is setup, config, use, which is how it reads in one
+ * column on a phone. On a wide screen the config takes the second column across
+ * both rows instead.
  */
 function Hero() {
   return (
-    <div className="mt-10 grid gap-5 lg:grid-cols-2">
+    <div className="mt-10 grid gap-5 lg:grid-cols-2 lg:items-start">
       <Panel tone="term" label="agent">
         <Session text={terminals.setup} reveal />
       </Panel>
-      <Panel label="agent-reference.json" copy={source('shared')}>
-        <Highlighted name="shared" reveal={{ chunks: heroChunks }} />
-      </Panel>
+      <div className="lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <Panel label="agent-reference.json" copy={source('shared')}>
+          <Highlighted name="shared" reveal={{ chunks: heroChunks }} />
+        </Panel>
+      </div>
+      <div className="lg:col-start-1">
+        <p className="mb-4 text-muted">{copy.thenUse.note}</p>
+        <Panel tone="term" label="agent">
+          <Session text={terminals.session} />
+        </Panel>
+      </div>
     </div>
   );
 }
@@ -124,13 +137,15 @@ function Format() {
   );
 }
 
-/** Two columns of code against prose, laid out so the code reads as a column. */
-function Rows({ rows }: { rows: Array<{ code: string; means: string }> }) {
+/** Two columns of code against prose, highlighted the way every other block is. */
+function Rows({ rows }: { rows: FormatRow[] }) {
   return (
     <dl className="grid items-baseline gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
       {rows.map((row) => (
-        <div key={row.code} className="contents">
-          <dt className="text-fg">{row.code}</dt>
+        <div key={row.fragment} className="contents">
+          <dt>
+            <Highlighted name={row.fragment} />
+          </dt>
           <dd className="text-muted">{row.means}</dd>
         </div>
       ))}
@@ -155,19 +170,6 @@ function Home() {
         </div>
       </Section>
 
-      <Section label={copy.thenUse.heading}>
-        <p className="mb-6 max-w-3xl text-muted">{copy.thenUse.note}</p>
-        <div className="max-w-3xl">
-          <Panel tone="term" label="agent">
-            <Session text={terminals.session} />
-          </Panel>
-        </div>
-      </Section>
-
-      <Section label={format.heading}>
-        <Format />
-      </Section>
-
       <Section label="Examples">
         {examples.map((example) => (
           <Example key={example.sample} {...example} />
@@ -176,6 +178,10 @@ function Home() {
 
       <Section label={howItWorks.heading}>
         <HowItWorks />
+      </Section>
+
+      <Section label={format.heading}>
+        <Format />
       </Section>
 
       <Section label={copy.commands.heading}>
