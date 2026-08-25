@@ -12,6 +12,7 @@ import {
   cd,
   copy,
   examples,
+  format,
   howItWorks,
   install,
   prompt,
@@ -75,6 +76,26 @@ function renderCommands(): string {
     .join('\n\n');
 }
 
+/**
+ * The format, as two tables. The site sets these as facing panels; markdown has
+ * no columns, so the panel labels become the table headings instead.
+ */
+function renderFormat(): string {
+  const table = (heading: string, rows: Array<{ code: string; means: string }>) =>
+    [
+      `| ${heading} | |`,
+      '| --- | --- |',
+      ...rows.map((row) => `| \`${row.code}\` | ${row.means} |`),
+    ].join('\n');
+
+  return [
+    wrap(format.lead),
+    table('a value may be', format.values),
+    table('a source may be', format.sources),
+    wrap(format.note),
+  ].join('\n\n');
+}
+
 /** The two configs, the store they leave behind, and a line on either side. */
 function renderHowItWorks(): string {
   return [
@@ -89,11 +110,13 @@ function renderHowItWorks(): string {
 const generated: Record<string, string> = {
   // Bold, so a lone sentence under the title reads as the tagline it is.
   tagline: `**${copy.tagline}**`,
-  hero: [labeled('agent-reference.json', 'shared'), fence('text', terminals.session)].join('\n\n'),
+  hero: [labeled('agent-reference.json', 'shared'), fence('text', terminals.setup)].join('\n\n'),
   agent: [`### ${copy.agent.heading}`, fence('text', setupPrompt), wrap(copy.agent.note)].join(
     '\n\n',
   ),
   install: renderInstall(),
+  'then-use': [wrap(copy.thenUse.note), fence('text', terminals.session)].join('\n\n'),
+  format: renderFormat(),
   examples: examples.map(renderExample).join('\n\n'),
   'how-it-works': renderHowItWorks(),
   commands: [wrap(copy.commands.note), renderCommands()].join('\n\n'),
