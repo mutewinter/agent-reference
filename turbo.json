@@ -89,6 +89,13 @@
       "cache": false,
       "persistent": true,
       "interactive": true
+    },
+    // The deck builds into the site's static assets rather than on the site's
+    // build, so a deploy never installs a presentation framework. Its output is
+    // committed for the same reason, and this task is what regenerates it.
+    "talk:build": {
+      "inputs": ["talks/2026-08-25-nashjs/**", "!talks/2026-08-25-nashjs/node_modules/**"],
+      "outputs": ["site/public/talk/**"]
     }
   }
 }

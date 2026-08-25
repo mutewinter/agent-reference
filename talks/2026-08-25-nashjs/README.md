@@ -10,6 +10,14 @@ pnpm install && pnpm dev
 
 The public view is <http://localhost:6181>, the presenter view with notes and a timer is <http://localhost:6181/presenter>, and `pnpm export` writes a PDF (add `playwright-chromium` first).
 
+## Publishing
+
+`pnpm talk:build` from the repository root renders the deck to `site/public/talk/`, which the site serves at <https://agent-reference.dev/talk>. That output is committed, and it is stale until the command is run again: nothing rebuilds it on the way to production.
+
+It is built here rather than on the site's build because a Workers deploy installs `site/`'s lockfile and nothing else, and putting a presentation framework on the deploy path is the cost [the three-installs decision](../../docs/decisions/2026-08-25-one-command-three-installs.md) declined to pay. A deck for a talk that already happened is an artifact, so it is checked in like one.
+
+Slidev routes with history, so `/talk` serves the deck and paging through it rewrites the URL, but reloading on `/talk/7` falls through to the site's 404. Link the bare `/talk`. Setting `routerMode: hash` in the headmatter would fix that at the cost of hash URLs everywhere, including in development.
+
 This directory is its own project with its own lockfile, not a workspace package. The library's `files` allowlist already excludes it from the published tarball, so the only question a workspace would answer is whether `pnpm install` at the repository root should also install a presentation framework. It should not.
 
 ## Conventions

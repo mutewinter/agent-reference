@@ -32,6 +32,8 @@ The Worker is `agent-reference-site` and serves `agent-reference.dev` as a custo
 
 The build renders the CLI reference by running the CLI out of the repository root, and that CLI imports its own dependencies. A build installs this directory's lockfile and nothing else, which leaves the root without `node_modules` and the first command failing to resolve `semver`, so `pnpm build` runs [cli-deps.mjs](./cli-deps.mjs) first: it installs the root's runtime dependencies when they are not already resolvable, and on a machine that has installed the root it does nothing.
 
+`public/talk/` is the NashJS deck, built out of `talks/2026-08-25-nashjs` by `pnpm talk:build` at the repository root and committed. Vite copies `public/` verbatim, so it ships with the site and needs nothing on the build. Re-run that command after changing the slides; nothing here notices that they moved.
+
 ## Gotchas
 
 - `allowBuilds` in [pnpm-workspace.yaml](./pnpm-workspace.yaml) is a map of name to boolean, not a list. A YAML sequence is silently rewritten to keys `'0'`, `'1'` and matches nothing, so the install keeps failing with `ERR_PNPM_IGNORED_BUILDS` while the setting looks present.

@@ -1,0 +1,1 @@
+import{B as e,L as t,g as n,y as r}from"../modules/shiki-B6CMAte1.js";import{gt as i}from"../index-C368fbLC.js";var a={},o={class:`slidev-layout statement`},s={class:`my-auto`};function c(i,a){return t(),r(`div`,o,[n(`div`,s,[e(i.$slots,`default`)])])}var l=i(a,[[`render`,c]]);export{l as t};
