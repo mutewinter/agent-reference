@@ -7,12 +7,18 @@ description: Get readable upstream source on demand - any dependency at its exac
 
 One verb does the work: `agent-reference get <spec>` materializes a reference and prints its path. Run it from the project root at the moment you need the source, not in advance.
 
+One grammar, whatever the source is:
+
 ```sh
 agent-reference get zod                     # the version in this project's lockfile
 agent-reference get zod@3.22.0              # any other version, coexisting with the first
 agent-reference get vercel-labs/just-bash   # any GitHub repo; git URLs too
-agent-reference get design-notes            # a configured reference or set, by name
+agent-reference get ./docs/decisions        # a path, read where it lives
+agent-reference get design-notes            # a configured name
+agent-reference get harnesses               # a set: one name, every path in it
 ```
+
+A set is a reference that resolves to more than one path, and its name works everywhere a single name does. There is nothing to qualify: one name means one thing in a project.
 
 ## Writing code against a library
 
@@ -29,6 +35,12 @@ Run it before adding a reference, before editing `agent-reference.json` or `agen
 ## Finding where something is
 
 When the user names a repository, app, folder, or file and you have no path for it, read `agent-reference.json` and `agent-reference.local.json` directly. They are the index: names, paths, and descriptions, resolved without fetching anything or running a command. A name that is not there is not declared, so say so and ask for the path rather than searching the filesystem for it. `get` is for when you need the source itself.
+
+## If the command is not found
+
+`agent-reference: command not found` means npm's global bin directory is not on this shell's `PATH`, not that the tool is missing. It is the usual state on Windows, where the agent's shell is Git Bash while fnm or nvm keeps that directory inside its own tree, and it happens anywhere the agent was launched from a shell that never ran the version manager's hook.
+
+`npx --yes agent-reference <command>` runs regardless and is the way through. Say what happened, because the fix is one line in the user's shell profile and they cannot see the error you saw. npx resolves from the registry, so it may not be the version installed on this machine.
 
 ## Safety rules
 
