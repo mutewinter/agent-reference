@@ -163,6 +163,17 @@
   padding-top: 6px;
 }
 
+/* Two sessions on one slide, so the room watches it do the same thing twice
+   rather than being told that it does. */
+.slidev-layout.twin .term + .step,
+.slidev-layout.twin .step {
+  margin-top: 18px;
+}
+
+.slidev-layout.twin .sess {
+  font-size: 12px;
+}
+
 /* ------------------------------------------------------- terminal frame */
 
 /* Enough chrome to read as a terminal and no more: an empty strip, borrowing
@@ -239,9 +250,25 @@
   color: #fff;
 }
 
-/* A failing command, in the red a terminal would print it in. */
-.sess .e {
+/* A failing command, in the red a terminal would print it in, and a diff in
+   the two colors one is really printed in. */
+.sess .e,
+.sess .del {
   color: #ff6b6b;
+}
+
+.sess .add {
+  color: var(--ok);
+}
+
+/* An empty input, until it is pasted into. The caret has to leave the flow
+   rather than fade, or the pasted text lands one character to the right. */
+.p .slidev-vclick-hidden {
+  display: none;
+}
+
+.caret {
+  color: var(--term-dim);
 }
 
 /* What the human sent: a full-bleed band inside the terminal body, one line
