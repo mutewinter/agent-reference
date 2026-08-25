@@ -5,13 +5,21 @@
   "name": "agent-reference-site",
   "compatibility_date": "2026-08-24",
   "compatibility_flags": ["nodejs_compat"],
-  // TanStack Start ships its own server entry; there is no handler in this repo.
-  "main": "@tanstack/react-start/server-entry",
-  // Canonical URLs carry no trailing slash: /docs serves its HTML directly and
-  // /docs/ redirects to it. The default does the opposite, which sent every
-  // first visit to a route through a 307.
+  // Wraps the server entry TanStack Start ships, which src/worker.ts delegates
+  // every request it does not answer itself to.
+  "main": "src/worker.ts",
   "assets": {
+    // Canonical URLs carry no trailing slash: /docs serves its HTML directly and
+    // /docs/ redirects to it. The default does the opposite, which sent every
+    // first visit to a route through a 307.
     "html_handling": "drop-trailing-slash",
+    // How the Worker reads a prerendered page back out to answer with it.
+    "binding": "ASSETS",
+    // The homepage is the one URL with two representations, so it is the one
+    // that has to reach the Worker before the assets layer answers with the
+    // HTML. Everything else is served straight from assets and only reaches the
+    // Worker when nothing matched, which is the 404 path.
+    "run_worker_first": ["/"],
   },
   "observability": {
     "enabled": true,

@@ -73,6 +73,11 @@ export const Route = createRootRoute({
     links: [
       { rel: 'stylesheet', href: appCss },
       { rel: 'canonical', href: SITE },
+      // The same two the Worker advertises in `Link` headers, in the document
+      // as well, for an agent that has the HTML in hand and is not going to
+      // look at the response headers again.
+      { rel: 'alternate', type: 'text/markdown', href: '/index.md' },
+      { rel: 'describedby', type: 'text/plain', href: '/llms.txt' },
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
       // iOS will not take the SVG, so the same mark is committed as a PNG.
       { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },

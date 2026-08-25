@@ -26,8 +26,19 @@
         "scripts/**",
         "guide/**",
         "schema/**",
+        "skills/**",
         "site/cli-reference.ts",
         "site/code-samples.ts",
+        "site/page-markdown.ts",
+        "site/negotiate.ts",
+        "site/agent-responses.ts",
+        // Named one by one rather than as `site/public/**`: the deck builds into
+        // that directory too, and hashing it here would miss the cache on every
+        // rebuild of a presentation these tests do not read.
+        "site/public/index.md",
+        "site/public/llms.txt",
+        "site/public/.well-known/**",
+        "site/public/schema/**",
         "README.md",
         "package.json",
         "tsconfig.json"
@@ -41,6 +52,9 @@
         "scripts/**",
         "site/cli-reference.ts",
         "site/code-samples.ts",
+        "site/page-markdown.ts",
+        "site/negotiate.ts",
+        "site/agent-responses.ts",
         ".oxlintrc.json",
         "package.json",
         "tsconfig.json",
@@ -54,6 +68,9 @@
         "scripts/**",
         "site/cli-reference.ts",
         "site/code-samples.ts",
+        "site/page-markdown.ts",
+        "site/negotiate.ts",
+        "site/agent-responses.ts",
         "package.json",
         "tsconfig.json",
         "tsconfig.check.json"
