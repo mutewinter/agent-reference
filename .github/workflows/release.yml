@@ -37,6 +37,13 @@ jobs:
             echo "tag $GITHUB_REF_NAME does not match package.json $version" >&2
             exit 1
           fi
+      # The same gates CI runs. A tag can be pushed from any commit, including one
+      # CI never went green on, and `npm publish` is the only step in this
+      # repository that cannot be taken back. The site's lint and typecheck are
+      # deliberately not here: nothing about the site reaches the tarball.
+      - run: pnpm run format
+      - run: pnpm run lint
+      - run: pnpm run check-types
       - run: pnpm test
       - name: publish
         # A prerelease goes out under `beta` so `npm install -g agent-reference` keeps
