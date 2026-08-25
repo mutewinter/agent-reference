@@ -113,6 +113,7 @@ function Hero() {
         <Panel label="agent-reference.json" copy={source('shared')}>
           <Drafts names={heroDrafts} />
         </Panel>
+        <Prose text={copy.demo.configNote} className="mt-2 text-muted" />
       </div>
     </div>
   );
@@ -157,7 +158,7 @@ function Home() {
     <>
       <section className="pt-8">
         <h1 className="text-2xl text-fg">{copy.title}</h1>
-        <p className="mt-2 mb-6 text-lg text-muted">{copy.tagline}</p>
+        <p className="mt-2 mb-5 text-lg text-muted">{copy.tagline}</p>
         <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:gap-6">
           <ForYourAgent text={setupPrompt} />
           <Or />
@@ -167,14 +168,15 @@ function Home() {
 
       <Section label={copy.demo.heading}>
         <Hero />
-        <Prose text={copy.demo.configNote} className="mt-4 max-w-3xl text-muted" />
 
-        <h3 className="mt-12 text-fg">{copy.thenUse.heading}</h3>
-        <Prose text={copy.thenUse.note} className="mt-1 mb-4 max-w-3xl text-muted" />
-        <div className="max-w-3xl">
+        {/* The second beat of the same story, so it is centered rather than
+            hung off the left edge: one session, with what it means under it. */}
+        <div className="mx-auto mt-14 max-w-3xl">
+          <h3 className="mb-4 text-center text-fg">{copy.thenUse.heading}</h3>
           <Panel tone="term" label="agent">
             <Session text={terminals.session} />
           </Panel>
+          <Prose text={copy.thenUse.note} className="mt-3 text-center text-muted" />
         </div>
       </Section>
 

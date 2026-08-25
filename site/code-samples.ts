@@ -318,40 +318,40 @@ export interface Example {
 
 export const examples: Example[] = [
   {
-    title: 'Multiple repositories',
-    note: 'Let your agent read other repositories checked out on your computer, by name.',
+    title: 'Reference other folders on your computer',
+    note: 'By name, and read where they already are, so there is nothing to keep in sync.',
     tree: 'siblings',
     file: 'web/agent-reference.local.json',
     sample: 'siblings',
   },
   {
-    title: 'Source code you reference',
-    note: 'agent-reference keeps up-to-date clones of anything you want your agent to read, from GitHub or any git remote.',
+    title: 'Reference public or private repos, automatically cloned',
+    note: 'From GitHub or any git remote, kept up to date, and fetched the first time your agent asks for it.',
     file: 'agent-reference.json',
     sample: 'upstream',
   },
   {
-    title: 'Dependencies, at the version you install',
+    title: 'Check out source for exact npm versions',
     note: 'Your agent reads the version this project installs, from the repository rather than from build output. No entry is needed for that. Declare one when there is something about a dependency worth remembering.',
     file: 'agent-reference.json',
     sample: 'pinned',
     terminal: 'pinned',
   },
   {
-    title: 'Skills from another project',
+    title: 'Reference a skill from another project',
     note: 'Let your agent use a skill that lives in another project, without copying it in and letting the two drift.',
     file: 'agent-reference.local.json',
     sample: 'skills',
   },
   {
-    title: 'Global references',
+    title: 'Define references for every agent on your computer',
     note: 'References every agent on this machine can reach, from any folder that has no config of its own.',
     tree: 'global',
     file: '~/agent-reference.local.json',
     sample: 'global',
   },
   {
-    title: 'A name for several sources',
+    title: 'Group references under one name',
     note: 'A set is a reference that resolves to more than one path. Its key is its name, like any other, so one get takes all of them.',
     file: 'agent-reference.json',
     sample: 'together',
@@ -493,10 +493,10 @@ export const copy = {
   demo: {
     heading: 'What it looks like',
     configNote:
-      'Your agent writes that file and keeps it current. Adding a reference later is another sentence to your agent, not an edit you make.',
+      'Your agent maintains this file. It edits it to add new references, and anything new is cloned the first time it is needed.',
   },
   thenUse: {
-    heading: 'Then use your agent normally',
+    heading: 'Now use your agent normally',
     note: 'That is it. From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs, without being asked twice.',
   },
   commands: {
