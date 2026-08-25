@@ -251,9 +251,7 @@ export const terminals = {
   \u23BF 41 Effect-TS/website
     12 earendil-works/pi
 * Update(agent-reference.json)
-  \u23BF 3 references
-* Bash(agent-reference validate)
-  \u23BF ok: agent-reference.json defines 3 references in 0 sets`,
+  \u23BF 3 references`,
 
   session: `> Implement an edit tool like pi's, using Effect v4
 * Skill(agent-reference)
@@ -479,7 +477,7 @@ export const copy = {
     heading: 'Examples',
   },
   agent: {
-    heading: 'Let your agent do it',
+    heading: 'Let your agent set it up',
     note: 'Instructs your agent to install the skill and set up a config for the folders, repositories, and packages you often reference.',
   },
   install: {

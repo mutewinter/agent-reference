@@ -140,11 +140,11 @@ export function renderHomeMarkdown(): string {
     [
       `# ${copy.title}`,
       regions.tagline,
+      `## ${copy.demo.heading}`,
+      regions.hero,
       `## ${copy.getStarted.heading}`,
       regions.agent,
       regions.install,
-      `## ${copy.demo.heading}`,
-      regions.hero,
       `## ${copy.examples.heading}`,
       regions.examples,
       `## ${howItWorks.heading}`,

@@ -158,12 +158,7 @@ function Home() {
     <>
       <section className="pt-8">
         <h1 className="text-2xl text-fg">{copy.title}</h1>
-        <p className="mt-2 mb-10 text-lg text-muted">{copy.tagline}</p>
-        <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:gap-6">
-          <ForYourAgent text={setupPrompt} />
-          <Or />
-          <ForYou cd={cd} install={install} prompt={prompt} agents={agents} />
-        </div>
+        <p className="mt-2 text-lg text-muted">{copy.tagline}</p>
       </section>
 
       <Section label={copy.demo.heading}>
@@ -178,6 +173,17 @@ function Home() {
             <Session text={terminals.session} />
           </Panel>
           <Prose text={copy.thenUse.note} className="mt-3 text-muted" />
+        </div>
+      </Section>
+
+      {/* After the demo rather than before it. The two cards are an instruction,
+          and an instruction reads as an instruction only once the reader has
+          seen what they would be starting. */}
+      <Section label={copy.getStarted.heading}>
+        <div className="grid gap-4 md:grid-cols-[1fr_auto_1fr] md:gap-6">
+          <ForYourAgent text={setupPrompt} />
+          <Or />
+          <ForYou cd={cd} install={install} prompt={prompt} agents={agents} />
         </div>
       </Section>
 

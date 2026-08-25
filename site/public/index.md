@@ -2,24 +2,6 @@
 
 **Give your agents the source**
 
-## Get started
-
-### Let your agent do it
-
-```text
-Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
-```
-
-Instructs your agent to install the skill and set up a config for the folders, repositories, and packages you often reference.
-
-### Install it yourself
-
-```sh
-npm install -g agent-reference
-cd ~/code/acme/web
-claude "Help me set up agent-reference"       # or codex, opencode, pi
-```
-
 ## How it works
 
 ```text
@@ -35,8 +17,6 @@ claude "Help me set up agent-reference"       # or codex, opencode, pi
     12 earendil-works/pi
 * Update(agent-reference.json)
   ⎿ 3 references
-* Bash(agent-reference validate)
-  ⎿ ok: agent-reference.json defines 3 references in 0 sets
 ```
 
 `agent-reference.json`
@@ -77,6 +57,24 @@ Your agent maintains this file, adding references as it needs them and cloning a
 ```
 
 From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs.
+
+## Get started
+
+### Let your agent set it up
+
+```text
+Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
+```
+
+Instructs your agent to install the skill and set up a config for the folders, repositories, and packages you often reference.
+
+### Install it yourself
+
+```sh
+npm install -g agent-reference
+cd ~/code/acme/web
+claude "Help me set up agent-reference"       # or codex, opencode, pi
+```
 
 ## Examples
 
