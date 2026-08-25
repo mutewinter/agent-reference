@@ -1,0 +1,20 @@
+# agent-reference
+
+> Give your agents the source. Readable upstream code on disk, at the exact version your project installs.
+
+agent-reference is a command line tool. It puts readable upstream source on disk and prints the path: any dependency at the exact version a project installs, any git repository, and any file or folder a project declares, each one asked for by name. Nothing is fetched until something asks for it, and a project declares what it references in `agent-reference.json` (committed) or `agent-reference.local.json` (machine-specific).
+
+## When to use this
+
+- You are about to write code against a library whose API you cannot recall exactly. `agent-reference get <name>` puts the repository behind that exact version on disk, with the README, `docs/`, `examples/`, and changelog a published build drops. A docs site carries whatever shipped last; the checkout carries what the project installs.
+- You need to know how something upstream actually works: how it is implemented, how its maintainers test it, why it behaves the way it does, or whether it is worth adopting.
+- The user names a repository, app, folder, or file that is not in the current project and gives no path for it. Read `agent-reference.json` and `agent-reference.local.json`, which are an index of names to sources and resolve without fetching anything.
+- A project you are working in contains `agent-reference.json` or `agent-reference.local.json`, or the user asks to add a reference or set a project up. Run `agent-reference guide` before writing either file; it prints the config format from the installed CLI rather than from memory.
+
+## Docs
+
+- [The page, as markdown](https://agent-reference.dev/index.md): the whole homepage as one markdown document. The homepage itself serves it to any request that sends `Accept: text/markdown`
+- [Agent skill](https://agent-reference.dev/.well-known/agent-skills/agent-reference/SKILL.md): the one verb, when to reach for it, and the safety rules. `npx skills add https://agent-reference.dev` installs it into a harness from this domain
+- [Config JSON Schema](https://agent-reference.dev/schema/agent-reference.schema.json): what `agent-reference.json` and `agent-reference.local.json` are checked against. Read it before writing one; `agent-reference schema` prints the same document from the installed CLI
+- [Source](https://github.com/mutewinter/agent-reference): the CLI, the tests that specify it, and `docs/decisions/` for why the design is what it is
+- [Package](https://www.npmjs.com/package/agent-reference): released versions. `npx agent-reference init` sets a project up without installing anything first

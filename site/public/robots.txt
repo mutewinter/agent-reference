@@ -1,4 +1,16 @@
 User-agent: *
 Allow: /
 
+# What this site asks be done with what it publishes, in the robots.txt syntax
+# contentsignals.org describes. All three are yes, and deliberately so: this is
+# documentation written to be read by agents, and a tool whose whole job is
+# putting source in front of one has no case for withholding its own.
+# It is a statement of intent. Nothing enforces it.
+Content-Signal: search=yes, ai-input=yes, ai-train=yes
+
+# What an agent should read first. llms.txt lists everything machine-readable
+# here and says when this tool is worth reaching for. The homepage itself
+# answers with markdown to a request that sends `Accept: text/markdown`.
+# https://agent-reference.dev/llms.txt
+
 Sitemap: https://agent-reference.dev/sitemap.xml

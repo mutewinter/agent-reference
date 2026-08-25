@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unpkg.com/agent-reference@1/schema/agent-reference.schema.json",
+  "title": "agent-reference config",
+  "description": "Desired state for the local reference source an agent can read. Lives at agent-reference.json (committed) or agent-reference.local.json (machine-specific, gitignored). Both are read as JSON with comments (// and /* */) and trailing commas, so a note beside an entry is part of the format; keep any the file already carries when editing it.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL of this schema. Optional; ignored at runtime."
+    },
+    "references": {
+      "type": "object",
+      "description": "Every reference this project declares, keyed by the name an agent asks for. A value is a source string, an array of sources, or an object. An object with \"source\" is one reference; an object or array holding several is a set, a name that stands for all of them and that get, status and clone take like any other name.",
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": {
+        "anyOf": [
+          { "$ref": "#/$defs/sourceString" },
+          { "$ref": "#/$defs/reference" },
+          { "$ref": "#/$defs/setArray" },
+          { "$ref": "#/$defs/set" }
+        ]
+      }
+    },
+    "registry": {
+      "type": "string",
+      "description": "npm registry base URL used to look up package metadata. Defaults to https://registry.npmjs.org."
+    },
+    "cacheDir": {
+      "type": "string",
+      "description": "Where checkouts are stored. Defaults to ~/.agent-reference. A machine path here belongs in agent-reference.local.json; AGENT_REFERENCE_STORE_DIR overrides both."
+    },
+    "allImporters": {
+      "type": "boolean",
+      "deprecated": true,
+      "description": "Does nothing. Every workspace importer is read now, and a name installed at several versions is reported rather than picked. The key still parses so a config that set it does not break; remove it."
+    }
+  },
+  "$defs": {
+    "sourceString": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Where this reference comes from, written the way you would pass it to `agent-reference get`. What kind of reference it is follows from the shape, never from a declaration.\n\n  ./docs/decisions      a folder or file in this repo, read where it lives\n  ~/vault/brief.md      a path on this machine (agent-reference.local.json only)\n  github:openai/codex   a repository, at its default branch\n  openai/codex#v0.20.0  a repository, at a tag, branch, or commit\n  https://host/x.git    any git remote, ssh and git@ included\n  file:///abs/path      a git repository on this disk, cloned into the store\n  npm:zod@3.22.0        a package at an exact version\n  zod@3.22.0            the same; a bare name means npm\n\nA path source has to start with ./, ../, ~/ or /, because `docs/decisions` is also a valid owner/repo shorthand. A package source always carries an exact version: ranges, dist-tags and \"installed\" are refused, since a config entry has to mean the same thing on every machine and next month."
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source"],
+      "description": "One reference, when there is more to say about it than its source.",
+      "properties": {
+        "source": { "$ref": "#/$defs/sourceString" },
+        "ref": {
+          "type": "string",
+          "description": "Commit, tag, or branch to check out. For a repository source it replaces the default branch; for a package source it overrides version resolution, which is what a repository whose tags do not match its published versions needs. Not accepted on a path source, which is read where it lives and has no other ref."
+        },
+        "repository": {
+          "type": "string",
+          "description": "Git remote to use instead of the one the registry reported. Package sources only: a repository source already names its own remote."
+        },
+        "directory": {
+          "type": "string",
+          "description": "Subtree of the checkout worth reading, for a repository that is a monorepo. The reference resolves to that subtree while status still reports the checkout root. Several subtrees of one repository are several entries with distinct names; they share one clone. Not accepted on a path source: point the source at the subfolder instead."
+        },
+        "description": {
+          "type": "string",
+          "description": "What this source is for and when to read it. This is the whole value of a reference to a future agent, so say when to open it, not what it is. Also where user policy travels (\"never name this folder in committed code\")."
+        }
+      }
+    },
+    "setArray": {
+      "type": "array",
+      "description": "A set with no heading: a name that stands for several references. Shorthand for an object with a \"references\" array.",
+      "items": { "$ref": "#/$defs/member" }
+    },
+    "set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["references"],
+      "description": "A reference that resolves to several paths. Its key is its name, exactly as a single reference's key is, so `get <name>` materializes every member and `status <name>` reports the group. A set holds references, never other sets.",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "What the collection is for. Printed under the set's name as its heading."
+        },
+        "references": {
+          "type": "array",
+          "description": "The members, declared inline. A member may be any kind, so one set can hold a package, a repository and a folder together.",
+          "items": { "$ref": "#/$defs/member" }
+        }
+      }
+    },
+    "member": {
+      "anyOf": [
+        { "$ref": "#/$defs/sourceString" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source"],
+          "description": "A member with more to say about it than its source. Same shape as a top-level reference, plus a \"name\", because inside an array there is no key to be one.",
+          "properties": {
+            "source": { "$ref": "#/$defs/sourceString" },
+            "name": {
+              "type": "string",
+              "description": "The name this member is asked for by. Defaults to the basename of the source. Names are one namespace, so it may not collide with another reference or with a set."
+            },
+            "ref": { "type": "string" },
+            "repository": { "type": "string" },
+            "directory": { "type": "string" },
+            "description": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}

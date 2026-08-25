@@ -1,0 +1,37 @@
+# Headers for the files this site serves to agents rather than to browsers.
+# Cloudflare's assets layer applies these. The homepage is not here: it is
+# routed to the Worker first, which sets its own headers in src/worker.ts
+# because that URL's media type depends on what the caller asked for.
+#
+# Access-Control-Allow-Origin is open on all of them because every one is a
+# public document with nothing behind an origin check, and an agent reading
+# them from a browser context should not have to proxy the request.
+
+/index.md
+  Content-Type: text/markdown; charset=utf-8
+  Access-Control-Allow-Origin: *
+  Link: </llms.txt>; rel="describedby"; type="text/plain"
+
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+/.well-known/agent-skills/index.json
+  Content-Type: application/json; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+/.well-known/agent-skills/agent-reference/SKILL.md
+  Content-Type: text/markdown; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+/.well-known/skills/index.json
+  Content-Type: application/json; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+/.well-known/skills/agent-reference/SKILL.md
+  Content-Type: text/markdown; charset=utf-8
+  Access-Control-Allow-Origin: *
+
+/schema/agent-reference.schema.json
+  Content-Type: application/schema+json
+  Access-Control-Allow-Origin: *
