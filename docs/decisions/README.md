@@ -20,3 +20,4 @@ One Markdown file per decision, named for the date it was made: `YYYY-MM-DD-shor
 | 2026-08-24 | [The stylesheet is the design system, and the linter enforces it](2026-08-24-the-stylesheet-is-the-design-system.md) |
 | 2026-08-25 | [One references map, and a set is a reference that resolves to several paths](2026-08-25-one-references-map.md) |
 | 2026-08-25 | [One command, three installs: turbo in single-package mode](2026-08-25-one-command-three-installs.md) |
+| 2026-08-25 | [Two readers, one URL: the site answers agents in markdown](2026-08-25-two-readers-one-url.md) |
