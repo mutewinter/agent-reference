@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 640" width="300" height="640">
+  <!-- Placeholder, drawn here rather than lifted from anywhere. Swap
+       assets/brawndo.svg for a real still whenever you find one; the slide
+       only cares about the filename. -->
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0d1a0d"/>
+      <stop offset="22%" stop-color="#1f3d1f"/>
+      <stop offset="55%" stop-color="#2d5a2d"/>
+      <stop offset="82%" stop-color="#16301a"/>
+      <stop offset="100%" stop-color="#0a140a"/>
+    </linearGradient>
+    <linearGradient id="cap" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#666"/>
+      <stop offset="35%" stop-color="#ddd"/>
+      <stop offset="70%" stop-color="#999"/>
+      <stop offset="100%" stop-color="#555"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="96" y="18" width="108" height="54" rx="8" fill="url(#cap)"/>
+  <rect x="104" y="66" width="92" height="40" fill="#14261a"/>
+  <path d="M104 100 C104 128 62 138 58 186 L58 574 C58 606 84 624 150 624 C216 624 242 606 242 574 L242 186 C238 138 196 128 196 100 Z" fill="url(#body)"/>
+
+  <rect x="58" y="214" width="184" height="300" fill="#0c1a0c" opacity="0.75"/>
+  <path d="M168 244 L104 372 L146 372 L124 484 L200 344 L156 344 Z" fill="#e8f24a"/>
+
+  <text x="150" y="200" font-family="Helvetica, Arial, sans-serif" font-size="40" font-weight="bold" fill="#e8f24a" text-anchor="middle" letter-spacing="1">BRAWNDO</text>
+  <text x="150" y="548" font-family="Helvetica, Arial, sans-serif" font-size="17" font-weight="bold" fill="#cfe04a" text-anchor="middle" letter-spacing="1">THE THIRST MUTILATOR</text>
+  <text x="150" y="576" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#7f9b52" text-anchor="middle" letter-spacing="1">IT'S GOT ELECTROLYTES</text>
+</svg>

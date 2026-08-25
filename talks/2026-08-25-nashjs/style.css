@@ -1,12 +1,27 @@
-/* Swiss. Ported from the Marp theme of the last talk: Helvetica, black on
-   white, tight tracking, one idea per slide. */
+/* Three kinds of slide, and every slide is exactly one of them.
+
+   A `beat` slide is black and holds one mocked agent session inside a terminal
+   frame. A `config` slide is white and holds the website's own dark panels. A
+   `statement` or `interlude` slide is the swiss type from the last talk's Marp
+   theme, with nothing else on it. Nothing implies an operating system: no
+   traffic lights on the terminal, no window furniture on the browser. */
 
 .slidev-layout {
-  --swiss-ink: #000;
-  --swiss-paper: #fff;
+  --ink: #000;
+  --paper: #fff;
+  --term-bg: #0d0d0d;
+  --term-chrome: #1a1a1a;
+  --term-edge: #2a2a2a;
+  --term-fg: #e8e8d3;
+  --term-dim: #8a8a8a;
+  --accent: #ffb964;
+  --ok: #7dcb87;
+  /* theme: none ships no layout height, so a short slide would paint its
+     background only as far as its content reaches. */
+  height: 100%;
   font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  background: var(--swiss-paper);
-  color: var(--swiss-ink);
+  background: var(--paper);
+  color: var(--ink);
   padding: 80px;
   font-size: 28px;
   line-height: 1.5;
@@ -29,43 +44,73 @@
   margin-bottom: 0.5em;
 }
 
-.slidev-layout h3 {
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  margin-bottom: 0.4em;
+/* theme: none gives these layouts no vertical centering of their own, so
+   without this a two-line statement and a three-line one sit at different
+   heights and the deck jumps as you page through. */
+.slidev-layout.cover,
+.slidev-layout.statement {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-.slidev-layout.cover h1,
 .slidev-layout.statement h1 {
   font-size: 92px;
   letter-spacing: -0.04em;
 }
 
-.slidev-layout ul {
-  list-style: none;
-  padding-left: 0;
+/* The one slide up while the room fills, so it holds on one line. */
+.slidev-layout.cover h1 {
+  font-size: 68px;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
 }
 
-.slidev-layout ul li {
-  margin-bottom: 0.4em;
+.venue {
+  font-size: 24px;
+  line-height: 1.45;
+  color: #666;
 }
 
-.slidev-layout ul li::before {
-  content: "\2022";
-  font-weight: 700;
-  margin-right: 0.5em;
+/* An interlude is neither a declaration nor a transcript: it is the aside
+   between two of them, so it gets its own ground and half the type size. */
+.slidev-layout.interlude {
+  background: var(--term-chrome) !important;
+  color: #fff !important;
+  align-items: center;
+  text-align: center;
 }
 
-/* Emotional beats, same palette as the last deck. */
-.anti-pattern {
-  background: #1a1a1a !important;
-  color: #ff6b6b !important;
+.slidev-layout.interlude h1 {
+  font-size: 50px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+  margin-bottom: 0;
 }
 
-.outcome {
-  background: #1a1a1a !important;
-  color: rgb(210, 161, 15) !important;
+.slidev-layout.interlude .crave {
+  color: var(--accent);
+}
+
+.crave {
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin-top: 0.4em;
+  white-space: nowrap;
+}
+
+.crave.mono {
+  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  font-size: 24px;
+  letter-spacing: 0;
+}
+
+.cta {
+  font-size: 20px;
+  color: #999;
+  margin-top: 1.4em;
 }
 
 .dark {
@@ -73,17 +118,510 @@
   color: #fff !important;
 }
 
-/* Code and terminal blocks read as one family: mono, generous line height,
-   never a rounded toy window unless the slide asks for chrome. */
-.slidev-layout .slidev-code {
-  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
-  font-size: 0.62em;
-  line-height: 1.65;
-  border-radius: 6px;
-  padding: 1.1em 1.3em;
+/* ------------------------------------------------------------------ beats */
+
+.slidev-layout.beat {
+  background: #000;
+  color: var(--term-fg);
+  padding: 36px 48px;
+  display: flex;
+  flex-direction: column;
 }
 
-.term-plain .slidev-code {
-  background: #0d0d0d !important;
-  border: 1px solid #262626;
+/* Every session and every config slide says what it is, quietly, in the same
+   place. The room should never have to work out which failure this one is. */
+.slidev-layout.beat h2,
+.slidev-layout.config h2 {
+  flex: none;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin-bottom: 0.7em;
+}
+
+.slidev-layout.beat h2 {
+  color: #fff;
+}
+
+.slidev-layout.config h2 {
+  color: #000;
+}
+
+.slidev-layout.beat .body,
+.slidev-layout.config .body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.slidev-layout.beat.mid .body,
+.slidev-layout.config .body {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ------------------------------------------------------- terminal frame */
+
+/* Enough chrome to read as a terminal and no more: an empty strip, borrowing
+   no operating system's window furniture and naming no machine or folder. */
+.term {
+  border: 1px solid var(--term-edge);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--term-bg);
+  position: relative;
+}
+
+.term-bar {
+  height: 22px;
+  background: var(--term-chrome);
+  border-bottom: 1px solid var(--term-edge);
+}
+
+.term-body {
+  padding: 14px 16px;
+}
+
+/* --------------------------------------------------- mocked agent sessions */
+
+/* Not captured output: nothing produces an agent's own transcript, so these
+   are drawn. Anything the CLI itself prints inside one stays faithful. */
+.sess {
+  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  letter-spacing: 0;
+  white-space: pre;
+  color: #e8e8e8;
+}
+
+/* The bio answer is the agent talking about a person, not a tool call. */
+.sess.white-dot .dot {
+  color: #fff;
+}
+
+.sess.white-dot .r,
+.sess.white-dot div {
+  color: #fff;
+}
+
+.sess.big {
+  font-size: 15px;
+}
+
+.sess .step {
+  margin-bottom: 0.7em;
+}
+
+.sess .step:last-child {
+  margin-bottom: 0;
+}
+
+/* Only the dot carries the color. Claude Code does not tint the tool name, and
+   a wall of green reads as output rather than as a call. */
+.sess .dot {
+  color: var(--ok);
+}
+
+.sess .r {
+  color: var(--term-dim);
+}
+
+.sess .s {
+  color: #fff;
+}
+
+/* What the human sent: a full-bleed band inside the terminal body, one line
+   tall, rather than a padded card floating in the transcript. */
+.p {
+  background: #1c1c1c;
+  color: #fff;
+  padding: 2px 16px;
+  margin: 0 -16px 1.1em;
+  white-space: pre;
+}
+
+/* --------------------------------------------------- configs and trees */
+
+/* Config slides are the other half of the deck: white, with the website's own
+   dark panels on them. A session and a config should never be mistaken for
+   each other mid-talk. */
+.slidev-layout.config {
+  background: #fff;
+  color: #000;
+  padding: 36px 48px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The filename rides inside the panel rather than floating above it, so a
+   short config and a tall one still line their headers up. */
+.panel {
+  background: #151515;
+  border: 1px solid #222;
+  border-radius: 9px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-head {
+  padding: 8px 15px;
+  background: #1c1c1c;
+  border-bottom: 1px solid #262626;
+  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  font-size: 13px;
+  color: #a09a8e;
+  letter-spacing: 0;
+}
+
+.panel-body {
+  padding: 16px 18px;
+  flex: 1 1 auto;
+}
+
+.code {
+  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  font-size: 15px;
+  line-height: 1.6;
+  letter-spacing: 0;
+  white-space: pre;
+  color: var(--term-fg);
+}
+
+.code.small {
+  font-size: 13px;
+}
+
+/* Colors lifted from the site's own theme, so a config on a slide and a config
+   on agent-reference.dev are the same object. */
+.code .k {
+  color: #c6b6ee;
+}
+
+.code .s {
+  color: #99ad6a;
+}
+
+.code .c {
+  color: #888;
+}
+
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: stretch;
+}
+
+.pair.wide {
+  grid-template-columns: 1fr 1.3fr;
+}
+
+.trio {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.15fr;
+  gap: 22px;
+  align-items: stretch;
+}
+
+.trio .code {
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.trio .panel-head {
+  font-size: 12px;
+}
+
+/* ------------------------------------------------------- browser mockup */
+
+.browser {
+  border: 1px solid var(--term-edge);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #101010;
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.browser-bar {
+  padding: 10px;
+  background: var(--term-chrome);
+  border-bottom: 1px solid var(--term-edge);
+}
+
+.addr {
+  max-width: 300px;
+  margin: 0 auto;
+  border-radius: 999px;
+  background: #101010;
+  padding: 5px 16px;
+  text-align: center;
+  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  font-size: 13px;
+  color: #a09a8e;
+  letter-spacing: 0;
+}
+
+.browser-body {
+  padding: 22px 30px 30px;
+}
+
+.site-nav {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #1f1f1f;
+  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.site-name {
+  color: var(--term-fg);
+}
+
+.site-links .ver {
+  color: #6b6b6b;
+}
+
+.site-links {
+  color: #a09a8e;
+}
+
+.site-tag {
+  font-size: 24px;
+  color: var(--term-fg);
+  letter-spacing: -0.02em;
+  margin-top: 22px;
+}
+
+.site-label {
+  font-size: 15px;
+  color: #a09a8e;
+  margin-top: 22px;
+  margin-bottom: 10px;
+}
+
+/* The one thing on the page you click, in the accent the site gives it,
+   including the hard offset shadow it sits on. */
+.copyblock {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  border: 1px solid rgb(255 185 100 / 0.6);
+  background: rgb(255 185 100 / 0.1);
+  box-shadow: 5px 5px 0 0 rgb(255 185 100 / 0.28);
+  padding: 16px 18px;
+  position: relative;
+}
+
+.copytext {
+  flex: 1;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--term-fg);
+}
+
+/* Fixed width: "Copied" is longer than "Copy", and letting the pill resize
+   shoves the prompt beside it sideways on the click. */
+.copyslot {
+  flex: none;
+  position: relative;
+  width: 84px;
+  height: 26px;
+}
+
+.copybtn {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #101010;
+  font-size: 13px;
+}
+
+/* The site renders the command inside the prompt as code, not as backticks. */
+.copytext code {
+  border: 1px solid rgb(255 185 100 / 0.25);
+  background: rgb(255 185 100 / 0.1);
+  padding: 1px 5px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.copybtn.hit {
+  background: #99ad6a;
+}
+
+.cursor {
+  position: absolute;
+  top: 34px;
+  right: 22px;
+}
+
+/* ------------------------------------------------------------------ bio */
+
+/* Two thirds transcript, one third photograph. An even split put the
+   photograph on the room's eye instead of the words. Slidev's image-right
+   layout does not apply under `theme: none`, so the split is built here. */
+.slidev-layout.whoami {
+  padding: 0;
+  background: #000;
+  color: var(--term-fg);
+}
+
+.whoami-cols {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  height: 100%;
+}
+
+.whoami-term {
+  padding: 40px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.whoami-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 40% top;
+}
+
+/* A slide of the last deck, shown whole rather than cropped to fill. */
+.shot-wrap {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shot {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+}
+
+/* The repository page beside the bullets, tall rather than wide, because the
+   language breakdown is the part worth reading. The column is bounded so the
+   image scales to the slide instead of setting its own height. */
+.split {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 34px;
+  align-items: center;
+  height: 100%;
+  min-height: 0;
+}
+
+.shot-col {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.repo-shot {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  border: 1px solid #222;
+}
+
+/* -------------------------------------------------------------- bullets */
+
+.points {
+  font-size: 22px;
+  line-height: 1.45;
+  color: #e8e8e8;
+}
+
+.points code {
+  font-family: "JetBrains Mono", "SF Mono", Monaco, monospace;
+  font-size: 0.85em;
+  background: #1c1c1c;
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.points div {
+  margin-bottom: 0.65em;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+
+.points div::before {
+  content: "\2022";
+  color: var(--ok);
+  margin-right: 0.55em;
+}
+
+.points .lead {
+  color: #fff;
+}
+
+/* -------------------------------------------------------------- closing */
+
+/* The closing slide is up for the whole Q&A, so the joke is allowed to take a
+   minute to arrive. Both of these start invisible and ease in over 60 seconds:
+   nobody sees them appear, and at some point somebody notices. */
+.slidev-layout.closer {
+  position: relative;
+  overflow: hidden;
+}
+
+.slidev-layout.closer h1 {
+  font-size: 60px;
+  letter-spacing: -0.03em;
+}
+
+.brawndo {
+  position: absolute;
+  right: 26px;
+  bottom: -30px;
+  height: 78%;
+  opacity: 0;
+  pointer-events: none;
+  animation: brawndo-arrives 60s ease-in forwards;
+}
+
+@keyframes brawndo-arrives {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 0.42;
+  }
+}
+
+.crave.slow {
+  opacity: 0;
+  animation: crave-arrives 60s ease-in forwards;
+}
+
+@keyframes crave-arrives {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* U+23BF is not in JetBrains Mono, so it renders from a fallback face whose
+   advance width is not one character and takes its whole line out of column. */
+.el {
+  display: inline-block;
+  width: 1ch;
 }
