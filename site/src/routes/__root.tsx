@@ -88,9 +88,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <div className="mx-auto max-w-6xl px-6 pb-24">
+        <div className="mx-auto max-w-6xl px-6 pb-12">
           <Header />
           <main>{children}</main>
+          <Footer />
         </div>
         <Scripts />
       </body>
@@ -116,5 +117,26 @@ function Header() {
         </a>
       </nav>
     </header>
+  )
+}
+
+/**
+ * The same two links as the header, for a reader who got to the bottom rather
+ * than back to the top, under a line that is only half a joke: the config, the
+ * skill, and most of this page were written by the thing they are for.
+ */
+function Footer() {
+  return (
+    <footer className="mt-20 flex items-center justify-between gap-5 border-t border-line py-4 text-sm text-muted">
+      <span>Made by agents, for agents</span>
+      <nav className="flex items-center gap-5">
+        <a href={REPOSITORY} className="hover:text-accent">
+          github
+        </a>
+        <a href={NPM} className="hover:text-accent">
+          npm
+        </a>
+      </nav>
+    </footer>
   )
 }
