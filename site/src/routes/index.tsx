@@ -7,6 +7,7 @@ import {
   cd,
   copy,
   examples,
+  howItWorks,
   install,
   prompt,
   setupPrompt,
@@ -76,6 +77,32 @@ function Example({
   )
 }
 
+/**
+ * The configs on the left and the disk they produced on the right. The tree is
+ * where the explaining happens, so the two sentences framing it are both
+ * skippable on purpose, and the first one says so.
+ */
+function HowItWorks() {
+  return (
+    <>
+      <p className="max-w-3xl text-muted">{howItWorks.lead}</p>
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+        <div className="flex flex-col gap-5">
+          {howItWorks.configs.map((config) => (
+            <Panel key={config.sample} label={config.file} copy={source(config.sample)}>
+              <Highlighted name={config.sample} />
+            </Panel>
+          ))}
+        </div>
+        <Panel>
+          <Tree text={treeText[howItWorks.tree]} />
+        </Panel>
+      </div>
+      <p className="mt-6 max-w-3xl text-muted">{howItWorks.cache}</p>
+    </>
+  )
+}
+
 function Home() {
   return (
     <>
@@ -105,6 +132,10 @@ function Home() {
         {examples.map((example) => (
           <Example key={example.sample} {...example} />
         ))}
+      </Section>
+
+      <Section label={howItWorks.heading}>
+        <HowItWorks />
       </Section>
 
       <Section label={copy.commands.heading}>

@@ -47,25 +47,43 @@ export function Panel({
 /**
  * A folder layout. The box-drawing sits back so the names carry, and the
  * config file is picked out, since where it lives is the whole point of
- * showing a tree at all.
+ * showing a tree at all. Anything after a ` # ` is a note about the line it
+ * sits on, padded into one column so the notes read as a margin against the
+ * shape rather than as ragged sentences inside it.
  */
 export function Tree({ text }: { text: string }) {
+  const rows = text.split('\n').map((line) => {
+    const at = line.indexOf(' # ')
+    const body = at === -1 ? line : line.slice(0, at)
+    const match = body.match(/^([\u2500-\u257F ]*)(.*)$/u)
+    return {
+      branch: match ? match[1] : '',
+      name: match ? match[2] : body,
+      note: at === -1 ? null : line.slice(at + 1),
+      width: body.length,
+    }
+  })
+  // Only the annotated lines set the column, so a long path further down runs
+  // past the notes instead of pushing every one of them off the panel.
+  const column = Math.max(0, ...rows.filter((row) => row.note).map((row) => row.width))
+
   return (
     // The one block that does not wrap: a wrapped continuation lands under the
     // box-drawing and reads as another entry, so the shape is gone. It scrolls
     // inside the panel instead, which `min-w-0` up there is what allows.
     <pre className="leading-code">
-      {text.split('\n').map((line, i) => {
-        const match = line.match(/^([\u2500-\u257F ]*)(.*)$/u)
-        const branch = match ? match[1] : ''
-        const name = match ? match[2] : line
-        return (
-          <div key={i}>
-            <span className="text-dim select-none">{branch}</span>
-            <span className="text-fg">{name}</span>
-          </div>
-        )
-      })}
+      {rows.map((row, i) => (
+        <div key={i}>
+          <span className="text-dim select-none">{row.branch}</span>
+          <span className="text-fg">{row.name}</span>
+          {row.note ? (
+            <span className="text-muted">
+              <span className="select-none">{' '.repeat(column - row.width + 2)}</span>
+              {row.note}
+            </span>
+          ) : null}
+        </div>
+      ))}
     </pre>
   )
 }

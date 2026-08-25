@@ -147,6 +147,31 @@ export const samples = {
   ]
 }`,
   },
+
+  // Two projects in the same checkout tree, pinning two versions of one
+  // dependency. A version belongs in the value and never in the key, so one
+  // config cannot name two of them; two projects on a machine can, which is
+  // the whole reason the store is machine-wide rather than per project.
+  storeWeb: {
+    lang: 'jsonc',
+    code: `{
+  "packages": {
+    "npm:effect": "4.0.0-rc.111"
+  },
+  "git": {
+    "pi": "github:earendil-works/pi"
+  }
+}`,
+  },
+
+  storeApi: {
+    lang: 'jsonc',
+    code: `{
+  "packages": {
+    "npm:effect": "3.19.4"
+  }
+}`,
+  },
 }
 
 export const trees = {
@@ -164,6 +189,30 @@ export const trees = {
     \u251C\u2500\u2500 personal/
     \u251C\u2500\u2500 work/
     \u2514\u2500\u2500 forks/`,
+
+  /**
+   * The store those two configs produce, and the only place the how-it-works
+   * section explains itself: the notes ride on the lines they describe, because
+   * this is a diagram people look at rather than a paragraph they read. One
+   * mirror and two worktrees for effect is the whole point of the pairing, so
+   * the two notes that earn a line are the ones that say why. Host, owner and
+   * repository nest as deeply as the remote's own path does; the lines here
+   * collapse that chain onto one row, since what matters is the mirror against
+   * the commits checked out of it, not the depth. A trailing slash marks the
+   * directories that would otherwise read as files: a bare mirror already
+   * announces itself with `.git`, a commit name does not.
+   */
+  store: `~/.agent-reference/
+\u251C\u2500\u2500 git/ # one clone per repository
+\u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect.git
+\u2502   \u2514\u2500\u2500 github.com/earendil-works/pi.git
+\u251C\u2500\u2500 src/ # one checked-out worktree per version
+\u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect/6ba41e59/
+\u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect/c41d80f2/
+\u2502   \u2514\u2500\u2500 github.com/earendil-works/pi/dcd46192/
+\u2514\u2500\u2500 state/ # one file per project
+    \u251C\u2500\u2500 web-a3f81c04.json
+    \u2514\u2500\u2500 api-5c02e7d1.json`,
 }
 
 /**
@@ -278,6 +327,26 @@ export const examples = [
     terminal: 'complex',
   },
 ]
+
+/**
+ * Two configs and the disk they leave behind. The tree carries its own notes, so
+ * everything this section has to say is in the picture: the prose around it is
+ * one line in and one line out, and a reader who skips both has still seen it.
+ * Two projects rather than one, because a single mirror against two worktrees is
+ * the thing worth showing, and only two projects can pin two versions at once.
+ * Neither config carries a path reference: a path is read where it already is,
+ * so it would put a line on the left with nothing to answer it on the right.
+ */
+export const howItWorks = {
+  heading: 'How it works',
+  lead: 'Skip this if you like: your agent handles all of it. It is here for anyone who wants to see where the source it reads lands. Two projects, pinning two versions of the same dependency, sharing one store.',
+  configs: [
+    { file: 'web/agent-reference.json', sample: 'storeWeb' },
+    { file: 'api/agent-reference.json', sample: 'storeApi' },
+  ],
+  tree: 'store',
+  cache: 'All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.',
+}
 
 /**
  * The page's own words, shared so the README says them too rather than keeping
