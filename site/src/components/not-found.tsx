@@ -17,10 +17,16 @@ export function NotFound() {
         <a href="/talk" className="text-fg hover:text-accent">
           the talk
         </a>
-        <a href="https://github.com/mutewinter/agent-reference" className="text-fg hover:text-accent">
+        <a
+          href="https://github.com/mutewinter/agent-reference"
+          className="text-fg hover:text-accent"
+        >
           github
         </a>
-        <a href="https://www.npmjs.com/package/agent-reference" className="text-fg hover:text-accent">
+        <a
+          href="https://www.npmjs.com/package/agent-reference"
+          className="text-fg hover:text-accent"
+        >
           npm
         </a>
       </nav>
