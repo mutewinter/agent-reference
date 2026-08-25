@@ -32,6 +32,18 @@ its users; the repo holds itself to it everywhere.
   its own project: `pnpm --dir site run lint` and `pnpm --dir site run check-types`.
 - Commit subjects: `scope: description`, lowercase, imperative.
 
+## The Node version
+
+[.node-version](.node-version) is the one place it is written down. Cloudflare Workers Builds
+reads it when it builds the site, CI's single-version jobs read it through `node-version-file`,
+and the test matrix stays explicit because testing more than one runtime is its whole job. The
+value is deliberately the version Workers Builds defaults to, so the pin describes what already
+happens rather than changing it.
+
+It is not the tool's floor. The published package ships compiled JavaScript and `engines` says
+Node 20. This is the version that develops, tests, and deploys, and it has to be recent enough
+to run `.ts` files directly: type stripping is on by default from 22.18.
+
 ## Linting
 
 Two oxlint configs, one per project. `.oxlintrc.json` at the root turns on `correctness`
