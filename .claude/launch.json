@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "site",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "site", "dev"],
+      "port": 6180
+    },
+    {
+      "name": "slides",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--dir", "talks/2026-08-25-nashjs", "dev"],
+      "port": 6181
+    }
+  ]
+}
