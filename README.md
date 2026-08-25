@@ -270,9 +270,9 @@ $ codex "Implement context compaction based on how
   other coding harnesses do it"
 
 * Bash(agent-reference get harnesses)
-  ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd46192
-    ~/.agent-reference/src/…/openai/codex/a4f10b27
-    ~/.agent-reference/src/…/anomalyco/opencode/7b0e5c31
+  ⎿ pi        ~/.agent-reference/src/…/earendil-works/pi/dcd46192
+    codex     ~/.agent-reference/src/…/openai/codex/a4f10b27
+    opencode  ~/.agent-reference/src/…/anomalyco/opencode/7b0e5c31
 
 * Read(…/pi/packages/coding-agent/src/core/compaction.ts)
 ```

@@ -276,9 +276,9 @@ agent-reference get electron
   other coding harnesses do it"
 
 * Bash(agent-reference get harnesses)
-  \u23BF ~/.agent-reference/src/\u2026/earendil-works/pi/dcd46192
-    ~/.agent-reference/src/\u2026/openai/codex/a4f10b27
-    ~/.agent-reference/src/\u2026/anomalyco/opencode/7b0e5c31
+  \u23BF pi        ~/.agent-reference/src/\u2026/earendil-works/pi/dcd46192
+    codex     ~/.agent-reference/src/\u2026/openai/codex/a4f10b27
+    opencode  ~/.agent-reference/src/\u2026/anomalyco/opencode/7b0e5c31
 
 * Read(\u2026/pi/packages/coding-agent/src/core/compaction.ts)`,
 
