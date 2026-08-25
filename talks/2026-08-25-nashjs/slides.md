@@ -59,7 +59,7 @@ class: beat
 class: beat
 ---
 
-## Searches for docs on the web
+## Agents search the web for docs
 
 <div class="body">
 
@@ -71,7 +71,7 @@ class: beat
 class: beat
 ---
 
-## Guesses from memory
+## Agents guess from memory
 
 <div class="body">
 
@@ -83,11 +83,11 @@ class: beat
 class: beat twin
 ---
 
-## Clones the repo and forgets about it
+## Agents clone repos and forget about them
 
 <div class="body">
 
-<div class="term"><div class="term-bar">agent</div><div class="term-body"><div class="sess"><div class="p"><div>&gt; can remotion render a downloadable video right in the browser? if so wire it up</div></div><div class="step" v-click="1"><div><span class="dot">&#9679;</span> WebSearch("remotion render video in browser")</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Found 8 results</div></div><div class="step" v-click="2"><div><span class="dot">&#9679;</span> Bash(git clone --depth 1 https://github.com/remotion-dev/remotion.git /tmp/r)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Cloning into '/tmp/r'&hellip; done.</div></div><div class="step" v-click="3"><div><span class="dot">&#9679;</span> Grep("MediaRecorder", /tmp/r/packages)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;6 matches</div></div></div></div></div><div class="step" v-click="4"><div class="term"><div class="term-bar">agent</div><div class="term-body"><div class="sess"><div class="p"><div>&gt; add a progress bar while the video renders</div></div><div class="step"><div><span class="dot">&#9679;</span> WebSearch("remotion render progress callback")</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Found 8 results</div></div><div class="step"><div><span class="dot">&#9679;</span> Bash(git clone --depth 1 https://github.com/remotion-dev/remotion.git /tmp/r2)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Cloning into '/tmp/r2'&hellip; done.</div></div></div></div></div></div>
+<div class="term"><div class="term-bar">agent</div><div class="term-body"><div class="sess"><div class="p"><div>&gt; can remotion render a downloadable video right in the browser? if so wire it up</div></div><div class="step" v-click="1"><div><span class="dot">&#9679;</span> WebSearch("remotion render video in browser")</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Found 8 results</div></div><div class="step" v-click="2"><div><span class="dot">&#9679;</span> Bash(git clone --depth 1 https://github.com/remotion-dev/remotion.git /tmp/r)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Cloning into '/tmp/r'&hellip; done.</div></div><div class="step" v-click="3"><div><span class="dot">&#9679;</span> Grep("MediaRecorder", /tmp/r/packages)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;6 matches</div></div></div></div></div><div class="step" v-click="4"><div class="term"><div class="term-bar">agent</div><div class="term-body"><div class="sess"><div class="p"><div>&gt; add a progress bar while the video renders</div></div><div class="step" v-click="5"><div><span class="dot">&#9679;</span> WebSearch("remotion render progress callback")</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Found 8 results</div></div><div class="step" v-click="6"><div><span class="dot">&#9679;</span> Bash(git clone --depth 1 https://github.com/remotion-dev/remotion.git /tmp/r2)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;Cloning into '/tmp/r2'&hellip; done.</div></div></div></div></div></div>
 
 </div>
 
@@ -132,7 +132,7 @@ class: beat
 
 <div class="body">
 
-<div class="term"><div class="term-bar">agent</div><div class="term-body"><div class="sess"><div class="p">&gt; <span v-click.hide="1" class="caret">&#9612;</span><span v-click="1">Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.</span></div><div class="step" v-click="2"><div><span class="dot">&#9679;</span> Bash(npx agent-reference init)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;transcript stores on this machine</div><div class="r">&nbsp;&nbsp;&nbsp;&nbsp;claude-code&nbsp;&nbsp;2,723 sessions&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;codex&nbsp;&nbsp;519&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opencode&nbsp;&nbsp;147</div></div><div class="step" v-click="3"><div><span class="dot">&#9679;</span> Bash(rg -o '~/[^ ]+' ~/.claude/projects | uniq -c | sort -rn)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;312 ~/code/acme/api&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;88 ~/code/acme/workers</div></div><div class="step" v-click="4"><div><span class="dot">&#9679;</span> Write(agent-reference.json)</div><div><span class="dot">&#9679;</span> Write(agent-reference.local.json)</div><div><span class="dot">&#9679;</span> Update(.gitignore)</div><div><span class="dot">&#9679;</span> Bash(agent-reference validate)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;both files ok</div></div><div class="step" v-click="5"><div class="s"><span class="dot">&#9679;</span> agent-reference is set up, the skill is installed, and I seeded it with your usual repos.</div></div></div></div></div>
+<div class="term"><div class="term-bar">agent</div><div class="term-body"><div class="sess"><div class="p">&gt; <span v-click.hide="1" class="caret">&#9612;</span><span v-click="1">Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.</span></div><div class="step" v-click="2"><div><span class="dot">&#9679;</span> Bash(npx agent-reference init)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;transcript stores on this machine</div><div class="r">&nbsp;&nbsp;&nbsp;&nbsp;claude-code&nbsp;&nbsp;2,723 sessions&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;codex&nbsp;&nbsp;519&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;opencode&nbsp;&nbsp;147</div></div><div class="step" v-click="3"><div><span class="dot">&#9679;</span> Bash(rg -o '~/[^ ]+' ~/.claude/projects | uniq -c | sort -rn)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;312 ~/code/acme/api&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;88 ~/code/acme/workers</div></div><div class="step" v-click="4"><div><span class="dot">&#9679;</span> Write(agent-reference.json)</div><div><span class="dot">&#9679;</span> Write(agent-reference.local.json)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;{ "paths": {</div><div class="r">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"api":&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{ "path": "../api",&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"description": "Acme's API" },</div><div class="r">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;"workers": { "path": "../workers", "description": "Background jobs" } } }</div><div><span class="dot">&#9679;</span> Bash(agent-reference validate)</div><div class="r"><span class="el">&#9151;</span>&nbsp;&nbsp;both files ok</div></div><div class="step" v-click="5"><div class="s"><span class="dot">&#9679;</span> agent-reference is set up and the skill is installed. I declared the references you reach for most.</div></div></div></div></div>
 
 </div>
 
@@ -140,7 +140,7 @@ class: beat
 class: config
 ---
 
-## The config your agent wrote
+## The config your agent created
 
 <div class="body">
 
@@ -155,7 +155,7 @@ class: config
 class: beat
 ---
 
-## Now just use your agent normally
+## Now use your agent normally
 
 <div class="body">
 
@@ -195,13 +195,13 @@ layout: statement
 class: interlude
 ---
 
-# Ways to use agent-reference
+# Everything you can reference
 
 ---
 class: config
 ---
 
-## The repos next door
+## Sibling folders
 
 <div class="body">
 
@@ -231,7 +231,7 @@ class: config
 class: config
 ---
 
-## Pin exact npm versions
+## Reference source code for exact npm versions
 
 <div class="body">
 
@@ -261,7 +261,7 @@ class: config
 class: config
 ---
 
-## An optional global config
+## References every agent on your machine can see
 
 <div class="body">
 
@@ -276,7 +276,7 @@ class: config
 class: config
 ---
 
-## Sets of references
+## Group references into sets
 
 <div class="body">
 
@@ -303,7 +303,7 @@ class: config
 class: config
 ---
 
-## Shared config, and local config
+## One config for your team, one for your machine
 
 <div class="body">
 
