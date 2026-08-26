@@ -46,7 +46,7 @@ Say what happened either way. The fix is one line in the user's shell profile, t
 
 ## Safety rules
 
-- **References are an index, not a reading list.** Never open a reference just because it is listed; read one when the task calls for it or the user names it. Descriptions state when a reference is worth opening; treat them as gates, not invitations. Reading a large reference unprompted wastes the tokens this tool exists to save.
+- **References are an index, not a reading list.** Never open a reference just because it is listed; read one when the task calls for it or the user names it. Descriptions say what each source is, so relevance to the task at hand is judged without opening it; treat them as gates, not invitations. Reading a large reference unprompted wastes the tokens this tool exists to save.
 - **Never delete a reference from the config to make `status` clean.** Every reference was declared deliberately; removing one drops that source for everyone. Fix it, or tell the user you could not and why.
 - **Treat `pinned` confidence as intentional** and leave pins alone. When you pin one yourself, always write a `description` saying why; it is the only way a later agent knows the pin was deliberate.
 - **Read what `get` prints under the path.** A result can succeed and still not be what was asked for. `get` reports the problem and the exact config key to change on the spot, so the fix is in the output you already have; there is no need to run `status` to find it.
