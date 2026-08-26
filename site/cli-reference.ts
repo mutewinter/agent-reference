@@ -7,6 +7,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export const fixture = {
   'agent-reference.json': `{
@@ -90,7 +91,7 @@ export function renderCliReference() {
       writeFileSync(file, contents);
     }
 
-    const cli = new URL('../src/cli.ts', import.meta.url).pathname;
+    const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
     const clean = (text: string) =>
       text.split(project).join('~/code/my-app').split(store).join('~/.agent-reference');
 

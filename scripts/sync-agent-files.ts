@@ -7,6 +7,7 @@
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { renderHomeMarkdown, renderLlmsTxt } from '../site/page-markdown.ts';
 
@@ -122,11 +123,11 @@ export function renderAgentFiles(): Record<string, string> {
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   let written = 0;
   for (const [path, contents] of Object.entries(renderAgentFiles())) {
     const file = new URL(`site/public/${path}`, ROOT);
-    mkdirSync(dirname(file.pathname), { recursive: true });
+    mkdirSync(dirname(fileURLToPath(file)), { recursive: true });
     let before: string | undefined;
     try {
       before = readFileSync(file, 'utf8');
