@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import {
+  normalizeConfiguredRepository,
   normalizeGitRepositoryUrl,
   repositoryCacheParts,
   repositoryUrlFromManifestRepository,
@@ -46,4 +49,22 @@ test('builds stable bare repository cache paths', () => {
     'facebook',
     'react.git',
   ]);
+});
+
+// `file:///C:/src` sliced down to `///C:/src` resolves against the current drive and comes
+// back `C:\C:\src`, which git cannot clone. POSIX collapses the slashes and reports nothing,
+// so this asserts the round trip rather than a spelling and fails on whichever host is wrong.
+test('a file URL repository resolves to the path it names, separators and all', () => {
+  const target = path.join(path.resolve('.'), 'checkouts', 'company-ui');
+  assert.equal(
+    normalizeConfiguredRepository(pathToFileURL(target).href, path.resolve('.')),
+    target,
+  );
+});
+
+test('a relative file: repository still resolves against the project', () => {
+  assert.equal(
+    normalizeConfiguredRepository('file:checkouts/company-ui', path.resolve('.')),
+    path.join(path.resolve('.'), 'checkouts', 'company-ui'),
+  );
 });

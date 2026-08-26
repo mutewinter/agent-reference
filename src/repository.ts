@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import type { ManifestRepository } from './types.ts';
 
@@ -79,6 +80,16 @@ export function normalizeGitRepositoryUrl(value: string | null | undefined): str
  */
 export function normalizeConfiguredRepository(rawUrl: string, projectRoot: string): string | null {
   if (rawUrl.startsWith('file:')) {
+    // A `file://` URL carries its path percent-encoded and, on Windows, behind a leading
+    // slash: `file:///C:/src` sliced down to `///C:/src` resolves against the current drive
+    // and comes back `C:\C:\src`. POSIX collapses those slashes and hides it. Only
+    // `fileURLToPath` reads the URL as a URL. A malformed one falls through to the path
+    // resolution below, where `validate` still reports it for what it is.
+    if (rawUrl.startsWith('file://')) {
+      try {
+        return fileURLToPath(rawUrl);
+      } catch {}
+    }
     return path.resolve(projectRoot, rawUrl.slice('file:'.length));
   }
   if (rawUrl.startsWith('github:')) {
