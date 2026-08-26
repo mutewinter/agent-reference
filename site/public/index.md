@@ -518,7 +518,7 @@ ok: ~/code/my-app/agent-reference.json defines 4 references in 0 sets.
 $ agent-reference schema
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://unpkg.com/agent-reference@1/schema/agent-reference.schema.json",
+  "$id": "https://agent-reference.dev/schema/agent-reference.schema.json",
   "title": "agent-reference config",
   "description": "Desired state for the local reference source an agent can read. Lives at agent-reference.json (committed) or agent-reference.local.json (machine-specific, gitignored). Both are read as JSON with comments (// and /* */) and trailing commas, so a note beside an entry is part of the format; keep any the file already carries when editing it.",
   "type": "object",

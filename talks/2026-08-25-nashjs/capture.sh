@@ -17,7 +17,7 @@ run() { node --experimental-strip-types "$repo/src/cli.ts" "$@"; }
 # coordinates need no lockfile, so this directory holds one file.
 cat > "$demo/agent-reference.json" <<'JSON'
 {
-  "$schema": "https://unpkg.com/agent-reference/schema/agent-reference.schema.json",
+  "$schema": "https://agent-reference.dev/schema/agent-reference.schema.json",
   "packages": {
     "semver": "7.8.4",
     "typescript": "5.9.3"
