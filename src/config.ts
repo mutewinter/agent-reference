@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { pathExists, readJsoncFile } from './fs-utils.ts';
 import { isExactRegistryVersion, SUPPORTED_ECOSYSTEM } from './package-utils.ts';
-import { classifySource, derivedName, UnknownSourceError } from './source.ts';
+import { classifySource, UnknownSourceError } from './source.ts';
 import type { ClassifiedSource } from './source.ts';
 import type {
   AgentReferenceConfig,
@@ -17,9 +17,7 @@ export const DEFAULT_LOCAL_CONFIG_FILE = 'agent-reference.local.json';
 const TOP_LEVEL_KEYS = ['$schema', 'references', 'allImporters', 'registry', 'cacheDir'];
 /** A reference: one name, one source, plus what has to be said about reaching it. */
 const REFERENCE_KEYS = ['source', 'ref', 'repository', 'directory', 'description'];
-/** The same, inside a set, where the key that would have named it is an array index. */
-const MEMBER_KEYS = [...REFERENCE_KEYS, 'name'];
-/** A set: a heading, and the references it holds. */
+/** A set: a heading, and the references it holds. Members are references, keyed the same way. */
 const SET_KEYS = ['description', 'references'];
 
 /**
@@ -94,10 +92,10 @@ export function parseConfig(value: unknown, configPath: string): AgentReferenceC
 }
 
 /**
- * One map, one namespace. A value is a source string, an array of members, or an object;
- * an object holding `source` is a reference and one holding `references` is a set, which is
- * the only rule a writer has to carry. What kind of reference it is comes out of the source
- * rather than being declared, the way a path's file-or-folder shape already does.
+ * One map, one namespace, one shape. A value is an object holding either `source` or
+ * `references`: the first is a reference and the second is a set, which is the only rule a
+ * writer carries. What kind of reference it is comes out of the source rather than being
+ * declared, the way a path's file-or-folder shape already does.
  */
 function parseReferences(value: unknown, configPath: string, config: AgentReferenceConfig): void {
   if (value === undefined || value === null) return;
@@ -108,132 +106,127 @@ function parseReferences(value: unknown, configPath: string, config: AgentRefere
     'an object mapping names to sources',
   );
 
-  const declaredNames = new Set(Object.keys(object));
-
   for (const [name, entry] of Object.entries(object)) {
     if (!name.trim()) fail(configPath, 'references has an empty reference name.');
     const field = `references.${name}`;
+    const shape = expectEntryObject(entry, configPath, field);
 
-    if (Array.isArray(entry)) {
-      parseSet(name, null, entry, configPath, field, config, declaredNames);
+    if (shape.references !== undefined) {
+      assertKnownKeys(shape, SET_KEYS, configPath, field);
+      parseSet(name, shape, configPath, field, config);
       continue;
     }
 
-    if (isObject(entry)) {
-      assertRenamedKeys(entry, configPath, field);
-      if (entry.references !== undefined) {
-        assertKnownKeys(entry, SET_KEYS, configPath, field);
-        const description = parseDescription(entry.description, configPath, field);
-        parseSet(name, description, entry.references, configPath, field, config, declaredNames);
-        continue;
-      }
-      if (entry.source === undefined) {
-        // Checked before the shape is judged: `sorce` is a typo to name, not an object that
-        // is neither of the two shapes.
-        assertKnownKeys(entry, [...REFERENCE_KEYS, 'references'], configPath, field);
-        fail(
-          configPath,
-          `${field} has neither "source" nor "references". A reference names one source; a set holds a "references" array of them.`,
-        );
-      }
-    }
+    pushReference(config, parseReference(name, shape, configPath, field, []), configPath);
+  }
+}
 
-    pushReference(
-      config,
-      parseReference(name, entry, configPath, field, [], REFERENCE_KEYS),
+/**
+ * The shape rule, stated once and in the one place a writer meets it. A value that is not an
+ * object is the shorthand this format used to accept, so each old spelling names what it
+ * became rather than reporting the type it is not.
+ */
+function expectEntryObject(
+  entry: unknown,
+  configPath: string,
+  field: string,
+): Record<string, unknown> {
+  if (typeof entry === 'string') {
+    fail(
       configPath,
+      `${field} is a bare source string. Every entry is an object now: write { "source": "${entry}", "description": "..." }. The description is what makes the reference worth having.`,
     );
   }
+  if (Array.isArray(entry)) {
+    fail(
+      configPath,
+      `${field} is an array. A set is an object with a "description" and a "references" object keyed by name: { "description": "...", "references": { "<name>": { "source": "...", "description": "..." } } }.`,
+    );
+  }
+  const object = expectObject(entry, configPath, field, 'an object');
+  assertRenamedKeys(object, configPath, field);
+  if (object.source !== undefined && object.references !== undefined) {
+    fail(
+      configPath,
+      `${field} has both "source" and "references". A reference names one source; a set holds several under "references". It cannot be both.`,
+    );
+  }
+  if (object.source === undefined && object.references === undefined) {
+    assertKnownKeys(object, [...REFERENCE_KEYS, 'references'], configPath, field);
+    fail(
+      configPath,
+      `${field} has neither "source" nor "references". A reference names one source; a set holds a "references" object of them.`,
+    );
+  }
+  return object;
 }
 
 /** A set is a reference that resolves to several paths. Its key is its name, like any other. */
 function parseSet(
   name: string,
-  description: string | null,
-  members: unknown,
+  entry: Record<string, unknown>,
   configPath: string,
   field: string,
   config: AgentReferenceConfig,
-  declaredNames: Set<string>,
 ): void {
-  if (!Array.isArray(members)) {
-    fail(configPath, `${field}.references must be an array of sources.`);
-  }
+  const members = expectObject(
+    entry.references,
+    configPath,
+    `${field}.references`,
+    'an object mapping names to sources, the same shape as the top-level map',
+  );
 
-  config.sets.push({ name, description, scope: 'shared' });
+  config.sets.push({
+    name,
+    description: requireDescription(entry.description, configPath, field),
+    scope: 'shared',
+  });
 
-  for (const [index, member] of members.entries()) {
-    const itemField = `${field}.references[${index}]`;
-    if (Array.isArray(member) || (isObject(member) && member.references !== undefined)) {
+  for (const [memberName, member] of Object.entries(members)) {
+    const memberField = `${field}.references.${memberName}`;
+    if (!memberName.trim()) fail(configPath, `${field}.references has an empty reference name.`);
+    const shape = expectEntryObject(member, configPath, memberField);
+    if (shape.references !== undefined) {
       fail(
         configPath,
-        `${itemField} is a set inside a set. A set holds references, never other sets; give this one its own name in "references".`,
+        `${memberField} is a set inside a set. A set holds references, never other sets; give this one its own name in "references".`,
       );
     }
-    // A member is a source, not the name of another reference. The help calls a set "a
-    // name that stands for several" and `status` prints members beside the standalone
-    // entries, so writing a name here is the reading two of two readers arrived at. Left
-    // alone it fails as a versionless package while the name it used is declared in the
-    // same file, which says nothing about what went wrong.
-    if (typeof member === 'string' && declaredNames.has(member) && member !== name) {
-      fail(
-        configPath,
-        `${itemField} is "${member}", which is the name of another reference in this file. A set holds sources, not names: write the source itself here, the same one references.${member} uses.`,
-      );
-    }
-    const declared = isObject(member)
-      ? optionalString(member.name, configPath, `${itemField}.name`)
-      : null;
     pushReference(
       config,
-      parseReference(declared, member, configPath, itemField, [name], MEMBER_KEYS),
+      parseReference(memberName, shape, configPath, memberField, [name]),
       configPath,
     );
   }
 }
 
-/**
- * One reference, wherever it was written. `name` is null for a set member that declared
- * none, which then takes the basename of its source the way `get` names an ad hoc spec.
- */
+/** One reference, wherever it was written. Its key is its name, at either level. */
 function parseReference(
-  name: string | null,
-  entry: unknown,
+  name: string,
+  object: Record<string, unknown>,
   configPath: string,
   field: string,
   sets: string[],
-  knownKeys: string[],
 ): ConfiguredReference {
-  let spec: string;
-  let ref: string | null = null;
-  let repository: string | null = null;
-  let directory: string | null = null;
-  let description: string | null = null;
-
-  if (typeof entry === 'string') {
-    spec = requireNonEmpty(entry, configPath, field);
-  } else {
-    const object = expectObject(entry, configPath, field, 'a source string or an object');
-    assertKnownKeys(object, knownKeys, configPath, field);
-    if (object.source === undefined) {
-      fail(
-        configPath,
-        `${field}.source is required. Write it the way you would pass it to get: a path, github:owner/repo, a git URL, or npm:name@version.`,
-      );
-    }
-    spec = requireNonEmpty(
-      expectString(object.source, configPath, `${field}.source`),
+  assertKnownKeys(object, REFERENCE_KEYS, configPath, field);
+  if (object.source === undefined) {
+    fail(
       configPath,
-      `${field}.source`,
+      `${field}.source is required. Write it the way you would pass it to get: a path, github:owner/repo, a git URL, or npm:name@version.`,
     );
-    ref = optionalString(object.ref, configPath, `${field}.ref`);
-    repository = optionalString(object.repository, configPath, `${field}.repository`);
-    directory = optionalString(object.directory, configPath, `${field}.directory`);
-    description = parseDescription(object.description, configPath, field);
   }
+  const spec = requireNonEmpty(
+    expectString(object.source, configPath, `${field}.source`),
+    configPath,
+    `${field}.source`,
+  );
+  const ref = optionalString(object.ref, configPath, `${field}.ref`);
+  const repository = optionalString(object.repository, configPath, `${field}.repository`);
+  const directory = optionalString(object.directory, configPath, `${field}.directory`);
+  const description = requireDescription(object.description, configPath, field);
 
   const source = classify(spec, configPath, `${field}.source`);
-  const referenceName = requireNonEmpty(name ?? derivedName(source), configPath, field);
+  const referenceName = requireNonEmpty(name, configPath, field);
 
   if (source.kind === 'path') {
     rejectKey(ref, 'ref', field, configPath, 'a checkout read where it lives has no other ref');
@@ -280,10 +273,10 @@ function parseReference(
   // A package reference resolves through a registry and is audited against a lockfile, both
   // of which key on the package's own name. Letting the handle differ would mean carrying
   // two names for one entry, so the key is the name and the error says how to spell it.
-  if (name !== null && name !== source.name) {
+  if (name !== source.name) {
     fail(
       configPath,
-      `${field} is named "${name}" but its source is the package ${source.name}. A package reference is keyed by its package name: write "${source.name}": "${spec}". To give a source a name of your own, point it at the repository instead.`,
+      `${field} is named "${name}" but its source is the package ${source.name}. A package reference is keyed by its package name: write "${source.name}": { "source": "${spec}", … }. To give a source a name of your own, point it at the repository instead.`,
     );
   }
 
@@ -364,7 +357,6 @@ function pushReference(
     ...existing.sets,
     ...reference.sets.filter((label) => !existing.sets.includes(label)),
   ];
-  existing.description ??= reference.description;
 }
 
 function findByName(config: AgentReferenceConfig, name: string): ConfiguredReference | undefined {
@@ -435,18 +427,26 @@ function assertMergedNamesAreFree(
   }
 }
 
-function parseDescription(value: unknown, configPath: string, field: string): string | null {
-  if (value === undefined || value === null) return null;
-  return expectString(value, configPath, `${field}.description`).trim() || null;
+/**
+ * The one field that is not about reaching the source. It is required because it is the
+ * whole value of a reference to a future agent: a name it already has says nothing about
+ * when the thing behind it is worth opening.
+ */
+function requireDescription(value: unknown, configPath: string, field: string): string {
+  if (value === undefined || value === null) {
+    fail(
+      configPath,
+      `${field}.description is required. Say when to read this and what it answers, in a sentence; the name alone is what the agent already has.`,
+    );
+  }
+  const description = expectString(value, configPath, `${field}.description`).trim();
+  if (!description) fail(configPath, `${field}.description must not be empty.`);
+  return description;
 }
 
 function optionalString(value: unknown, configPath: string, field: string): string | null {
   if (value === undefined || value === null) return null;
   return expectString(value, configPath, field).trim() || null;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**
@@ -525,17 +525,21 @@ function requireNonEmpty(value: string, configPath: string, field: string): stri
 }
 
 /**
- * The four keys that became one. "unknown key packages" would be true and useless: every
+ * The keys that became one map. "unknown key packages" would be true and useless: every
  * entry inside keeps its name, its description and its options, so say where they go rather
- * than leaving an agent to guess which of the valid keys replaced four of them.
+ * than leaving an agent to guess which of the valid keys replaced four of them. `name` is
+ * here for the same reason: it was how a set member earned a handle, and now the key is.
  */
 const MIGRATION_HELP: Record<string, string> = {
-  folders: 'a path is a source, so an entry becomes "docs": "./docs"',
-  paths: 'a path is a source, so an entry becomes "docs": "./docs"',
+  folders:
+    'a path is a source, so an entry becomes "docs": { "source": "./docs", "description": "..." }',
+  paths:
+    'a path is a source, so an entry becomes "docs": { "source": "./docs", "description": "..." }',
   packages:
-    'the version moves into the source, so an entry becomes "zod": "npm:zod@3.22.0", or an object with "source" beside "ref" and "directory"',
-  git: 'the repository moves into the source, so an entry becomes "pi": "github:earendil-works/pi", or an object with "source" beside "ref" and "directory"',
-  sets: 'a set is a reference holding several, keyed by its name: "harnesses": { "description": "...", "references": [ ... ] }',
+    'the version moves into the source, so an entry becomes "zod": { "source": "npm:zod@3.22.0", "description": "..." }, beside the optional "ref" and "directory"',
+  git: 'the repository moves into the source, so an entry becomes "pi": { "source": "github:earendil-works/pi", "description": "..." }, beside the optional "ref" and "directory"',
+  sets: 'a set is a reference holding several, keyed by its name: "harnesses": { "description": "...", "references": { "pi": { "source": "...", "description": "..." } } }',
+  name: 'a set member is keyed by its name now, exactly as a top-level entry is, so the key replaces this field',
 };
 
 function assertRenamedKeys(

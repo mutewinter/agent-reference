@@ -365,7 +365,7 @@ export interface ConfiguredPackageReference {
   repository: string | null;
   /** Package subdirectory within the repository, for monorepos the resolver misreads. */
   directory: string | null;
-  description: string | null;
+  description: string;
   /** Labels of the sets this reference was declared inside. */
   sets: string[];
 }
@@ -375,7 +375,7 @@ export interface ConfiguredPathReference {
   name: string;
   scope: ConfigScope;
   path: string;
-  description: string | null;
+  description: string;
   sets: string[];
 }
 
@@ -389,7 +389,7 @@ export interface ConfiguredGitReference {
   spec: string;
   /** Subtree of the checkout worth reading, for a repository that is a monorepo. */
   directory: string | null;
-  description: string | null;
+  description: string;
   sets: string[];
 }
 
