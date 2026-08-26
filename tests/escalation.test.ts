@@ -17,7 +17,12 @@ const repoRoot = path.resolve(import.meta.dirname, '..');
 
 test('a package with no repository stays unresolvable instead of looping on clone', async () => {
   const { projectRoot, storeDir } = await scenario('no-repository', {
-    references: { orphan: 'npm:orphan@1.0.0' },
+    references: {
+      orphan: {
+        source: 'npm:orphan@1.0.0',
+        description: 'A package whose registry entry names no repository',
+      },
+    },
   });
 
   const clone = await cloneReferences(path.join(projectRoot, 'package.json'), {
@@ -46,6 +51,7 @@ test('a package with no repository stays unresolvable instead of looping on clon
         source: 'npm:orphan@1.0.0',
         repository: '<github:owner/repo>',
         ref: '<commit-or-tag>',
+        description: 'A package whose registry entry names no repository',
       },
     },
   });
@@ -53,7 +59,12 @@ test('a package with no repository stays unresolvable instead of looping on clon
 
 test('editing the failed overrides makes the reference worth cloning again', async () => {
   const { projectRoot, storeDir, tempDir } = await scenario('retry', {
-    references: { orphan: 'npm:orphan@1.0.0' },
+    references: {
+      orphan: {
+        source: 'npm:orphan@1.0.0',
+        description: 'A package whose registry entry names no repository',
+      },
+    },
   });
   const source = await createPackageRepo(tempDir, 'orphan', '1.0.0');
 
@@ -68,6 +79,7 @@ test('editing the failed overrides makes the reference worth cloning again', asy
         source: 'npm:orphan@1.0.0',
         repository: `file://${source.path}`,
         ref: source.commit,
+        description: 'A package whose registry entry names no repository',
       },
     },
   });
@@ -97,7 +109,14 @@ test('a pinned ref overrides version resolution and re-pinning marks the checkou
 
   // Ask for 2.0.0 but pin the 1.0.0 commit: the pin has to win.
   await writeConfig(projectRoot, {
-    references: { thing: { source: 'npm:thing@2.0.0', repository, ref: olderCommit } },
+    references: {
+      thing: {
+        source: 'npm:thing@2.0.0',
+        repository,
+        ref: olderCommit,
+        description: 'The package this project pins',
+      },
+    },
   });
   const pinned = await cloneReferences(path.join(projectRoot, 'package.json'), { storeDir });
   assert.equal(pinned.cloned[0]?.checkoutSha, olderCommit);
@@ -109,7 +128,14 @@ test('a pinned ref overrides version resolution and re-pinning marks the checkou
   assert.equal(pinnedReport.references[0]?.confidence, 'pinned');
 
   await writeConfig(projectRoot, {
-    references: { thing: { source: 'npm:thing@2.0.0', repository, ref: newerCommit } },
+    references: {
+      thing: {
+        source: 'npm:thing@2.0.0',
+        repository,
+        ref: newerCommit,
+        description: 'The package this project pins',
+      },
+    },
   });
   const repinned = await getStatusReport(path.join(projectRoot, 'package.json'), { storeDir });
   assert.equal(repinned.references[0]?.status, 'stale');
@@ -125,6 +151,7 @@ test('an unresolvable pin reports the ref that does not exist', async () => {
         source: 'npm:thing@1.0.0',
         repository: `file://${source.path}`,
         ref: 'v9.9.9',
+        description: 'The package this project pins',
       },
     },
   });
@@ -144,11 +171,15 @@ test('one unresolvable reference does not stop the others from cloning', async (
 
   await writeConfig(projectRoot, {
     references: {
-      orphan: 'npm:orphan@1.0.0',
+      orphan: {
+        source: 'npm:orphan@1.0.0',
+        description: 'A package whose registry entry names no repository',
+      },
       good: {
         source: 'npm:good@1.0.0',
         repository: `file://${source.path}`,
         ref: source.commit,
+        description: 'A package that resolves cleanly',
       },
     },
   });
@@ -170,7 +201,9 @@ test('one unresolvable reference does not stop the others from cloning', async (
 
 test('status reports a default-branch fallback as an error with a pin fix', async () => {
   const { projectRoot, storeDir, tempDir } = await scenario('fallback', {
-    references: { thing: 'npm:thing@9.9.9' },
+    references: {
+      thing: { source: 'npm:thing@9.9.9', description: 'The package this project pins' },
+    },
   });
   const source = await createPackageRepo(tempDir, 'thing', '1.0.0');
 
@@ -205,7 +238,14 @@ test('a mirror that could not be updated is said out loud, not blamed on tag nam
       repository: { type: 'git', url: source.path },
     },
   };
-  await writeConfig(projectRoot, { references: { 'tiny-invariant': 'npm:tiny-invariant@2.0.0' } });
+  await writeConfig(projectRoot, {
+    references: {
+      'tiny-invariant': {
+        source: 'npm:tiny-invariant@2.0.0',
+        description: 'The invariant helper this project throws with',
+      },
+    },
+  });
 
   // Fill the mirror while the remote is readable, then take the remote away: a fetch that
   // fails is allowed to fail, so what is left is a mirror that predates the asked-for tag.
@@ -225,7 +265,14 @@ test('a fix names the file the reference was actually declared in', async () => 
   await fs.rm(path.join(projectRoot, 'agent-reference.json'));
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.local.json'),
-    JSON.stringify({ references: { orphan: 'npm:orphan@1.0.0' } }),
+    JSON.stringify({
+      references: {
+        orphan: {
+          source: 'npm:orphan@1.0.0',
+          description: 'A package whose registry entry names no repository',
+        },
+      },
+    }),
   );
 
   const clone = await cloneReferences(projectRoot, {
@@ -254,8 +301,12 @@ test('one unreachable git reference does not discard the packages that cloned', 
         source: 'npm:tiny-invariant@1.3.1',
         repository: `file://${source.path}`,
         ref: 'main',
+        description: 'The invariant helper this project throws with',
       },
-      gone: `file://${path.join(tempDir, 'no-such-repo')}`,
+      gone: {
+        source: `file://${path.join(tempDir, 'no-such-repo')}`,
+        description: 'A source that is not there',
+      },
     },
   });
 

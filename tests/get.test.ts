@@ -95,7 +95,11 @@ test('resolves a configured folder reference to its absolute path', async () => 
   await fs.mkdir(folderPath, { recursive: true });
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ references: { notes: './notes' } }),
+    JSON.stringify({
+      references: {
+        notes: { source: './notes', description: 'Project notes, read where they live' },
+      },
+    }),
   );
 
   const [result] = await getReferences(path.join(projectRoot, 'package.json'), ['notes'], {
@@ -118,8 +122,14 @@ test('materializes configured references in a directory that is not a Node proje
     JSON.stringify(
       {
         references: {
-          notes: './notes',
-          tooling: `file://${source.path}#${source.commit}`,
+          notes: {
+            source: './notes',
+            description: 'Project notes, read where they live',
+          },
+          tooling: {
+            source: `file://${source.path}#${source.commit}`,
+            description: 'The build tooling this project clones',
+          },
         },
       },
       null,
@@ -144,7 +154,13 @@ test('one name means one thing, so nothing has to be qualified', async () => {
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      references: { tooling: './tooling', 'tooling-upstream': 'github:example/tooling' },
+      references: {
+        tooling: { source: './tooling', description: 'The build tooling this project clones' },
+        'tooling-upstream': {
+          source: 'github:example/tooling',
+          description: 'Where the build tooling comes from',
+        },
+      },
     }),
   );
 
@@ -163,13 +179,16 @@ test('a set is a name that resolves to every reference in it', async () => {
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
       references: {
-        notes: './notes',
+        notes: {
+          source: './notes',
+          description: 'Project notes, read where they live',
+        },
         harnesses: {
           description: 'Two little repositories',
-          references: [
-            { source: `file://${first.path}`, name: 'first' },
-            { source: `file://${second.path}`, name: 'second' },
-          ],
+          references: {
+            first: { source: `file://${first.path}`, description: 'The first checkout' },
+            second: { source: `file://${second.path}`, description: 'The second checkout' },
+          },
         },
       },
     }),
@@ -215,6 +234,7 @@ test('a package source carries its ecosystem, and the entry answers to the packa
           source: 'npm:tiny-invariant@1.3.3',
           repository: `file://${source.path}`,
           ref: source.commit,
+          description: 'The invariant helper this project throws with',
         },
       },
     }),

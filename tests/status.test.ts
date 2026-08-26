@@ -66,7 +66,10 @@ test('reports config-only packages as configured references', async () => {
     JSON.stringify(
       {
         references: {
-          'tiny-warning': 'npm:tiny-warning@1.0.3',
+          'tiny-warning': {
+            source: 'npm:tiny-warning@1.0.3',
+            description: 'The dependency this project pins',
+          },
         },
       },
       null,
@@ -99,9 +102,18 @@ test('a path reference may name a file, and status reports which it found', asyn
     JSON.stringify(
       {
         references: {
-          checklist: './references/release-checklist.md',
-          notes: './references',
-          gone: './references/missing.md',
+          checklist: {
+            source: './references/release-checklist.md',
+            description: 'The steps a release goes through',
+          },
+          notes: {
+            source: './references',
+            description: 'Project notes, read where they live',
+          },
+          gone: {
+            source: './references/missing.md',
+            description: 'A source that is not there',
+          },
         },
       },
       null,
@@ -133,7 +145,10 @@ test('reports local folder references with absolute paths', async () => {
     JSON.stringify(
       {
         references: {
-          'design-notes': './references/design-notes',
+          'design-notes': {
+            source: './references/design-notes',
+            description: 'Where the current design came from',
+          },
         },
       },
       null,
@@ -160,7 +175,10 @@ test('reports stale git references when configured spec changes', async () => {
     JSON.stringify(
       {
         references: {
-          tooling: 'github:example/tooling#main',
+          tooling: {
+            source: 'github:example/tooling#main',
+            description: 'The build tooling this project clones',
+          },
         },
       },
       null,
@@ -197,7 +215,13 @@ test('works in a directory with no package.json or lockfile at all', async () =>
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        references: { notes: './notes', tooling: 'github:example/tooling' },
+        references: {
+          notes: { source: './notes', description: 'Project notes, read where they live' },
+          tooling: {
+            source: 'github:example/tooling',
+            description: 'The build tooling this project clones',
+          },
+        },
       },
       null,
       2,
@@ -229,7 +253,12 @@ test('finds the nearest config walking up from a subdirectory', async () => {
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        references: { tooling: 'github:example/tooling' },
+        references: {
+          tooling: {
+            source: 'github:example/tooling',
+            description: 'The build tooling this project clones',
+          },
+        },
       },
       null,
       2,
@@ -301,7 +330,13 @@ test('a machine path in the committed config is a warning here, not a blocked re
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      references: { notes: '~/notes', internal: 'file:///opt/checkouts/internal' },
+      references: {
+        notes: { source: '~/notes', description: 'Project notes, read where they live' },
+        internal: {
+          source: 'file:///opt/checkouts/internal',
+          description: 'The internal checkout next door',
+        },
+      },
     }),
   );
 
@@ -325,7 +360,18 @@ test('a drift patch edits the entry that is there, as a whole coordinate', async
   const projectRoot = await copyFixtureProject();
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ references: { 'tiny-invariant': 'npm:tiny-invariant@1.0.0' } }, null, 2),
+    JSON.stringify(
+      {
+        references: {
+          'tiny-invariant': {
+            source: 'npm:tiny-invariant@1.0.0',
+            description: 'The invariant helper this project throws with',
+          },
+        },
+      },
+      null,
+      2,
+    ),
   );
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
@@ -339,7 +385,12 @@ test('a drift patch edits the entry that is there, as a whole coordinate', async
   // The object form, so a shallow merge leaves a ref, a directory and the description
   // that explains the pin where they are.
   assert.deepEqual(drift?.configPatch, {
-    references: { 'tiny-invariant': { source: 'npm:tiny-invariant@1.3.3' } },
+    references: {
+      'tiny-invariant': {
+        source: 'npm:tiny-invariant@1.3.3',
+        description: 'The invariant helper this project throws with',
+      },
+    },
   });
   assert.match(drift?.fix ?? '', /references\.tiny-invariant/);
 });
@@ -365,7 +416,12 @@ async function useConfig(projectRoot: string): Promise<void> {
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify(
       {
-        references: { 'tiny-invariant': 'npm:tiny-invariant@1.3.3' },
+        references: {
+          'tiny-invariant': {
+            source: 'npm:tiny-invariant@1.3.3',
+            description: 'The invariant helper this project throws with',
+          },
+        },
       },
       null,
       2,

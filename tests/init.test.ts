@@ -177,7 +177,14 @@ test('an existing config becomes an instruction to add, never to prune', async (
   const { projectRoot, home } = await workspace('existing');
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ references: { 'chess-engine': 'github:acme/chess-engine' } }),
+    JSON.stringify({
+      references: {
+        'chess-engine': {
+          source: 'github:acme/chess-engine',
+          description: 'The engine this fork tracks',
+        },
+      },
+    }),
   );
 
   const survey = await survey_(projectRoot, home);
@@ -201,7 +208,10 @@ test('config text never reaches the brief', async () => {
     JSON.stringify({
       references: {
         notes: { source: './notes', description: planted },
-        gathered: { description: planted, references: ['./notes'] },
+        gathered: {
+          description: planted,
+          references: { notes: { source: './notes', description: planted } },
+        },
       },
     }),
   );

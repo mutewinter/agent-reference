@@ -83,7 +83,7 @@ test('a missing subtree emits a patch the parser accepts', () => {
     ref: 'v2',
     spec: 'github:acme/monorepo#v2',
     directory: 'packages/design-system',
-    description: null,
+    description: 'The components the app is built from',
     sets: [],
   } satisfies ConfiguredGitReference;
   const result = {
@@ -121,10 +121,16 @@ test('a drift patch keeps the entry it is telling you to annotate', async () => 
   const drift = report.problems.find((problem) => problem.summary.includes('is pinned to 1.0.0'));
 
   assertPatchParses(drift ?? null, 'drift');
-  // The object form is what survives a shallow merge. A bare string replaces the
-  // entry, taking the ref, the repository and the description with it.
+  // The object form is what survives a shallow merge, and the description rides along
+  // as the one it already has, so pasting the patch cannot overwrite the sentence the
+  // fix beside it tells you to edit.
   assert.deepEqual(drift?.configPatch, {
-    references: { 'tiny-invariant': { source: 'npm:tiny-invariant@1.3.3' } },
+    references: {
+      'tiny-invariant': {
+        source: 'npm:tiny-invariant@1.3.3',
+        description: 'Pinned by hand: the tag scheme is not guessable.',
+      },
+    },
   });
 });
 

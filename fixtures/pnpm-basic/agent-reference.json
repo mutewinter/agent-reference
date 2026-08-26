@@ -1,5 +1,8 @@
 {
   "references": {
-    "tiny-invariant": "npm:tiny-invariant@1.3.3"
+    "tiny-invariant": {
+      "source": "npm:tiny-invariant@1.3.3",
+      "description": "The invariant helper this project throws with"
+    }
   }
 }

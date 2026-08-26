@@ -100,7 +100,13 @@ test('advances cached branch refs when the upstream default branch moves', async
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      references: { tooling: { source: `file://${source}`, ref: 'main' } },
+      references: {
+        tooling: {
+          source: `file://${source}`,
+          ref: 'main',
+          description: 'The build tooling this project clones',
+        },
+      },
     }),
   );
 
@@ -181,7 +187,11 @@ test('a checkout whose mirror is gone is rebuilt, not reported ready', async () 
   const { projectRoot, storeDir, sourcePath } = await createSubtreeScenario('orphaned-worktree');
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.local.json'),
-    JSON.stringify({ references: { upstream: `file://${sourcePath}` } }),
+    JSON.stringify({
+      references: {
+        upstream: { source: `file://${sourcePath}`, description: 'The engine this fork tracks' },
+      },
+    }),
   );
 
   const [first] = await getReferences(projectRoot, ['upstream'], { storeDir });
@@ -232,7 +242,7 @@ async function declareSubtrees(
   const references = Object.fromEntries(
     Object.entries(directories).map(([name, directory]) => [
       name,
-      { source: `file://${sourcePath}`, directory },
+      { source: `file://${sourcePath}`, directory, description: `The ${name} subtree` },
     ]),
   );
   await fs.writeFile(
@@ -253,7 +263,14 @@ async function createMonorepoScenario(
   const projectRoot = await copyFixtureProject(tempDir);
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ references: { '@scope/thing': `npm:@scope/thing@${requestedVersion}` } }),
+    JSON.stringify({
+      references: {
+        '@scope/thing': {
+          source: `npm:@scope/thing@${requestedVersion}`,
+          description: 'A scoped package',
+        },
+      },
+    }),
   );
 
   const sourcePath = await initRepo(path.join(tempDir, 'monorepo-source'));

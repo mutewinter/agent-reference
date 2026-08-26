@@ -88,7 +88,14 @@ test('status reports a pin that no longer matches what the project installs', as
   const { projectRoot, storeDir } = await workspace('drift');
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ references: { 'tiny-invariant': 'npm:tiny-invariant@1.2.0' } }),
+    JSON.stringify({
+      references: {
+        'tiny-invariant': {
+          source: 'npm:tiny-invariant@1.2.0',
+          description: 'The invariant helper this project throws with',
+        },
+      },
+    }),
   );
 
   const report = await getStatusReport(projectRoot, { storeDir });
@@ -109,7 +116,14 @@ test('a pin that still matches the lockfile is not reported as drift', async () 
   const { projectRoot, storeDir } = await workspace('no-drift');
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ references: { 'tiny-invariant': 'npm:tiny-invariant@1.3.1' } }),
+    JSON.stringify({
+      references: {
+        'tiny-invariant': {
+          source: 'npm:tiny-invariant@1.3.1',
+          description: 'The invariant helper this project throws with',
+        },
+      },
+    }),
   );
 
   const report = await getStatusReport(projectRoot, { storeDir });
@@ -120,7 +134,14 @@ test('versions still answers when the config it would have loaded is unusable', 
   const { projectRoot } = await workspace('versions-broken-config');
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ references: { 'tiny-invariant': 'npm:tiny-invariant@installed' } }),
+    JSON.stringify({
+      references: {
+        'tiny-invariant': {
+          source: 'npm:tiny-invariant@installed',
+          description: 'The invariant helper this project throws with',
+        },
+      },
+    }),
   );
 
   // The error for an unusable version points at this command, so a broken config must not
@@ -137,7 +158,14 @@ test('a config version that is not an exact coordinate is refused with the way o
     assert.throws(
       () =>
         parseConfig(
-          { references: { 'tiny-invariant': `npm:tiny-invariant@${version}` } },
+          {
+            references: {
+              'tiny-invariant': {
+                source: `npm:tiny-invariant@${version}`,
+                description: 'The invariant helper this project throws with',
+              },
+            },
+          },
           'agent-reference.json',
         ),
       /not an exact version[\s\S]*agent-reference versions/,
@@ -148,7 +176,14 @@ test('a config version that is not an exact coordinate is refused with the way o
   assert.throws(
     () =>
       parseConfig(
-        { references: { 'tiny-invariant': 'npm:tiny-invariant' } },
+        {
+          references: {
+            'tiny-invariant': {
+              source: 'npm:tiny-invariant',
+              description: 'The invariant helper this project throws with',
+            },
+          },
+        },
         'agent-reference.json',
       ),
     /names no version[\s\S]*agent-reference versions/,
@@ -186,6 +221,7 @@ test('a decoy directory never outranks the repository root', async () => {
           source: 'npm:fakepkg@1.0.0',
           repository: `file://${source.path}`,
           directory: '.',
+          description: 'A package whose repository holds a decoy directory',
         },
       },
     }),
@@ -205,7 +241,13 @@ test('get reports a fallback checkout as the problem it is', async () => {
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
-      references: { oddtags: { source: 'npm:oddtags@9.9.9', repository: `file://${source.path}` } },
+      references: {
+        oddtags: {
+          source: 'npm:oddtags@9.9.9',
+          repository: `file://${source.path}`,
+          description: 'A package whose tags do not match its versions',
+        },
+      },
     }),
   );
 
@@ -228,6 +270,7 @@ test('a repository that cannot be read names the repository, not a ref', async (
         ghost: {
           source: 'npm:ghost@1.0.0',
           repository: `file://${path.join(tempDir, 'nowhere.git')}`,
+          description: 'A package the registry knows nothing about',
         },
       },
     }),
@@ -363,6 +406,7 @@ test('a value git would read as an option never reaches git', async () => {
           // git parses options positioned after `origin`, so this is code execution rather
           // than a ref, and a shared config file is how it would travel.
           ref: `--upload-pack=touch ${marker};true`,
+          description: 'The package this workspace installs',
         },
       },
     }),
@@ -389,7 +433,12 @@ test('a transport git should not be asked to speak is refused', async () => {
     path.join(projectRoot, 'agent-reference.json'),
     JSON.stringify({
       references: {
-        victimpkg: { source: 'npm:victimpkg@1.0.0', repository: 'ext::sh -c whoami', ref: 'main' },
+        victimpkg: {
+          source: 'npm:victimpkg@1.0.0',
+          repository: 'ext::sh -c whoami',
+          ref: 'main',
+          description: 'The package this workspace installs',
+        },
       },
     }),
   );
@@ -407,7 +456,14 @@ test('a repository that is not a URL is refused, not reported as a failed clone'
     // A scheme left off, which is a typo rather than an attack. It used to surface as
     // `TypeError: Invalid URL` from inside store-path construction, then as a clone failure
     // blaming the network, and then as a registry 404 blaming npm for a hostname.
-    JSON.stringify({ references: { internal: 'forge.example/team/repo' } }),
+    JSON.stringify({
+      references: {
+        internal: {
+          source: 'forge.example/team/repo',
+          description: 'The internal checkout next door',
+        },
+      },
+    }),
   );
 
   await assert.rejects(getReferences(projectRoot, ['internal'], { storeDir }), (error: Error) => {

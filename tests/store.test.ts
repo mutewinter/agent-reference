@@ -120,7 +120,10 @@ test('the store a project configures is the store store reads', async () => {
   );
   await fs.writeFile(
     path.join(projectRoot, 'agent-reference.json'),
-    JSON.stringify({ cacheDir: './.cache', references: { zod: 'npm:zod@3.22.0' } }),
+    JSON.stringify({
+      cacheDir: './.cache',
+      references: { zod: { source: 'npm:zod@3.22.0', description: 'Schema shapes' } },
+    }),
   );
 
   // get, clone, and status all honor cacheDir. store reading the default store instead made
