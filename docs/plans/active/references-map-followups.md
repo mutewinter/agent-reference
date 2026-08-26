@@ -180,4 +180,6 @@ Fixed, with the review's numbering.
 - **The `adopt` fixture**: the published bundle is a stub for everything, so the shim signal the suite grades is unreachable for a thorough run, and `UIProvider` has no file to land in.
 - **No eval declares a set.** The largest new surface, unexercised end to end.
 - **The ecosystem-prefix key.** A package reference keyed by its bare name has no room for `npm:requests` beside `pypi:requests`. Worth a decision record before a second ecosystem ships.
-- **The smaller ones** in the review's own list: duplicate description precedence, an empty member `name`, trailing-slash normalization, duplicate JSON keys, and `splitPositionals` treating any selector with a slash as a project path.
+- **The smaller ones** in the review's own list: trailing-slash normalization, duplicate JSON keys, and `splitPositionals` treating any selector with a slash as a project path. Duplicate JSON keys matter more now: a set's members are a second map they can collapse in.
+
+[One shape for a reference](../../decisions/2026-08-26-one-shape-for-a-reference.md) closed two of these by removing what made them possible. An empty member `name` cannot be written, because the key is the name; and a description can no longer be absent, so there is no precedence to decide between two declarations of one.
