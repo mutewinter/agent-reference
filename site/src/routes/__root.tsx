@@ -10,6 +10,9 @@ const SITE = 'https://agent-reference.dev';
 const REPOSITORY = 'https://github.com/mutewinter/agent-reference';
 const NPM = 'https://www.npmjs.com/package/agent-reference';
 
+/** The talk this was launched in, built into public/talk by `talk:build`. */
+const TALK = '/talk';
+
 const HEADLINE = `${TITLE} \u00B7 ${TAGLINE}`;
 
 /**
@@ -128,9 +131,11 @@ function Header() {
 }
 
 /**
- * The same two links as the header, for a reader who got to the bottom rather
- * than back to the top, under a line that is only half a joke: the config, the
- * skill, and most of this page were written by the thing they are for.
+ * The header's two links for a reader who got to the bottom rather than back to
+ * the top, and the talk this was launched in, which only the page carries: the
+ * deck renders client-side, so it has nothing to hand a reader that does not run
+ * scripts. Over them a line that is only half a joke: the config, the skill, and
+ * most of this page were written by the thing they are for.
  */
 function Footer() {
   return (
@@ -142,6 +147,9 @@ function Footer() {
         </a>
         <a href={NPM} className="hover:text-accent">
           npm
+        </a>
+        <a href={TALK} className="hover:text-accent">
+          talk
         </a>
       </nav>
     </footer>

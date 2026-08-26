@@ -129,9 +129,9 @@ const list = (self: string) =>
 /**
  * The homepage as one markdown document: the same sections in the same order
  * the page puts them in, out of the same regions the README carries, plus the
- * links the header and the footer hold on the page itself. This is what
- * /index.md serves, and what an agent asking the homepage for `text/markdown`
- * is handed instead of the HTML.
+ * published links the header and the footer hold on the page itself. This is
+ * what /index.md serves, and what an agent asking the homepage for
+ * `text/markdown` is handed instead of the HTML.
  */
 export function renderHomeMarkdown(): string {
   const regions = renderRegions();
