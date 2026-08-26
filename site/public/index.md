@@ -50,11 +50,11 @@ Your agent maintains this file, adding references as it needs them and cloning a
 * Skill(agent-reference)
   ⎿ Launching skill: agent-reference
 * Bash(agent-reference get pi)
-  ⎿ ~/.agent-reference/src/…/earendil-works/pi/dcd461925db2
+  ⎿ pi -> ~/.agent-reference/src/…/earendil-works/pi/dcd461925db2
 * Read(…/packages/coding-agent/src/core/tools/edit.ts)
   ⎿ Read 461 lines
 * Bash(agent-reference get effect-docs)
-  ⎿ ~/.agent-reference/src/…/website/6ee985b191a6/…/docs/v4
+  ⎿ effect-docs -> ~/.agent-reference/src/…/website/6ee985b191a6/…/docs/v4
 * Read(…/docs/v4/platform/file-system.mdx)
   ⎿ Read 115 lines
 ```
@@ -152,11 +152,11 @@ Your agent reads the version this project installs, from the repository rather t
 ```text
 # your agent runs this, not you
 agent-reference get ai
-~/.agent-reference/src/…/vercel/ai/5b64c3901f7e/packages/ai
+npm:ai@7.0.78 -> ~/.agent-reference/src/…/vercel/ai/5b64c3901f7e/packages/ai
 
 # nothing declares electron; the lockfile is the whole answer
 agent-reference get electron
-~/.agent-reference/src/…/electron/electron/22bbbc9fa06d
+npm:electron@41.0.2 -> ~/.agent-reference/src/…/electron/electron/22bbbc9fa06d
 ```
 
 ### Reference a skill from another project
@@ -250,9 +250,9 @@ $ codex "Implement context compaction based on how
   other coding harnesses do it"
 
 * Bash(agent-reference get harnesses)
-  ⎿ pi        ~/.agent-reference/src/…/earendil-works/pi/dcd461925db2
-    codex     ~/.agent-reference/src/…/openai/codex/a4f10b27e83c
-    opencode  ~/.agent-reference/src/…/anomalyco/opencode/7b0e5c31d4a9
+  ⎿ pi -> ~/.agent-reference/src/…/earendil-works/pi/dcd461925db2
+    codex -> ~/.agent-reference/src/…/openai/codex/a4f10b27e83c
+    opencode -> ~/.agent-reference/src/…/anomalyco/opencode/7b0e5c31d4a9
 
 * Read(…/pi/packages/coding-agent/src/core/compaction/compaction.ts)
 ```
@@ -309,17 +309,25 @@ Every kind of source in one map, a set among them, and what your agent sees when
 # your agent runs this, not you
 agent-reference status
 agent-reference.json (shared)
-  ai         npm · ready · 7.0.78 verified
+  ai         npm · ready · 7.0.78 verified · ~/.agent-reference/src/…/vercel/ai/5b64c3901f7e/packages/ai
+             "Read its docs/ and changelog before writing v7"
   electron   npm · declared · 41.0.2
-  decisions  folder · ready · ./docs/decisions
-  style      file · ready · ./docs/style-guide.md
+             "Pinned: we ship against this build's native module ABI"
+  decisions  folder · ready · ~/code/acme/web/docs/decisions
+             "Why this project is shaped the way it is; read before calling a design a bug"
+  style      file · ready · ~/code/acme/web/docs/style-guide.md
+             "How prose in this repo is written"
 
   harnesses  set · 2 references
              "How other agents solve the same problems"
     pi     git · ready · ~/.agent-reference/src/…/pi/dcd461925db2
-    codex  git · declared · github:openai/codex
+           "The smallest one: read it first"
+    codex  git · declared · github:openai/codex#v0.20.0
+           "Pinned: we match this version's tool schema"
 
 package versions read from pnpm-lock.yaml
+
+2 of 6 not fetched yet, which is normal · agent-reference get <name>
 ```
 
 ## Where the source lands

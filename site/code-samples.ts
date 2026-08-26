@@ -299,46 +299,54 @@ export const terminals = {
 * Skill(agent-reference)
   \u23BF Launching skill: agent-reference
 * Bash(agent-reference get pi)
-  \u23BF ~/.agent-reference/src/\u2026/earendil-works/pi/dcd461925db2
+  \u23BF pi -> ~/.agent-reference/src/\u2026/earendil-works/pi/dcd461925db2
 * Read(\u2026/packages/coding-agent/src/core/tools/edit.ts)
   \u23BF Read 461 lines
 * Bash(agent-reference get effect-docs)
-  \u23BF ~/.agent-reference/src/\u2026/website/6ee985b191a6/\u2026/docs/v4
+  \u23BF effect-docs -> ~/.agent-reference/src/\u2026/website/6ee985b191a6/\u2026/docs/v4
 * Read(\u2026/docs/v4/platform/file-system.mdx)
   \u23BF Read 115 lines`,
 
   pinned: `# your agent runs this, not you
 agent-reference get ai
-~/.agent-reference/src/\u2026/vercel/ai/5b64c3901f7e/packages/ai
+npm:ai@7.0.78 -> ~/.agent-reference/src/\u2026/vercel/ai/5b64c3901f7e/packages/ai
 
 # nothing declares electron; the lockfile is the whole answer
 agent-reference get electron
-~/.agent-reference/src/\u2026/electron/electron/22bbbc9fa06d`,
+npm:electron@41.0.2 -> ~/.agent-reference/src/\u2026/electron/electron/22bbbc9fa06d`,
 
   set: `$ codex "Implement context compaction based on how
   other coding harnesses do it"
 
 * Bash(agent-reference get harnesses)
-  \u23BF pi        ~/.agent-reference/src/\u2026/earendil-works/pi/dcd461925db2
-    codex     ~/.agent-reference/src/\u2026/openai/codex/a4f10b27e83c
-    opencode  ~/.agent-reference/src/\u2026/anomalyco/opencode/7b0e5c31d4a9
+  \u23BF pi -> ~/.agent-reference/src/\u2026/earendil-works/pi/dcd461925db2
+    codex -> ~/.agent-reference/src/\u2026/openai/codex/a4f10b27e83c
+    opencode -> ~/.agent-reference/src/\u2026/anomalyco/opencode/7b0e5c31d4a9
 
 * Read(\u2026/pi/packages/coding-agent/src/core/compaction/compaction.ts)`,
 
   complex: `# your agent runs this, not you
 agent-reference status
 agent-reference.json (shared)
-  ai         npm \u00B7 ready \u00B7 7.0.78 verified
+  ai         npm \u00B7 ready \u00B7 7.0.78 verified \u00B7 ~/.agent-reference/src/\u2026/vercel/ai/5b64c3901f7e/packages/ai
+             "Read its docs/ and changelog before writing v7"
   electron   npm \u00B7 declared \u00B7 41.0.2
-  decisions  folder \u00B7 ready \u00B7 ./docs/decisions
-  style      file \u00B7 ready \u00B7 ./docs/style-guide.md
+             "Pinned: we ship against this build's native module ABI"
+  decisions  folder \u00B7 ready \u00B7 ~/code/acme/web/docs/decisions
+             "Why this project is shaped the way it is; read before calling a design a bug"
+  style      file \u00B7 ready \u00B7 ~/code/acme/web/docs/style-guide.md
+             "How prose in this repo is written"
 
   harnesses  set \u00B7 2 references
              "How other agents solve the same problems"
     pi     git \u00B7 ready \u00B7 ~/.agent-reference/src/\u2026/pi/dcd461925db2
-    codex  git \u00B7 declared \u00B7 github:openai/codex
+           "The smallest one: read it first"
+    codex  git \u00B7 declared \u00B7 github:openai/codex#v0.20.0
+           "Pinned: we match this version's tool schema"
 
-package versions read from pnpm-lock.yaml`,
+package versions read from pnpm-lock.yaml
+
+2 of 6 not fetched yet, which is normal \u00B7 agent-reference get <name>`,
 };
 
 /** The examples section, in the order somebody meets these problems. */
