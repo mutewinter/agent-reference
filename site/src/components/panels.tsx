@@ -313,9 +313,15 @@ function sessionLine(line: string, i: number): ReactElement<{ className?: string
   );
 }
 
-export function Term({ text }: { text: string }) {
+/**
+ * `scroll` drops the wrapping for a block whose columns carry the meaning. `status`
+ * lines a name, a kind, a state and a path up across every row, and one wrapped
+ * path shifts every column under it, so that block is read sideways instead. A bare
+ * `pre` is how `Tree` does the same thing: the panel around it is the scroller.
+ */
+export function Term({ text, scroll = false }: { text: string; scroll?: boolean }) {
   return (
-    <pre className="code-wrap leading-code">
+    <pre className={`${scroll ? '' : 'code-wrap'} leading-code`}>
       {text.split('\n').map((line, i) => (
         <Line key={`${i}-${line}`} text={line} />
       ))}

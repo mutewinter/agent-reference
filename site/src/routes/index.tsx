@@ -63,7 +63,7 @@ function Example({ title, note, tree, terminal, file, sample }: ExampleData) {
         </Panel>
         {terminal ? (
           <Panel tone="term">
-            <Term text={terminals[terminal]} />
+            <Term text={terminals[terminal]} scroll={terminal === 'complex'} />
           </Panel>
         ) : null}
       </div>
