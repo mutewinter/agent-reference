@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { cloneReferences } from '../src/core.ts';
@@ -77,7 +78,7 @@ test('editing the failed overrides makes the reference worth cloning again', asy
     references: {
       orphan: {
         source: 'npm:orphan@1.0.0',
-        repository: `file://${source.path}`,
+        repository: pathToFileURL(source.path).href,
         ref: source.commit,
         description: 'A package whose registry entry names no repository',
       },
@@ -103,7 +104,7 @@ test('editing the failed overrides makes the reference worth cloning again', asy
 test('a pinned ref overrides version resolution and re-pinning marks the checkout stale', async () => {
   const { projectRoot, storeDir, tempDir } = await scenario('pin', {});
   const source = await createPackageRepo(tempDir, 'thing', '1.0.0');
-  const repository = `file://${source.path}`;
+  const repository = pathToFileURL(source.path).href;
   const olderCommit = source.commit;
   const newerCommit = await addCommit(source.path, 'thing', '2.0.0');
 
@@ -149,7 +150,7 @@ test('an unresolvable pin reports the ref that does not exist', async () => {
     references: {
       thing: {
         source: 'npm:thing@1.0.0',
-        repository: `file://${source.path}`,
+        repository: pathToFileURL(source.path).href,
         ref: 'v9.9.9',
         description: 'The package this project pins',
       },
@@ -177,7 +178,7 @@ test('one unresolvable reference does not stop the others from cloning', async (
       },
       good: {
         source: 'npm:good@1.0.0',
-        repository: `file://${source.path}`,
+        repository: pathToFileURL(source.path).href,
         ref: source.commit,
         description: 'A package that resolves cleanly',
       },
@@ -299,12 +300,12 @@ test('one unreachable git reference does not discard the packages that cloned', 
     references: {
       'tiny-invariant': {
         source: 'npm:tiny-invariant@1.3.1',
-        repository: `file://${source.path}`,
+        repository: pathToFileURL(source.path).href,
         ref: 'main',
         description: 'The invariant helper this project throws with',
       },
       gone: {
-        source: `file://${path.join(tempDir, 'no-such-repo')}`,
+        source: pathToFileURL(path.join(tempDir, 'no-such-repo')).href,
         description: 'A source that is not there',
       },
     },

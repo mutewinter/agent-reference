@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { cloneReferences } from '../src/core.ts';
@@ -144,7 +145,7 @@ test('clones configured git references', async () => {
       {
         references: {
           tooling: {
-            source: `file://${sourceRepo.path}#${sourceRepo.commit}`,
+            source: `${pathToFileURL(sourceRepo.path).href}#${sourceRepo.commit}`,
             description: 'The build tooling this project clones',
           },
         },
@@ -205,7 +206,7 @@ test('preserves existing manifest references after a partial clone', async () =>
       {
         references: {
           tooling: {
-            source: `file://${gitRepo.path}#${gitRepo.commit}`,
+            source: `${pathToFileURL(gitRepo.path).href}#${gitRepo.commit}`,
             description: 'The build tooling this project clones',
           },
         },

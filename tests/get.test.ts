@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { formatGetResults } from '../src/cli-format.ts';
@@ -79,7 +80,7 @@ test('materializes an ad hoc git spec without touching project state', async () 
 
   const [result] = await getReferences(
     path.join(projectRoot, 'package.json'),
-    [`file://${source.path}#${source.commit}`],
+    [`${pathToFileURL(source.path).href}#${source.commit}`],
     { storeDir },
   );
 
@@ -127,7 +128,7 @@ test('materializes configured references in a directory that is not a Node proje
             description: 'Project notes, read where they live',
           },
           tooling: {
-            source: `file://${source.path}#${source.commit}`,
+            source: `${pathToFileURL(source.path).href}#${source.commit}`,
             description: 'The build tooling this project clones',
           },
         },
@@ -186,8 +187,8 @@ test('a set is a name that resolves to every reference in it', async () => {
         harnesses: {
           description: 'Two little repositories',
           references: {
-            first: { source: `file://${first.path}`, description: 'The first checkout' },
-            second: { source: `file://${second.path}`, description: 'The second checkout' },
+            first: { source: pathToFileURL(first.path).href, description: 'The first checkout' },
+            second: { source: pathToFileURL(second.path).href, description: 'The second checkout' },
           },
         },
       },
@@ -232,7 +233,7 @@ test('a package source carries its ecosystem, and the entry answers to the packa
       references: {
         'tiny-invariant': {
           source: 'npm:tiny-invariant@1.3.3',
-          repository: `file://${source.path}`,
+          repository: pathToFileURL(source.path).href,
           ref: source.commit,
           description: 'The invariant helper this project throws with',
         },

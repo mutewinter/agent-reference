@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { getReferences } from '../src/get.ts';
@@ -219,7 +220,7 @@ test('a decoy directory never outranks the repository root', async () => {
       references: {
         fakepkg: {
           source: 'npm:fakepkg@1.0.0',
-          repository: `file://${source.path}`,
+          repository: pathToFileURL(source.path).href,
           directory: '.',
           description: 'A package whose repository holds a decoy directory',
         },
@@ -244,7 +245,7 @@ test('get reports a fallback checkout as the problem it is', async () => {
       references: {
         oddtags: {
           source: 'npm:oddtags@9.9.9',
-          repository: `file://${source.path}`,
+          repository: pathToFileURL(source.path).href,
           description: 'A package whose tags do not match its versions',
         },
       },
@@ -269,7 +270,7 @@ test('a repository that cannot be read names the repository, not a ref', async (
       references: {
         ghost: {
           source: 'npm:ghost@1.0.0',
-          repository: `file://${path.join(tempDir, 'nowhere.git')}`,
+          repository: pathToFileURL(path.join(tempDir, 'nowhere.git')).href,
           description: 'A package the registry knows nothing about',
         },
       },
@@ -402,7 +403,7 @@ test('a value git would read as an option never reaches git', async () => {
       references: {
         victimpkg: {
           source: 'npm:victimpkg@1.0.0',
-          repository: `file://${source.path}`,
+          repository: pathToFileURL(source.path).href,
           // git parses options positioned after `origin`, so this is code execution rather
           // than a ref, and a shared config file is how it would travel.
           ref: `--upload-pack=touch ${marker};true`,

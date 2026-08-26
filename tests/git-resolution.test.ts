@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 
 import { cloneReferences } from '../src/core.ts';
@@ -102,7 +103,7 @@ test('advances cached branch refs when the upstream default branch moves', async
     JSON.stringify({
       references: {
         tooling: {
-          source: `file://${source}`,
+          source: pathToFileURL(source).href,
           ref: 'main',
           description: 'The build tooling this project clones',
         },
@@ -189,7 +190,10 @@ test('a checkout whose mirror is gone is rebuilt, not reported ready', async () 
     path.join(projectRoot, 'agent-reference.local.json'),
     JSON.stringify({
       references: {
-        upstream: { source: `file://${sourcePath}`, description: 'The engine this fork tracks' },
+        upstream: {
+          source: pathToFileURL(sourcePath).href,
+          description: 'The engine this fork tracks',
+        },
       },
     }),
   );
@@ -242,7 +246,7 @@ async function declareSubtrees(
   const references = Object.fromEntries(
     Object.entries(directories).map(([name, directory]) => [
       name,
-      { source: `file://${sourcePath}`, directory, description: `The ${name} subtree` },
+      { source: pathToFileURL(sourcePath).href, directory, description: `The ${name} subtree` },
     ]),
   );
   await fs.writeFile(
