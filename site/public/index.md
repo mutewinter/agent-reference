@@ -26,7 +26,7 @@
   "references": {
     "effect": {
       "source": "npm:effect@4.0.0-rc.111",
-      "description": "Every example online is still v3"
+      "description": "v4's own examples; the ones online are v3"
     },
     "effect-docs": {
       "source": "github:Effect-TS/website",
@@ -35,7 +35,7 @@
     },
     "pi": {
       "source": "github:earendil-works/pi",
-      "description": "A small harness worth reading before writing one"
+      "description": "A small terminal coding agent, in TypeScript"
     }
   }
 }
@@ -143,7 +143,7 @@ Your agent reads the version this project installs, from the repository rather t
   "references": {
     "ai": {
       "source": "npm:ai@7.0.78",
-      "description": "Read its docs/ and changelog before writing v7; v6 examples still dominate search results"
+      "description": "Vercel's AI SDK, and the v6-to-v7 migration in its changelog"
     }
   }
 }
@@ -229,15 +229,15 @@ A set is a reference that resolves to more than one path. Its key is its name, l
       "references": {
         "pi": {
           "source": "github:earendil-works/pi",
-          "description": "The smallest one: read it first"
+          "description": "The smallest of the three, in TypeScript"
         },
         "codex": {
           "source": "github:openai/codex",
-          "description": "Rust, and the only one with a sandbox worth copying"
+          "description": "Rust, with the sandbox and the approval flow"
         },
         "opencode": {
           "source": "github:anomalyco/opencode",
-          "description": "Its tests beside each tool are the specification"
+          "description": "Its tests sit beside each tool"
         }
       }
     }
@@ -268,7 +268,7 @@ Every kind of source in one map, a set among them, and what your agent sees when
   "references": {
     "ai": {
       "source": "npm:ai@7.0.78",
-      "description": "Read its docs/ and changelog before writing v7"
+      "description": "Vercel's AI SDK, and its changelog"
     },
     "electron": {
       "source": "npm:electron@41.0.2",
@@ -278,7 +278,7 @@ Every kind of source in one map, a set among them, and what your agent sees when
     // agent-reference.local.json, which merges over this file.
     "decisions": {
       "source": "./docs/decisions",
-      "description": "Why this project is shaped the way it is; read before calling a design a bug"
+      "description": "Why this project is shaped the way it is, one file per decision"
     },
     "style": {
       "source": "./docs/style-guide.md",
@@ -292,7 +292,7 @@ Every kind of source in one map, a set among them, and what your agent sees when
       "references": {
         "pi": {
           "source": "github:earendil-works/pi",
-          "description": "The smallest one: read it first"
+          "description": "The smallest of the three, in TypeScript"
         },
         "codex": {
           "source": "github:openai/codex",
@@ -341,11 +341,11 @@ Skip this if you like: your agent handles all of it. It is here for anyone who w
   "references": {
     "effect": {
       "source": "npm:effect@4.0.0-rc.111",
-      "description": "Every example online is still v3"
+      "description": "v4's own examples; the ones online are v3"
     },
     "pi": {
       "source": "github:earendil-works/pi",
-      "description": "A small harness worth reading before writing one"
+      "description": "A small terminal coding agent, in TypeScript"
     }
   }
 }
@@ -358,7 +358,7 @@ Skip this if you like: your agent handles all of it. It is here for anyone who w
   "references": {
     "effect": {
       "source": "npm:effect@3.19.4",
-      "description": "The version this service is still on"
+      "description": "v3, which this service is built on"
     }
   }
 }

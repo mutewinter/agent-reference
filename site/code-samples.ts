@@ -10,7 +10,7 @@ export const samples = {
   "references": {
     "effect": {
       "source": "npm:effect@4.0.0-rc.111",
-      "description": "Every example online is still v3"
+      "description": "v4's own examples; the ones online are v3"
     },
     "effect-docs": {
       "source": "github:Effect-TS/website",
@@ -19,7 +19,7 @@ export const samples = {
     },
     "pi": {
       "source": "github:earendil-works/pi",
-      "description": "A small harness worth reading before writing one"
+      "description": "A small terminal coding agent, in TypeScript"
     }
   }
 }`,
@@ -32,7 +32,7 @@ export const samples = {
   "references": {
     "effect": {
       "source": "npm:effect@4.0.0-rc.111",
-      "description": "Every example online is still v3"
+      "description": "v4's own examples; the ones online are v3"
     }
   }
 }`,
@@ -76,7 +76,7 @@ export const samples = {
   "references": {
     "ai": {
       "source": "npm:ai@7.0.78",
-      "description": "Read its docs/ and changelog before writing v7; v6 examples still dominate search results"
+      "description": "Vercel's AI SDK, and the v6-to-v7 migration in its changelog"
     }
   }
 }`,
@@ -127,15 +127,15 @@ export const samples = {
       "references": {
         "pi": {
           "source": "github:earendil-works/pi",
-          "description": "The smallest one: read it first"
+          "description": "The smallest of the three, in TypeScript"
         },
         "codex": {
           "source": "github:openai/codex",
-          "description": "Rust, and the only one with a sandbox worth copying"
+          "description": "Rust, with the sandbox and the approval flow"
         },
         "opencode": {
           "source": "github:anomalyco/opencode",
-          "description": "Its tests beside each tool are the specification"
+          "description": "Its tests sit beside each tool"
         }
       }
     }
@@ -151,7 +151,7 @@ export const samples = {
   "references": {
     "ai": {
       "source": "npm:ai@7.0.78",
-      "description": "Read its docs/ and changelog before writing v7"
+      "description": "Vercel's AI SDK, and its changelog"
     },
     "electron": {
       "source": "npm:electron@41.0.2",
@@ -161,7 +161,7 @@ export const samples = {
     // agent-reference.local.json, which merges over this file.
     "decisions": {
       "source": "./docs/decisions",
-      "description": "Why this project is shaped the way it is; read before calling a design a bug"
+      "description": "Why this project is shaped the way it is, one file per decision"
     },
     "style": {
       "source": "./docs/style-guide.md",
@@ -175,7 +175,7 @@ export const samples = {
       "references": {
         "pi": {
           "source": "github:earendil-works/pi",
-          "description": "The smallest one: read it first"
+          "description": "The smallest of the three, in TypeScript"
         },
         "codex": {
           "source": "github:openai/codex",
@@ -198,11 +198,11 @@ export const samples = {
   "references": {
     "effect": {
       "source": "npm:effect@4.0.0-rc.111",
-      "description": "Every example online is still v3"
+      "description": "v4's own examples; the ones online are v3"
     },
     "pi": {
       "source": "github:earendil-works/pi",
-      "description": "A small harness worth reading before writing one"
+      "description": "A small terminal coding agent, in TypeScript"
     }
   }
 }`,
@@ -214,7 +214,7 @@ export const samples = {
   "references": {
     "effect": {
       "source": "npm:effect@3.19.4",
-      "description": "The version this service is still on"
+      "description": "v3, which this service is built on"
     }
   }
 }`,
