@@ -15,7 +15,13 @@ import {
 import { committedPathLeaks } from './config-hygiene.ts';
 import { readManifest } from './manifest.ts';
 import { SUPPORTED_ECOSYSTEM } from './package-utils.ts';
-import { getCommand, missingDirectoryProblem, pinFix, unresolvedProblem } from './problems.ts';
+import {
+  DESCRIPTION_PLACEHOLDER,
+  getCommand,
+  missingDirectoryProblem,
+  pinFix,
+  unresolvedProblem,
+} from './problems.ts';
 import { configFileFor } from './get.ts';
 import { loadReferenceContext } from './reference-context.ts';
 import type {
@@ -179,6 +185,7 @@ function collectProblems(
             configured.ref,
             entry.repositoryPath ?? '',
             configFileFor(configured.scope),
+            configured.description,
           ),
         );
       }
@@ -186,7 +193,9 @@ function collectProblems(
 
     if (entry.status === 'unresolvable') {
       const failure = unresolvedByName.get(entry.name);
-      if (failure) problems.push(unresolvedProblem(failure, storeDir, configFile));
+      if (failure) {
+        problems.push(unresolvedProblem(failure, storeDir, configFile, entry.description));
+      }
       continue;
     }
 
@@ -203,7 +212,11 @@ function collectProblems(
         // The object form, so a shallow merge leaves `ref`, `directory` and the
         // description that explains the pin where they are. A bare string would
         // replace the entry the fix above tells you to annotate.
-        configPatch: { references: { [entry.name]: { source } } },
+        configPatch: {
+          references: {
+            [entry.name]: { source, description: entry.description ?? DESCRIPTION_PLACEHOLDER },
+          },
+        },
         configFile,
       });
     }
@@ -277,6 +290,7 @@ function pinPatch(entry: AgentReferenceStatusEntry, ecosystem: string): Record<s
       [entry.name]: {
         source: `${ecosystem}:${entry.name}@${version}`,
         ref: '<commit-or-tag>',
+        description: entry.description ?? DESCRIPTION_PLACEHOLDER,
       },
     },
   };

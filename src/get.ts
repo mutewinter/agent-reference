@@ -10,6 +10,7 @@ import { ensureGitReferenceWorktree, resolvePackagePath, resolveStoreDir } from 
 import { writeManifest } from './manifest.ts';
 import {
   ambiguousInstalledMessage,
+  DESCRIPTION_PLACEHOLDER,
   getCommand,
   missingDirectoryProblem,
   pinFix,
@@ -401,6 +402,7 @@ async function materializeToResult(
       worktreeOptions.storeDir,
       Boolean(options.override?.directory),
       configFile,
+      options.override?.description ?? null,
     ),
   };
 }
@@ -419,6 +421,7 @@ function resultProblem(
   storeDir: string,
   directoryPinned: boolean,
   configFile: string,
+  description: string | null,
 ): AgentReferenceProblem | null {
   if (result.confidence === 'fallback') {
     return {
@@ -432,7 +435,13 @@ function resultProblem(
         ? `The mirror could not be updated on this run, so the release commit may not be here yet rather than missing. With the remote reachable, run ${getCommand(name)} again. If it still misses, ${pinFix(name, version, result.metadata.repositoryUrl, storeDir, configFile)}`
         : pinFix(name, version, result.metadata.repositoryUrl, storeDir, configFile),
       configPatch: {
-        references: { [name]: { source: formatCoordinate(name, version), ref: '<commit-or-tag>' } },
+        references: {
+          [name]: {
+            source: formatCoordinate(name, version),
+            ref: '<commit-or-tag>',
+            description: description ?? DESCRIPTION_PLACEHOLDER,
+          },
+        },
       },
       configFile,
     };
@@ -550,6 +559,7 @@ export function gitDirectoryProblem(
     result.checkoutRef,
     result.worktreePath,
     configFileFor(reference.scope),
+    reference.description,
   );
 }
 

@@ -32,6 +32,14 @@ export function ambiguousInstalledMessage(name: string, candidates: PackageRefer
  * command it just ran, so this is shared by `clone` and `status` rather than leaving one
  * of them telling the caller to go run the other.
  */
+/**
+ * What a patch writes into `description` when it is adding an entry rather than correcting
+ * one. Every entry carries a description, so a patch has to supply one; where the reference
+ * is already declared the producer passes the description it has, and a shallow merge then
+ * leaves the sentence the user wrote alone.
+ */
+export const DESCRIPTION_PLACEHOLDER = '<when to read this, and what it answers>';
+
 export const KEEP_REFERENCE_NOTE: string =
   'Fix the reference. Do not delete it from agent-reference.json to clear this;\n' +
   '  it was declared on purpose and removing it drops that source for everyone.';
@@ -40,6 +48,7 @@ export function unresolvedProblem(
   failure: UnresolvedManifestReference,
   storeDir: string,
   configFile: string,
+  description: string | null = null,
 ): AgentReferenceProblem {
   return {
     reference: `package:${failure.name}`,
@@ -47,7 +56,7 @@ export function unresolvedProblem(
     summary:
       `${failure.name}@${failure.version} could not be materialized. ${failure.detail}`.trim(),
     fix: unresolvedFix(failure, storeDir, configFile),
-    configPatch: unresolvedPatch(failure),
+    configPatch: unresolvedPatch(failure, description),
     configFile,
   };
 }
@@ -84,6 +93,7 @@ export function missingDirectoryProblem(
   ref: string | null,
   repositoryPath: string,
   configFile: string,
+  description: string | null = null,
 ): AgentReferenceProblem {
   // `HEAD` names no particular commit to the reader, so it reads better left off.
   const at = ref && ref !== 'HEAD' ? ` at ${ref}` : '';
@@ -92,10 +102,16 @@ export function missingDirectoryProblem(
     severity: 'error',
     summary: `references.${name} asks for ${directory}, which is not in this checkout${at}. The path is the repository root, so it is the whole repository rather than that subtree.`,
     fix: `List what is actually there with: ls ${repositoryPath}. Set references.${name}.directory in ${configFile} to the current path, or remove it to read from the root on purpose. Upstream moving a directory is the usual cause.`,
-    // The source rides along because the entry being patched is usually a bare
-    // string, so there is no object for `directory` to merge into.
+    // The whole entry rides along, so what is printed is a config in its own right
+    // rather than a fragment, and merging it shallowly leaves the description alone.
     configPatch: {
-      references: { [name]: { source, directory: '<path-in-repository>' } },
+      references: {
+        [name]: {
+          source,
+          directory: '<path-in-repository>',
+          description: description ?? DESCRIPTION_PLACEHOLDER,
+        },
+      },
     },
     configFile,
   };
@@ -144,9 +160,13 @@ function unresolvedFix(
   return pinFix(failure.name, failure.version, failure.repositoryUrl, storeDir, configFile);
 }
 
-function unresolvedPatch(failure: UnresolvedManifestReference): Record<string, unknown> {
+function unresolvedPatch(
+  failure: UnresolvedManifestReference,
+  description: string | null,
+): Record<string, unknown> {
   const pinned: Record<string, unknown> = {
     source: `${SUPPORTED_ECOSYSTEM}:${failure.name}@${failure.version}`,
+    description: description ?? DESCRIPTION_PLACEHOLDER,
   };
   if (
     failure.reason === 'no-repository' ||
