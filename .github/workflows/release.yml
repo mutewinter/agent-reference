@@ -18,6 +18,10 @@ permissions:
   # long-lived is stored anywhere. There is no token fallback, by design.
   id-token: write
 
+env:
+  # turbo prints a first-run telemetry notice into every log otherwise.
+  TURBO_TELEMETRY_DISABLED: 1
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -34,7 +38,10 @@ jobs:
       # releases bundle. Pinning here removes the whole class of "OIDC silently did not
       # engage" for the cost of a few seconds.
       - run: npm install -g npm@latest
-      - run: pnpm install --frozen-lockfile
+      # `--ignore-scripts` skips the `prepare` build. The turbo run below depends on `build`
+      # and `npm publish` fires `prepack`, so `dist/` is produced by the steps that own it
+      # rather than as a side effect of installing.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: the tag names the version being published
         run: |
           tag="${GITHUB_REF_NAME#v}"
@@ -47,10 +54,13 @@ jobs:
       # CI never went green on, and `npm publish` is the only step in this
       # repository that cannot be taken back. The site's lint and typecheck are
       # deliberately not here: nothing about the site reaches the tarball.
-      - run: pnpm run format
-      - run: pnpm run lint
-      - run: pnpm run check-types
-      - run: pnpm test
+      #
+      # One turbo pass rather than four loose scripts, so the list cannot drift out of step
+      # with `ci.yml` and so `test` picks up its dependency on `build`. `packaging.test.ts`
+      # skips itself when `dist/` is absent, which is exactly the check the tarball about to
+      # be published most needs; run as a bare script it would skip quietly and pass.
+      # `--continue` so a failure in one reports the rest rather than hiding it.
+      - run: pnpm exec turbo run format lint check-types test --continue=dependencies-successful
       - name: publish
         # A prerelease goes out under `beta` so `npm install -g agent-reference` keeps
         # resolving the last release anyone should be running.
