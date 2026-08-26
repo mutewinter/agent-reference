@@ -169,6 +169,14 @@ function parseSet(
   field: string,
   config: AgentReferenceConfig,
 ): void {
+  // The shape every set had before members were keyed, so it gets the same migration help
+  // the bare array at the top level gets rather than the generic "must be an object".
+  if (Array.isArray(entry.references)) {
+    fail(
+      configPath,
+      `${field}.references is an array. A set's members are keyed by name now, exactly as the top-level map is: { "references": { "<name>": { "source": "...", "description": "..." } } }. A member's "name" becomes its key, and one that had none takes the basename of its source, which is the name it already answered to.`,
+    );
+  }
   const members = expectObject(
     entry.references,
     configPath,

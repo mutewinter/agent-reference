@@ -189,6 +189,20 @@ test('the shorthands that are gone name what replaced them', () => {
       ),
     /references\.engines is an array.*a "references" object keyed by name/s,
   );
+  // The shape every set actually had: a description, and members in an array. The bare
+  // array above is the rarer one, so this is the message most migrations will meet.
+  assert.throws(
+    () =>
+      parseConfig(
+        {
+          references: {
+            engines: { description: 'Engines we study', references: ['github:acme/chess-engine'] },
+          },
+        },
+        'agent-reference.json',
+      ),
+    /references\.engines\.references is an array.*keyed by name now.*basename of its source/s,
+  );
   // `name` was how a member earned a handle inside an array. The key is the handle now.
   assert.throws(
     () =>
