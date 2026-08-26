@@ -3,6 +3,12 @@ name: release
 on:
   push:
     tags: ['v*']
+  # The same job, started by hand against a tag. A tag fires this once and only once, so an
+  # Actions outage during that one moment strands a pushed tag with no way to reach it:
+  # there is no run to re-run, and re-pushing the tag is what tag protection exists to stop.
+  # Every step below reads the tag out of the ref either way, and the tag-matches-package.json
+  # check still guards it, so dispatching against a tag does what pushing it would have.
+  workflow_dispatch:
 
 permissions:
   # Writing a release is the only thing here that touches the repository. Scoping it to its
