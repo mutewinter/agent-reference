@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   pull_request:
+  # The same checks, started by hand. A push delivers its event once, so an Actions outage
+  # during that moment leaves a commit with no run at all and nothing to re-run: the branch
+  # reads as unchecked and no button brings it back. Every job below reads the ref rather
+  # than the event, so dispatching against a branch does what pushing it would have. The
+  # release workflow carries this for the same reason.
+  workflow_dispatch:
 
 # A branch pushed again while its last run is still going does not need both runs. Guarded on
 # pull requests only: every push to main is a deploy through Workers Builds, and canceling one
