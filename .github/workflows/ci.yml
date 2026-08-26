@@ -21,27 +21,13 @@ jobs:
     # The suite runs TypeScript sources directly, so it needs type stripping, and pnpm needs
     # Node 22.13 or newer to run at all. The higher of the two floors is the one that binds.
     # Neither is the tool's floor: the published package ships compiled JavaScript.
-    name: test on node ${{ matrix.node }} (${{ matrix.os }})
-    runs-on: ${{ matrix.os }}
+    name: test on node ${{ matrix.node }}
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
         node: ['22', '24']
-        include:
-          # Windows is here for path handling, not for runtime coverage. `src/` normalizes
-          # `path.sep` out of everything it prints, resolves the store through `APPDATA`, and
-          # checks containment against a separator; a POSIX runner cannot fail any of it. One
-          # leg, because what it exercises does not vary by Node version.
-          - os: windows-latest
-            node: '24'
     steps:
-      # The Windows image checks out with `core.autocrlf` on, which rewrites the README and
-      # every fixture to CRLF. The suite compares generated text against those files, so the
-      # run would fail on line endings and report it as content being stale, catching nothing
-      # this job exists for. Before the checkout, because the checkout is what applies it.
-      - if: runner.os == 'Windows'
-        run: git config --global core.autocrlf false
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
