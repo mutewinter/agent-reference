@@ -19,14 +19,23 @@ Both files hold a single `references` object, from the name an agent asks for to
 ```jsonc
 {
   "references": {
-    "decisions": "./docs/decisions",
-    "pi": "github:earendil-works/pi",
-    "zod": "npm:zod@3.22.0"
+    "decisions": {
+      "source": "./docs/decisions",
+      "description": "Why this project is shaped the way it is; read one before calling a design a bug"
+    },
+    "pi": {
+      "source": "github:earendil-works/pi",
+      "description": "The smallest harness worth reading before writing one"
+    },
+    "zod": {
+      "source": "npm:zod@3.22.0",
+      "description": "Read its README before hand-writing a schema; v4 examples do not apply"
+    }
   }
 }
 ```
 
-The value may be a string, an object, or an array. What kind of reference it is follows from the source rather than from a declaration, the same way `status` reports `file` or `folder` from what it finds on disk:
+Every value is an object, and it holds either `source` or `references`: the first is a reference, the second is a set. Both carry a `description`, which is required. What kind of reference it is follows from the source rather than from a declaration, the same way `status` reports `file` or `folder` from what it finds on disk:
 
 | source shape | reads as | example |
 | --- | --- | --- |
@@ -38,7 +47,7 @@ The value may be a string, an object, or an array. What kind of reference it is 
 
 A path source has to start with `./`, `../`, `~/` or `/`. `docs/decisions` is a valid `owner/repo` shorthand, so the prefix is what tells the two apart; `validate` warns when a shorthand names a folder that is also in this project.
 
-Write the object form when an entry needs more than its source:
+The other keys are optional and say how to reach the source:
 
 ```jsonc
 {
@@ -59,7 +68,7 @@ Write the object form when an entry needs more than its source:
 - `ref` pins the checkout. On a package source it overrides version resolution, which is what a repository whose tags do not match its published versions needs. On a path source it is refused: a checkout read where it lives has no other ref.
 - `repository` overrides what the registry reported. Package sources only, since a repository source already names its own remote.
 - `directory` names the subtree worth reading in a monorepo. The reference resolves to that subtree while `status` still reports the checkout root. Several subtrees of one repository are several entries with distinct names; they share one clone, and each gets its own `ref` and description. A `directory` that is not in the checkout is an error naming the path to fix, because upstream reorganizations are the usual cause and a silent fall back to the root would hand you the wrong scope.
-- `description` is the whole value of a reference to a future agent. Say when to open it, not what it is. User policy travels here too ("never name this folder in committed code").
+- `description` is required, and it is the whole value of a reference to a future agent. Say when to open it and what it answers, not what it is, and write one even where the name looks self-explanatory: the name is what the agent already has. User policy travels here too ("never name this folder in committed code").
 
 ## Sets are references that resolve to several paths
 
@@ -68,27 +77,37 @@ A set has a name and members, and the name works everywhere a reference's name w
 ```jsonc
 {
   "references": {
-    "engines": ["github:official-stockfish/Stockfish", "github:leela-zero/leela-zero"],
-
     "harnesses": {
       "description": "How other agents solve the same problems",
-      "references": [
-        "github:anomalyco/opencode",
-        { "source": "github:openai/codex", "ref": "v0.20.0" },
-        { "source": "github:mutewinter/opencode", "name": "opencode-fork" }
-      ]
+      "references": {
+        "opencode": {
+          "source": "github:anomalyco/opencode",
+          "description": "The tests beside each tool are its specification"
+        },
+        "codex": {
+          "source": "github:openai/codex",
+          "ref": "v0.20.0",
+          "description": "Pinned: we match this version's tool schema"
+        },
+        "opencode-fork": {
+          "source": "github:mutewinter/opencode",
+          "description": "Our patches, and what upstream has not taken yet"
+        }
+      }
     }
   }
 }
 ```
 
-A bare array is a set with no heading. The object form adds a `description`, which is the heading `status` prints under the name. A member takes the basename of its source as its name unless it declares one, and members may be any kind, so one set can hold a package, a repository and a folder together. A set holds references, never other sets. When the user says "add this to the documentation sources", find the set whose name or description matches and append the member.
+A set's `description` is the heading `status` prints under its name. Its members are a map keyed by name, exactly as the outer one is, so a member is written the same way a top-level entry is and every name `get` accepts is somewhere in the file. Members may be any kind, so one set can hold a package, a repository and a folder together. A set holds references, never other sets. When the user says "add this to the documentation sources", find the set whose name or description matches and add the member to its map.
 
 Names are one namespace: a set may not take a reference's name, and two entries pointing somewhere different may not share one. The parser refuses both rather than leaving an ambiguity for every later lookup to rediscover. The same source listed in two sets is repetition, not a conflict, and becomes one reference belonging to both.
 
 ## Adding references ("add this as a reference: ...")
 
 Edit the JSON directly; there are no add commands. Both config files are read as JSON with comments (`//` and `/* */`) and trailing commas, so preserve any note the file already carries rather than reformatting it away, and write one yourself when an entry needs a caveat that is not a `description`. Run `agent-reference validate` after every edit. Route by what was pasted:
+
+Every entry is `"<name>": { "source": …, "description": … }`, wherever it lands.
 
 | the user pastes | source to write | file |
 | --- | --- | --- |

@@ -11,9 +11,18 @@ import { dirname, join } from 'node:path';
 export const fixture = {
   'agent-reference.json': `{
   "references": {
-    "semver": "npm:semver@7.8.4",
-    "brief": "./notes/brief.md",
-    "notes": "./notes",
+    "semver": {
+      "source": "npm:semver@7.8.4",
+      "description": "Read its range grammar before writing one by hand"
+    },
+    "brief": {
+      "source": "./notes/brief.md",
+      "description": "What this project is for, in one page"
+    },
+    "notes": {
+      "source": "./notes",
+      "description": "Everything written down while building this"
+    },
     "opencode": {
       "source": "github:anomalyco/opencode",
       "description": "A coding agent for terminal dwellers"

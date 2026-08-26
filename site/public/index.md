@@ -33,7 +33,10 @@
       "directory": "apps/web/src/content/docs/v4",
       "description": "The v4 docs the site does not publish"
     },
-    "pi": "github:earendil-works/pi"
+    "pi": {
+      "source": "github:earendil-works/pi",
+      "description": "A small harness worth reading before writing one"
+    }
   }
 }
 ```
@@ -192,9 +195,18 @@ References every agent on this machine can reach, from any folder that has no co
 ```jsonc
 {
   "references": {
-    "dotfiles": "~/.dotfiles",
-    "personal": "~/code/personal",
-    "work": "~/code/work",
+    "dotfiles": {
+      "source": "~/.dotfiles",
+      "description": "My shell, editor and git config"
+    },
+    "personal": {
+      "source": "~/code/personal",
+      "description": "Everything I write for myself"
+    },
+    "work": {
+      "source": "~/code/work",
+      "description": "Everything I write for the company"
+    },
     "forks": {
       "source": "~/code/forks",
       "description": "Upstream repos I have patched"
@@ -214,11 +226,20 @@ A set is a reference that resolves to more than one path. Its key is its name, l
   "references": {
     "harnesses": {
       "description": "How other agents solve the same problems",
-      "references": [
-        "github:earendil-works/pi",
-        "github:openai/codex",
-        "github:anomalyco/opencode"
-      ]
+      "references": {
+        "pi": {
+          "source": "github:earendil-works/pi",
+          "description": "The smallest one: read it first"
+        },
+        "codex": {
+          "source": "github:openai/codex",
+          "description": "Rust, and the only one with a sandbox worth copying"
+        },
+        "opencode": {
+          "source": "github:anomalyco/opencode",
+          "description": "Its tests beside each tool are the specification"
+        }
+      }
     }
   }
 }
@@ -245,28 +266,40 @@ Every kind of source in one map, a set among them, and what your agent sees when
 ```jsonc
 {
   "references": {
-    "ai": "npm:ai@7.0.78",
+    "ai": {
+      "source": "npm:ai@7.0.78",
+      "description": "Read its docs/ and changelog before writing v7"
+    },
     "electron": {
       "source": "npm:electron@41.0.2",
       "description": "Pinned: we ship against this build's native module ABI"
     },
     // Relative, and inside this repo. A machine path belongs in
     // agent-reference.local.json, which merges over this file.
-    "decisions": "./docs/decisions",
-    "style": "./docs/style-guide.md",
+    "decisions": {
+      "source": "./docs/decisions",
+      "description": "Why this project is shaped the way it is; read before calling a design a bug"
+    },
+    "style": {
+      "source": "./docs/style-guide.md",
+      "description": "How prose in this repo is written"
+    },
 
     // A set is a reference that resolves to several paths. Its key is its
     // name, so `get harnesses` takes all of them at once.
     "harnesses": {
       "description": "How other agents solve the same problems",
-      "references": [
-        "github:earendil-works/pi",
-        {
+      "references": {
+        "pi": {
+          "source": "github:earendil-works/pi",
+          "description": "The smallest one: read it first"
+        },
+        "codex": {
           "source": "github:openai/codex",
           "ref": "v0.20.0",
           "description": "Pinned: we match this version's tool schema"
         }
-      ]
+      }
     }
   }
 }
@@ -298,8 +331,14 @@ Skip this if you like: your agent handles all of it. It is here for anyone who w
 ```jsonc
 {
   "references": {
-    "effect": "npm:effect@4.0.0-rc.111",
-    "pi": "github:earendil-works/pi"
+    "effect": {
+      "source": "npm:effect@4.0.0-rc.111",
+      "description": "Every example online is still v3"
+    },
+    "pi": {
+      "source": "github:earendil-works/pi",
+      "description": "A small harness worth reading before writing one"
+    }
   }
 }
 ```
@@ -309,7 +348,10 @@ Skip this if you like: your agent handles all of it. It is here for anyone who w
 ```jsonc
 {
   "references": {
-    "effect": "npm:effect@3.19.4"
+    "effect": {
+      "source": "npm:effect@3.19.4",
+      "description": "The version this service is still on"
+    }
   }
 }
 ```
@@ -332,14 +374,12 @@ All of it is cache. Delete any of it and the next get rebuilds what it needs, mi
 
 ## The format
 
-One `references` map, from the name your agent asks for to where that source comes from. An object with `source` is a reference; an object with `references` is a set. That is the only rule.
+One `references` map, from the name your agent asks for to where that source comes from. Every value is an object holding either `source` or `references`: the first is a reference, the second is a set. That is the only rule.
 
 | a value may be | |
 | --- | --- |
-| `"github:openai/codex"` | a reference: one name, one source |
-| `{ "source": "…", "ref": "…" }` | a reference, with more said about it |
-| `["openai/codex", "./docs"]` | a set: one name, several sources |
-| `{ "references": ["…", "…"] }` | a set, with a heading |
+| `{ "source": "…", "description": "…" }` | a reference: one name, one source |
+| `{ "description": "…", "references": { … } }` | a set: one name, several references |
 
 | a source may be | |
 | --- | --- |
@@ -348,7 +388,7 @@ One `references` map, from the name your agent asks for to where that source com
 | `"openai/codex#v0.20.0"` | the same, at a tag, branch, or commit |
 | `"npm:zod@3.22.0"` | a package, at an exact version |
 
-A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. There is no flag for it and no second namespace.
+A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. Its members are keyed by name exactly as the outer map is, so every name your agent can ask for is written down. The description is required on both: a name is what the agent already has, and what it needs is when the thing behind it is worth opening.
 
 ## The commands
 
@@ -422,8 +462,11 @@ AGENT_REFERENCE_STORE_DIR to move it.
 $ agent-reference status
 agent-reference.json (shared)
   semver    npm · declared · 7.8.4
+            "Read its range grammar before writing one by hand"
   brief     file · ready · ~/code/my-app/notes/brief.md
+            "What this project is for, in one page"
   notes     folder · ready · ~/code/my-app/notes
+            "Everything written down while building this"
   opencode  git · declared · github:anomalyco/opencode
             "A coding agent for terminal dwellers"
 

@@ -17,7 +17,10 @@ export const samples = {
       "directory": "apps/web/src/content/docs/v4",
       "description": "The v4 docs the site does not publish"
     },
-    "pi": "github:earendil-works/pi"
+    "pi": {
+      "source": "github:earendil-works/pi",
+      "description": "A small harness worth reading before writing one"
+    }
   }
 }`,
   },
@@ -95,9 +98,18 @@ export const samples = {
     lang: 'jsonc',
     code: `{
   "references": {
-    "dotfiles": "~/.dotfiles",
-    "personal": "~/code/personal",
-    "work": "~/code/work",
+    "dotfiles": {
+      "source": "~/.dotfiles",
+      "description": "My shell, editor and git config"
+    },
+    "personal": {
+      "source": "~/code/personal",
+      "description": "Everything I write for myself"
+    },
+    "work": {
+      "source": "~/code/work",
+      "description": "Everything I write for the company"
+    },
     "forks": {
       "source": "~/code/forks",
       "description": "Upstream repos I have patched"
@@ -112,11 +124,20 @@ export const samples = {
   "references": {
     "harnesses": {
       "description": "How other agents solve the same problems",
-      "references": [
-        "github:earendil-works/pi",
-        "github:openai/codex",
-        "github:anomalyco/opencode"
-      ]
+      "references": {
+        "pi": {
+          "source": "github:earendil-works/pi",
+          "description": "The smallest one: read it first"
+        },
+        "codex": {
+          "source": "github:openai/codex",
+          "description": "Rust, and the only one with a sandbox worth copying"
+        },
+        "opencode": {
+          "source": "github:anomalyco/opencode",
+          "description": "Its tests beside each tool are the specification"
+        }
+      }
     }
   }
 }`,
@@ -128,28 +149,40 @@ export const samples = {
     lang: 'jsonc',
     code: `{
   "references": {
-    "ai": "npm:ai@7.0.78",
+    "ai": {
+      "source": "npm:ai@7.0.78",
+      "description": "Read its docs/ and changelog before writing v7"
+    },
     "electron": {
       "source": "npm:electron@41.0.2",
       "description": "Pinned: we ship against this build's native module ABI"
     },
     // Relative, and inside this repo. A machine path belongs in
     // agent-reference.local.json, which merges over this file.
-    "decisions": "./docs/decisions",
-    "style": "./docs/style-guide.md",
+    "decisions": {
+      "source": "./docs/decisions",
+      "description": "Why this project is shaped the way it is; read before calling a design a bug"
+    },
+    "style": {
+      "source": "./docs/style-guide.md",
+      "description": "How prose in this repo is written"
+    },
 
     // A set is a reference that resolves to several paths. Its key is its
     // name, so \`get harnesses\` takes all of them at once.
     "harnesses": {
       "description": "How other agents solve the same problems",
-      "references": [
-        "github:earendil-works/pi",
-        {
+      "references": {
+        "pi": {
+          "source": "github:earendil-works/pi",
+          "description": "The smallest one: read it first"
+        },
+        "codex": {
           "source": "github:openai/codex",
           "ref": "v0.20.0",
           "description": "Pinned: we match this version's tool schema"
         }
-      ]
+      }
     }
   }
 }`,
@@ -163,8 +196,14 @@ export const samples = {
     lang: 'jsonc',
     code: `{
   "references": {
-    "effect": "npm:effect@4.0.0-rc.111",
-    "pi": "github:earendil-works/pi"
+    "effect": {
+      "source": "npm:effect@4.0.0-rc.111",
+      "description": "Every example online is still v3"
+    },
+    "pi": {
+      "source": "github:earendil-works/pi",
+      "description": "A small harness worth reading before writing one"
+    }
   }
 }`,
   },
@@ -173,7 +212,10 @@ export const samples = {
     lang: 'jsonc',
     code: `{
   "references": {
-    "effect": "npm:effect@3.19.4"
+    "effect": {
+      "source": "npm:effect@3.19.4",
+      "description": "The version this service is still on"
+    }
   }
 }`,
   },
@@ -410,10 +452,8 @@ export const heroDrafts = ['heroDraft', 'shared'] as const;
  * a fragment to be a whole file.
  */
 export const fragments = {
-  valueString: { lang: 'jsonc', code: '"github:openai/codex"' },
-  valueObject: { lang: 'jsonc', code: '{ "source": "…", "ref": "…" }' },
-  valueArray: { lang: 'jsonc', code: '["openai/codex", "./docs"]' },
-  valueSet: { lang: 'jsonc', code: '{ "references": ["…", "…"] }' },
+  valueReference: { lang: 'jsonc', code: '{ "source": "…", "description": "…" }' },
+  valueSet: { lang: 'jsonc', code: '{ "description": "…", "references": { … } }' },
   sourcePath: { lang: 'jsonc', code: '"./docs/decisions"' },
   sourceRepo: { lang: 'jsonc', code: '"github:openai/codex"' },
   sourceRef: { lang: 'jsonc', code: '"openai/codex#v0.20.0"' },
@@ -421,8 +461,9 @@ export const fragments = {
 } as const;
 
 /**
- * The whole format, which is short enough to put on the page now that it is one
- * map. The first table is what a value may be, the second what a source may be.
+ * The whole format, which is short enough to put on the page now that a value is
+ * one shape. The first table is what a value may be, the second what a source
+ * may be.
  */
 export interface FormatRow {
   fragment: keyof typeof fragments;
@@ -437,12 +478,10 @@ export const format: {
   note: string;
 } = {
   heading: 'The format',
-  lead: 'One `references` map, from the name your agent asks for to where that source comes from. An object with `source` is a reference; an object with `references` is a set. That is the only rule.',
+  lead: 'One `references` map, from the name your agent asks for to where that source comes from. Every value is an object holding either `source` or `references`: the first is a reference, the second is a set. That is the only rule.',
   values: [
-    { fragment: 'valueString', means: 'a reference: one name, one source' },
-    { fragment: 'valueObject', means: 'a reference, with more said about it' },
-    { fragment: 'valueArray', means: 'a set: one name, several sources' },
-    { fragment: 'valueSet', means: 'a set, with a heading' },
+    { fragment: 'valueReference', means: 'a reference: one name, one source' },
+    { fragment: 'valueSet', means: 'a set: one name, several references' },
   ],
   sources: [
     { fragment: 'sourcePath', means: 'a folder or a file, read where it lives' },
@@ -450,7 +489,7 @@ export const format: {
     { fragment: 'sourceRef', means: 'the same, at a tag, branch, or commit' },
     { fragment: 'sourcePackage', means: 'a package, at an exact version' },
   ],
-  note: 'A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. There is no flag for it and no second namespace.',
+  note: 'A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. Its members are keyed by name exactly as the outer map is, so every name your agent can ask for is written down. The description is required on both: a name is what the agent already has, and what it needs is when the thing behind it is worth opening.',
 };
 
 /**
