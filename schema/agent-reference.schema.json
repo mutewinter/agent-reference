@@ -44,7 +44,7 @@
     "description": {
       "type": "string",
       "minLength": 1,
-      "description": "What this source is for and when to read it. Required, because it is the whole value of a reference to a future agent: say when to open it, not what it is, and say it even where the name looks self-explanatory, since the name is what the agent already has. Also where user policy travels (\"never name this folder in committed code\")."
+      "description": "What this source is, in terms that stay true: what a reader finds inside it, and whose it is. Required, and the whole value of a reference to a future agent, so say what the name does not already carry, and keep it short. Two things beyond the content earn their place: why a pin exists, and user policy (\"never name this folder in committed code\"). Not an instruction to the reader, and not a status report on the project. \"OpenAI's coding agent, written in Rust\" outlives \"read it before writing v7\", and \"the v4 docs the site does not publish\" outlives \"we are on the v4 rc\"."
     },
     "reference": {
       "type": "object",

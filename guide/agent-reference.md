@@ -21,15 +21,15 @@ Both files hold a single `references` object, from the name an agent asks for to
   "references": {
     "decisions": {
       "source": "./docs/decisions",
-      "description": "Why this project is shaped the way it is; read one before calling a design a bug"
+      "description": "Why this project is shaped the way it is, one file per decision"
     },
     "pi": {
       "source": "github:earendil-works/pi",
-      "description": "The smallest harness worth reading before writing one"
+      "description": "A small terminal coding agent, in TypeScript"
     },
     "zod": {
       "source": "npm:zod@3.22.0",
-      "description": "Read its README before hand-writing a schema; v4 examples do not apply"
+      "description": "The schema library this project validates with, v3's API"
     }
   }
 }
@@ -55,7 +55,7 @@ The other keys are optional and say how to reach the source:
     "electron": {
       "source": "npm:electron@42.3.3",
       "directory": ".",
-      "description": "Read docs/api/ before changing a BrowserWindow option. directory is \".\" because the root manifest is named @electron-ci/dev-root."
+      "description": "The desktop runtime this app ships in; docs/api/ documents every BrowserWindow option. directory is \".\" because the root manifest is named @electron-ci/dev-root."
     },
     "effect-docs": {
       "source": "github:Effect-TS/website",
@@ -68,7 +68,7 @@ The other keys are optional and say how to reach the source:
 - `ref` pins the checkout. On a package source it overrides version resolution, which is what a repository whose tags do not match its published versions needs. On a path source it is refused: a checkout read where it lives has no other ref.
 - `repository` overrides what the registry reported. Package sources only, since a repository source already names its own remote.
 - `directory` names the subtree worth reading in a monorepo. The reference resolves to that subtree while `status` still reports the checkout root. Several subtrees of one repository are several entries with distinct names; they share one clone, and each gets its own `ref` and description. A `directory` that is not in the checkout is an error naming the path to fix, because upstream reorganizations are the usual cause and a silent fall back to the root would hand you the wrong scope.
-- `description` is required, and it is the whole value of a reference to a future agent. Say when to open it and what it answers, not what it is, and write one even where the name looks self-explanatory: the name is what the agent already has. User policy travels here too ("never name this folder in committed code").
+- `description` is required, and it is the whole value of a reference to a future agent. Say what the source is, in terms that stay true: what a reader finds inside it, and whose it is. Keep it short, and say what the name does not already carry. Two things beyond the content earn their place: why a pin exists, and user policy ("never name this folder in committed code"). It is not an instruction to the reader and not a status report on the project, because both go stale while the source does not: `"OpenAI's coding agent, written in Rust"` outlives `"read it before writing v7"`, and an agent judges a durable description against the task in front of it rather than against a trigger someone guessed at in advance.
 
 ## Sets are references that resolve to several paths
 
@@ -82,7 +82,7 @@ A set has a name and members, and the name works everywhere a reference's name w
       "references": {
         "opencode": {
           "source": "github:anomalyco/opencode",
-          "description": "The tests beside each tool are its specification"
+          "description": "A terminal coding agent whose tests sit beside each tool"
         },
         "codex": {
           "source": "github:openai/codex",
