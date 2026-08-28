@@ -1,6 +1,6 @@
 ---
 name: agent-reference
-description: Get readable upstream source on demand - any dependency at its exact installed version, any git repository, any declared local file or folder - by name, via the agent-reference CLI. Use whenever a task needs a library's real source rather than a memory of it. That covers writing code against an API you cannot recall exactly ("use the combobox from this component library", "wire this up with X"), because the checkout carries that version's own README, docs, examples, and changelog while a docs site carries whatever shipped last, and it covers asking how X implements something, how its maintainers test it, why it behaves this way, or whether it is worth adopting. Also whenever the user asks to add something as a reference, whenever the user asks to set up or initialize agent-reference in a project, whenever the user names a repository, app, folder, or file that is not in this repo and gives no path for it, and whenever a repo contains agent-reference.json or agent-reference.local.json.
+description: Readable upstream source on demand by name, via the agent-reference CLI. Use when a task needs a library's real source rather than a memory of it, so writing code against an API you cannot recall exactly ("use the combobox from this component library", "wire this up with X"), or asking how X implements something, how its maintainers test it, why it behaves this way, or whether it is worth adopting. Use it before reading a dependency's published build to answer a question about it, anything under node_modules/, a dist/ bundle or a .d.ts, and before typing a path to another repository's checkout; that covers debugging a crash in a library and asking whether something is fixable upstream. Also when the user asks to add a reference, or to set up or initialize agent-reference in a project, when the user names a repository, app, folder, or file not in this repo and gives no path for it, and when a repo contains agent-reference.json or agent-reference.local.json.
 ---
 
 # agent-reference
@@ -22,9 +22,15 @@ A set is a reference that resolves to more than one path, and its name works eve
 
 Add `--path` whenever the path is going into a shell variable rather than onto the screen: `EL=$(agent-reference get electron --path)`. The default line names the spec before the path and the confidence after it, so cutting a path out of it with `tail` or `sed` captures text that is not a path, and the command that opens it either fails or silently matches nothing.
 
+## Ask for the name before you read a published build
+
+Anything under `node_modules/`, any `dist/` bundle, and any `.d.ts` is the published build. Before reading one to answer a question about that dependency, run `agent-reference get <name>` and read the repository instead: the build carries the code and almost none of the prose, so the `docs/`, the examples, the tests, and the changelog that answer the question are only in the checkout. The same goes for a path you are about to type to a checkout of another repository. Ask for it by name, because a guessed path may be a different checkout than the one the project declared.
+
+This is a rule about the next command, not about the kind of task. A stack trace, a `pnpm why`, or a grep hands you a `node_modules` path before the question "is this declared?" comes up, and once the path is in hand it stops being asked. Debugging a crash, working out whether something is fixable upstream, and reading why a library behaves as it does are all this case, and none of them announce themselves as reading a library.
+
 ## Writing code against a library
 
-Before writing against an API you cannot recall exactly, `get` the library and read that version's own `README`, `docs/`, `examples/`, and changelog. Your memory holds whatever was current at training and a docs site holds whatever shipped last; the checkout holds what this project installs. `node_modules` is not the same answer: it carries the published build and almost none of the prose, so which of two exported names is the current one, and what a required option is for, is usually only in the repository.
+Before writing against an API you cannot recall exactly, `get` the library and read that version's own `README`, `docs/`, `examples/`, and changelog. Your memory holds whatever was current at training and a docs site holds whatever shipped last; the checkout holds what this project installs. The published build does not settle it either: which of two exported names is the current one, and what a required option is for, is usually only in the repository.
 
 Reach for it when the library is unfamiliar, when its API has moved recently, or when a first attempt did not work. Not for a library you know cold.
 
