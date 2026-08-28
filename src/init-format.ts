@@ -212,7 +212,8 @@ function instructionStep(survey: InitSurvey): string {
     return [
       'No agent instruction file here. Ask the user which file their agent reads, or create AGENTS.md',
       'holding one sentence: this project declares references in agent-reference.json and',
-      'agent-reference.local.json, and agent-reference status lists them.',
+      'agent-reference.local.json; agent-reference status lists them, and agent-reference get <name>',
+      'checks one out and prints its path.',
     ].join('\n');
   }
 
@@ -229,8 +230,11 @@ function instructionStep(survey: InitSurvey): string {
 
   const lines = [
     `Add one sentence to ${unwritten.join(', ')}: this project declares references in`,
-    'agent-reference.json and agent-reference.local.json, and agent-reference status lists them.',
-    'One sentence, not a section. It is what finds the tool in a session where the skill never loads.',
+    'agent-reference.json and agent-reference.local.json; agent-reference status lists them, and',
+    'agent-reference get <name> checks one out and prints its path.',
+    'One sentence, not a section. It is what finds the tool in a session where the skill never loads,',
+    'which is why it names the verb and not only the index: an agent that knows the references exist',
+    'and not how to open one reads node_modules instead.',
   ];
 
   for (const link of survey.instructionFiles.filter((file) => file.linkTarget)) {
