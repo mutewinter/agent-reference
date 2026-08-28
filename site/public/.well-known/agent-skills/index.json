@@ -6,7 +6,7 @@
       "type": "skill-md",
       "description": "Readable upstream source on demand by name, via the agent-reference CLI. Use when a task needs a library's real source rather than a memory of it, so writing code against an API you cannot recall exactly (\"use the combobox from this component library\", \"wire this up with X\"), or asking how X implements something, how its maintainers test it, why it behaves this way, or whether it is worth adopting. Use it before reading a dependency's published build to answer a question about it, anything under node_modules/, a dist/ bundle or a .d.ts, and before typing a path to another repository's checkout; that covers debugging a crash in a library and asking whether something is fixable upstream. Also when the user asks to add a reference, or to set up or initialize agent-reference in a project, when the user names a repository, app, folder, or file not in this repo and gives no path for it, and when a repo contains agent-reference.json or agent-reference.local.json.",
       "url": "/.well-known/agent-skills/agent-reference/SKILL.md",
-      "digest": "sha256:872f1bc38f1aac54e9f0da237a7b0bf3b164657914ade10a427d5adc2d64ec6d"
+      "digest": "sha256:eb4912b525651de723988c19f2d218fccf9105b0d51c8499e2c7517da629cc92"
     }
   ]
 }

@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 
 import {
   configuredReferences,
@@ -12,6 +11,7 @@ import {
 import { pathExists } from './fs-utils.ts';
 import { runGit } from './git.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
+import { checkSkill, findSkill, type SkillCheck, type SkillInstall } from './skill.ts';
 import type { PackageManager } from './types.ts';
 
 export interface InstructionFile {
@@ -20,15 +20,6 @@ export interface InstructionFile {
   /** Where a symlink lands, so `CLAUDE.md -> AGENTS.md` earns one edit and not two. */
   linkTarget: string | null;
   mentionsAgentReference: boolean;
-}
-
-export interface SkillInstall {
-  /** Directories already holding the skill. */
-  installed: string[];
-  /** Where one could go, machine-wide first: it covers every project at once. */
-  candidates: string[];
-  /** The skill shipped inside this installation, to copy from. */
-  source: string | null;
 }
 
 export type TranscriptFormat = 'jsonl' | 'json' | 'sqlite' | 'markdown';
@@ -59,6 +50,8 @@ export interface InitSurvey {
   /** One entry per distinct file on disk, symlinks collapsed onto their target. */
   editTargets: string[];
   skill: SkillInstall;
+  /** Whether each installed copy still says what this version ships. */
+  skillCheck: SkillCheck;
   transcriptStores: TranscriptStore[];
 }
 
@@ -78,8 +71,6 @@ const INSTRUCTION_CANDIDATES = [
   '.windsurfrules',
   '.clinerules',
 ];
-
-const PROJECT_SKILL_DIRS = ['.agents/skills/agent-reference', '.claude/skills/agent-reference'];
 
 /**
  * Everything `init` can know without asking anyone: what this project already declares,
@@ -136,6 +127,7 @@ export async function surveyProject(
     instructionFiles,
     editTargets: editTargets(instructionFiles),
     skill: await findSkill(projectRoot, home),
+    skillCheck: await checkSkill(projectRoot, home),
     transcriptStores: await findTranscriptStores(projectRoot, home),
   };
 }
@@ -228,25 +220,6 @@ function editTargets(files: InstructionFile[]): string[] {
   }
 
   return [...byTarget.values()];
-}
-
-async function findSkill(projectRoot: string, home: string): Promise<SkillInstall> {
-  const machineWide = path.join(home, '.claude', 'skills', 'agent-reference');
-  const inProject = PROJECT_SKILL_DIRS.map((relative) => path.join(projectRoot, relative));
-  const candidates = [machineWide, ...inProject];
-  const installed: string[] = [];
-
-  for (const candidate of candidates) {
-    if (await pathExists(candidate)) installed.push(candidate);
-  }
-
-  const shipped = fileURLToPath(new URL('../skills/agent-reference', import.meta.url));
-
-  return {
-    installed,
-    candidates,
-    source: (await pathExists(shipped)) ? shipped : null,
-  };
 }
 
 /**

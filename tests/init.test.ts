@@ -7,6 +7,7 @@ import test from 'node:test';
 import { runGit } from '../src/git.ts';
 import { briefSteps, formatInitBrief } from '../src/init-format.ts';
 import { surveyProject, type InitSurvey } from '../src/init.ts';
+import { shippedSkillDir } from '../src/skill.ts';
 
 const PLAIN = { color: false, tilde: false } as const;
 
@@ -160,17 +161,75 @@ test('a transcript store is reported only where one exists, and drives the minin
   assert.doesNotMatch(output, /No transcript store turned up/);
 });
 
-test('an installed skill turns step one into a no-op', async () => {
+test('a skill install that matches what ships turns step one into a no-op', async () => {
   const { projectRoot, home } = await workspace('skill');
   const installed = path.join(home, '.claude', 'skills', 'agent-reference');
   await fs.mkdir(installed, { recursive: true });
+  await fs.copyFile(path.join(shippedSkillDir(), 'SKILL.md'), path.join(installed, 'SKILL.md'));
 
   const survey = await survey_(projectRoot, home);
 
   assert.deepEqual(survey.skill.installed, [installed]);
   const output = formatInitBrief(survey, PLAIN);
-  assert.match(output, /The agent-reference skill is already installed here\./);
+  assert.match(output, /matches the one this version ships\. Nothing to do\./);
   assert.doesNotMatch(output, /Install the skill now/);
+});
+
+test('an installed skill that no longer matches is not reported as nothing to do', async () => {
+  // The failure the check exists for: a copy is written once and nothing updates it, so a
+  // reworded skill leaves an old install asserting the old wording with nothing to say so.
+  const { projectRoot, home } = await workspace('skill-stale');
+  const installed = path.join(home, '.claude', 'skills', 'agent-reference');
+  await fs.mkdir(installed, { recursive: true });
+  await fs.writeFile(
+    path.join(installed, 'SKILL.md'),
+    '---\nname: agent-reference\ndescription: an older wording\n---\n\nold body\n',
+  );
+
+  const survey = await survey_(projectRoot, home);
+  const output = formatInitBrief(survey, PLAIN);
+
+  assert.deepEqual(
+    survey.skillCheck.copies.map((copy) => copy.state),
+    ['stale'],
+  );
+  assert.match(output, /not as this version ships it/);
+  assert.match(output, /differs from the shipped skill/);
+  assert.doesNotMatch(output, /Nothing to do/);
+});
+
+test('line endings are how a file was written, not what it says', async () => {
+  // A copy checked out on Windows differs from the shipped bytes in every line and from
+  // its own source in none. Reporting that trains a reader to ignore the report.
+  const { projectRoot, home } = await workspace('skill-crlf');
+  const installed = path.join(home, '.claude', 'skills', 'agent-reference');
+  await fs.mkdir(installed, { recursive: true });
+  const shipped = await fs.readFile(path.join(shippedSkillDir(), 'SKILL.md'), 'utf8');
+  await fs.writeFile(
+    path.join(installed, 'SKILL.md'),
+    `${shipped.replaceAll('\n', '\r\n')}\r\n\r\n`,
+  );
+
+  const survey = await survey_(projectRoot, home);
+
+  assert.deepEqual(
+    survey.skillCheck.copies.map((copy) => copy.state),
+    ['current'],
+  );
+});
+
+test('a skill directory with no SKILL.md is a broken install, not a current one', async () => {
+  const { projectRoot, home } = await workspace('skill-empty');
+  await fs.mkdir(path.join(home, '.claude', 'skills', 'agent-reference'), { recursive: true });
+
+  const survey = await survey_(projectRoot, home);
+  const output = formatInitBrief(survey, PLAIN);
+
+  assert.deepEqual(
+    survey.skillCheck.copies.map((copy) => copy.state),
+    ['unreadable'],
+  );
+  assert.match(output, /no readable SKILL\.md/);
 });
 
 test('an existing config becomes an instruction to add, never to prune', async () => {

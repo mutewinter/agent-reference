@@ -115,7 +115,29 @@ function standingReferencesNote(survey: InitSurvey): string | null {
 
 function skillStep(survey: InitSurvey): string {
   if (survey.skill.installed.length > 0) {
-    return 'The agent-reference skill is already installed here. Nothing to do.';
+    // Installed is not the same as current. A copy is written once and nothing updates it,
+    // so a reworded skill leaves every earlier install asserting the old wording, and
+    // "nothing to do" is how that goes unnoticed for as long as it has.
+    const wrong = survey.skillCheck.copies.filter((copy) => copy.state !== 'current');
+    if (wrong.length === 0) {
+      return 'The agent-reference skill here matches the one this version ships. Nothing to do.';
+    }
+
+    const lines = [
+      'The agent-reference skill is installed here, but not as this version ships it:',
+      ...wrong.map(
+        (copy) =>
+          `  ${copy.path}  ${copy.state === 'unreadable' ? 'no readable SKILL.md' : 'differs from the shipped skill'}`,
+      ),
+    ];
+    if (survey.skillCheck.source) {
+      lines.push(
+        `Copy ${path.join(survey.skillCheck.source, 'SKILL.md')} over each one, or update it with the`,
+        'installer it came from. Tell the user which files you changed; a machine-wide copy is',
+        'shared by every project on this machine.',
+      );
+    }
+    return lines.join('\n');
   }
 
   const [machineWide, ...inProject] = survey.skill.candidates;

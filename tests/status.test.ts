@@ -6,16 +6,22 @@ import test from 'node:test';
 
 import { manifestReferencePath } from '../src/git.ts';
 import { stateFilePath } from '../src/manifest.ts';
+import { shippedSkillDir } from '../src/skill.ts';
 import { getStatusReport } from '../src/status.ts';
 import type { AgentReferenceManifest, AgentReferenceManifestReference } from '../src/types.ts';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
 const STORE_DIR = '/tmp/agent-reference-status-test-store';
+// The skill check reads a machine-wide directory, so every report here is pointed at a home
+// that holds no skill. Without it these tests would pass or fail on whether the machine
+// running them happens to have a current skill installed.
+const HOME_DIR = '/tmp/agent-reference-status-test-home';
 
 test('reports never-materialized dependencies as declared, not as a problem', async () => {
   const projectRoot = await copyFixtureProject();
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
 
   assert.equal(report.references.length, 1);
@@ -38,6 +44,7 @@ test('reports ready dependencies with store worktree paths', async () => {
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
 
   assert.equal(report.references[0]?.status, 'ready');
@@ -52,6 +59,7 @@ test('reports stale dependencies when cloned version differs from lockfile', asy
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
 
   assert.equal(report.references[0]?.status, 'stale');
@@ -79,6 +87,7 @@ test('reports config-only packages as configured references', async () => {
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
 
   assert.equal(report.references.length, 1);
@@ -123,6 +132,7 @@ test('a path reference may name a file, and status reports which it found', asyn
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
   const byName = new Map(report.references.map((entry) => [entry.name, entry]));
 
@@ -158,6 +168,7 @@ test('reports local folder references with absolute paths', async () => {
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
 
   assert.equal(report.references.length, 1);
@@ -198,6 +209,7 @@ test('reports stale git references when configured spec changes', async () => {
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
 
   assert.equal(report.references.length, 1);
@@ -228,7 +240,7 @@ test('works in a directory with no package.json or lockfile at all', async () =>
     ),
   );
 
-  const report = await getStatusReport(projectRoot, { storeDir: STORE_DIR });
+  const report = await getStatusReport(projectRoot, { storeDir: STORE_DIR, home: HOME_DIR });
 
   assert.deepEqual(
     report.references.map((entry) => [entry.name, entry.status]),
@@ -242,7 +254,7 @@ test('works in a directory with no package.json or lockfile at all', async () =>
 
 test('an empty directory reports no references instead of erroring', async () => {
   const emptyDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-empty-test-'));
-  const report = await getStatusReport(emptyDir, { storeDir: STORE_DIR });
+  const report = await getStatusReport(emptyDir, { storeDir: STORE_DIR, home: HOME_DIR });
   assert.deepEqual(report.references, []);
 });
 
@@ -267,6 +279,7 @@ test('finds the nearest config walking up from a subdirectory', async () => {
 
   const report = await getStatusReport(path.join(projectRoot, 'deep', 'inside'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
 
   assert.equal(report.projectRoot, projectRoot);
@@ -281,7 +294,7 @@ test("a selector that is nobody's reference offers the reading that it was a com
   // not rejected by an older build: it falls through to the default command and is read as
   // a reference name, so without this the failure blames the config.
   await assert.rejects(
-    getStatusReport(projectRoot, { references: ['explain'], storeDir: STORE_DIR }),
+    getStatusReport(projectRoot, { references: ['explain'], storeDir: STORE_DIR, home: HOME_DIR }),
     (error: Error) => {
       assert.match(error.message, /Nothing matched reference "explain"/);
       assert.match(error.message, /it has get, versions, status/);
@@ -301,6 +314,7 @@ test('one name hitting does not excuse the one beside it that missed', async () 
     getStatusReport(projectRoot, {
       references: ['tiny-invariant', 'tiny-invarient'],
       storeDir: STORE_DIR,
+      home: HOME_DIR,
     }),
     (error: Error) => {
       assert.match(error.message, /Nothing matched reference "tiny-invarient"/);
@@ -317,7 +331,7 @@ test('a miss on a name this build does have as a command reads as an ordinary mi
   // `guide` exists here, so nothing about this build is out of date and the hint would be
   // a false lead. It fires on the absence of the command, not on the shape of the word.
   await assert.rejects(
-    getStatusReport(projectRoot, { references: ['guide'], storeDir: STORE_DIR }),
+    getStatusReport(projectRoot, { references: ['guide'], storeDir: STORE_DIR, home: HOME_DIR }),
     (error: Error) => {
       assert.doesNotMatch(error.message, /newer than the CLI/);
       return true;
@@ -342,6 +356,7 @@ test('a machine path in the committed config is a warning here, not a blocked re
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
 
   assert.deepEqual(
@@ -376,6 +391,7 @@ test('a drift patch edits the entry that is there, as a whole coordinate', async
 
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
 
   assert.equal(report.references[0]?.name, 'tiny-invariant');
@@ -399,6 +415,7 @@ test('the report names the lockfile package versions were read from', async () =
   const projectRoot = await copyFixtureProject();
   const report = await getStatusReport(path.join(projectRoot, 'package.json'), {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
   });
 
   assert.equal(path.basename(report.lockfilePath ?? ''), 'pnpm-lock.yaml');
@@ -424,7 +441,7 @@ test('references are reported in the order the config declares them', async () =
     }),
   );
 
-  const report = await getStatusReport(projectRoot, { storeDir: STORE_DIR });
+  const report = await getStatusReport(projectRoot, { storeDir: STORE_DIR, home: HOME_DIR });
 
   assert.deepEqual(
     report.references.map((entry) => entry.name),
@@ -447,6 +464,7 @@ test('a selector names one reference whatever kind it turns out to be', async ()
 
   const report = await getStatusReport(projectRoot, {
     storeDir: STORE_DIR,
+    home: HOME_DIR,
     references: ['pi'],
   });
   assert.deepEqual(
@@ -455,7 +473,7 @@ test('a selector names one reference whatever kind it turns out to be', async ()
   );
 
   await assert.rejects(
-    getStatusReport(projectRoot, { storeDir: STORE_DIR, references: ['pie'] }),
+    getStatusReport(projectRoot, { storeDir: STORE_DIR, home: HOME_DIR, references: ['pie'] }),
     /Nothing matched reference "pie"/,
   );
 });
@@ -516,3 +534,35 @@ async function writeManifest(
   await fs.writeFile(statePath, `${JSON.stringify(manifest, null, 2)}\n`);
   return manifest.references;
 }
+
+test('a skill copy that no longer matches this version is reported where status is read', async () => {
+  // The skill is copied into a project once and nothing updates it, so an upgrade that
+  // reworded the guidance leaves the copy asserting the old wording. status is the command
+  // that runs often enough to notice, and its reader is the agent that copy instructs.
+  const projectRoot = await copyFixtureProject();
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-skill-home-'));
+  const installed = path.join(home, '.claude', 'skills', 'agent-reference');
+  await fs.mkdir(installed, { recursive: true });
+  await fs.writeFile(path.join(installed, 'SKILL.md'), 'an older wording\n');
+
+  const stale = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+    home,
+  });
+  const drift = stale.problems.find((problem) => /skill at/.test(problem.summary));
+  assert.ok(drift, 'a stale skill copy should be reported');
+  assert.equal(drift.severity, 'warning');
+  assert.equal(drift.about, 'project');
+  assert.match(drift.summary, /is not the one this version ships/);
+  assert.match(drift.fix, /SKILL\.md/);
+
+  // And says nothing once the copy matches, because a warning that never clears is noise.
+  await fs.copyFile(path.join(shippedSkillDir(), 'SKILL.md'), path.join(installed, 'SKILL.md'));
+  const current = await getStatusReport(path.join(projectRoot, 'package.json'), {
+    storeDir: STORE_DIR,
+    home,
+  });
+  assert.equal(current.problems.filter((problem) => /skill at/.test(problem.summary)).length, 0);
+
+  await fs.rm(home, { recursive: true, force: true });
+});

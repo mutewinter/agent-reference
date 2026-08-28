@@ -1,3 +1,6 @@
+import os from 'node:os';
+import path from 'node:path';
+
 import { pathExists, pathKind, resolveReferencePath } from './fs-utils.ts';
 import {
   manifestReferencePath,
@@ -25,6 +28,7 @@ import {
 } from './problems.ts';
 import { configFileFor } from './get.ts';
 import { loadReferenceContext } from './reference-context.ts';
+import { checkSkill } from './skill.ts';
 import type {
   AgentReferenceConfig,
   AgentReferenceProblem,
@@ -46,7 +50,11 @@ import type {
 const READY_ACTION = 'Use path for source inspection.';
 
 export type StatusReportOptions = ScanProjectOptions &
-  ReferenceSelectionOptions & { storeDir?: string };
+  ReferenceSelectionOptions & {
+    storeDir?: string;
+    /** Home directory probed for a machine-wide skill. Tests point this at a temp dir. */
+    home?: string;
+  };
 
 export async function getStatusReport(
   projectPath: string | null | undefined,
@@ -128,6 +136,23 @@ export async function getStatusReport(
     config,
     storeDir,
   );
+
+  // The skill is a copy, and nothing updates a copy. This is the command that runs often
+  // enough to notice, and the reader is the agent whose instructions the stale copy is.
+  const skill = await checkSkill(project.projectRoot, options.home ?? os.homedir());
+  for (const copy of skill.copies) {
+    if (copy.state !== 'stale') continue;
+    problems.push({
+      reference: null,
+      about: 'project',
+      severity: 'warning',
+      summary: `The agent-reference skill at ${copy.path} is not the one this version ships, so its wording may not match this CLI.`,
+      fix: skill.source
+        ? `Copy ${path.join(skill.source, 'SKILL.md')} over it, and say so: it is the user's file, and a machine-wide one is shared by every project. A skill installed with the skills CLI updates through that instead. agent-reference guide always matches this version, whatever the copy says.`
+        : 'This build ships no skill to compare against, so refresh it from the version you installed. agent-reference guide always matches this version, whatever the copy says.',
+      configPatch: null,
+    });
+  }
 
   // Leading, because it explains every package line below it: nothing was read, so a pin has
   // nothing to be checked against and a bare `get <name>` answers from the registry.

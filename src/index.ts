@@ -10,10 +10,17 @@ export {
   surveyProject,
   type InitSurvey,
   type InstructionFile,
-  type SkillInstall,
   type SurveyProjectOptions,
   type TranscriptStore,
 } from './init.ts';
+export {
+  checkSkill,
+  findSkill,
+  type SkillCheck,
+  type SkillCopy,
+  type SkillCopyState,
+  type SkillInstall,
+} from './skill.ts';
 export { resolveSets } from './sets.ts';
 export { readManifest, stateFilePath } from './manifest.ts';
 export { getStatusReport, type StatusReportOptions } from './status.ts';
