@@ -90,7 +90,7 @@ export async function validateConfig(
   for (const set of report.sets) {
     if (set.references.length === 0) {
       report.warnings.push(
-        `Set "${set.name}" has no members. Add sources to its "references" array, or drop the set.`,
+        `Set "${set.name}" has no members. Add entries to its "references" map, or drop the set.`,
       );
     }
   }

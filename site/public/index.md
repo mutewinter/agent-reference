@@ -456,11 +456,11 @@ Options:
 
 References are declared in agent-reference.json (committed, shareable) and
 agent-reference.local.json (gitignored, machine paths and private references),
-as one "references" map from a name to a source. A value that is an array, or an
-object with a "references" array, is a set: a name that stands for several, and
-that get and status take like any other name. Edit the JSON directly; run
-`agent-reference validate` after. The store lives in ~/.agent-reference. Set
-AGENT_REFERENCE_STORE_DIR to move it.
+as one "references" map from a name to a source. Every value is an object
+holding either "source" or "references"; the second is a set: a name that
+stands for several, and that get and status take like any other name. Edit the
+JSON directly; run `agent-reference validate` after. The store lives in
+~/.agent-reference. Set AGENT_REFERENCE_STORE_DIR to move it.
 ```
 
 ### agent-reference status
