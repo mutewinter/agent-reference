@@ -8,9 +8,11 @@ The CLI is installed globally, so nothing updates it alongside a project. A mach
 
 ## What no longer belongs here
 
-Two pieces of the original scope have been solved locally, without a registry check.
+Three pieces of the original scope have been solved locally, without a registry check.
 
 The skill file was the worst of it: copied into a project once, describing a config format, updated by nothing. It is now a stub holding only what stays true across versions, and everything that moves is printed by `agent-reference guide` out of the installed CLI. Those instructions cannot describe a different version than the one running.
+
+The stub can still go stale about its own triggers, which happened within a week of that split, so the CLI compares every installed `SKILL.md` against the one it ships and reports the ones that differ. That is the same answer for the same reason: a local comparison against the binary in hand, not a question for the registry.
 
 A command an agent names that this build does not have used to fail as a reference miss, blaming the config. It now says so: the failure lists the commands this build does have and states that instructions naming a missing one are newer than the CLI. That is the skew signal an agent can actually act on, and it costs no network.
 
