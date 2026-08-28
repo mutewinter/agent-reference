@@ -75,6 +75,37 @@ export function normalizeGitRepositoryUrl(value: string | null | undefined): str
 }
 
 /**
+ * `git@host:path`, the spelling `git remote -v` prints and the one a user pastes out of it.
+ * git reads it as SSH; `new URL` cannot, because `git@host` is not a legal scheme, so it
+ * reached the transport check as an unparseable URL and came back reported as malformed.
+ *
+ * Rewritten to the `ssh://` form git treats as the same remote, which keeps the SSH
+ * transport and with it the credentials that are the whole reason for writing a remote this
+ * way. `normalizeGitRepositoryUrl` sends the same shape to https instead, and should: that
+ * one reads registry metadata for public packages, where https needs no credentials at all.
+ *
+ * Narrow on purpose, because widening it hands git a transport the safety check would
+ * otherwise have refused. What each part is holding off:
+ *
+ *   `(?![:/\\])`   `ext::sh -c whoami`, git's remote-helper form. Rewritten as a host it
+ *                  becomes a valid `ssh://` URL and sails past `assertSafeRepositoryUrl`,
+ *                  which exists to refuse exactly that. Also keeps out `https://x`, where
+ *                  the colon belongs to a scheme rather than to a host.
+ *   `[A-Za-z0-9.-]+`  a hostname, and two characters at least, or `C:\src\repo` and
+ *                  `C:repo` read as the host `C`.
+ *   `\S+`          a path, not a command line. A repository path has no spaces in it.
+ */
+const SCP_LIKE = /^(?:([^@\s/\\]+)@)?([A-Za-z0-9][A-Za-z0-9.-]+):(?![:/\\])(\S+)$/;
+
+function scpLikeToSsh(value: string): string | null {
+  const match = SCP_LIKE.exec(value);
+  if (!match) return null;
+
+  const [, user, host, repoPath] = match;
+  return `ssh://${user ? `${user}@` : ''}${host}/${(repoPath ?? '').replace(/^\/+/, '')}`;
+}
+
+/**
  * Resolves a repository written in a config file, where `file:` paths are relative to the
  * project and `github:owner/repo` shorthand is expected to work.
  */
@@ -95,7 +126,7 @@ export function normalizeConfiguredRepository(rawUrl: string, projectRoot: strin
   if (rawUrl.startsWith('github:')) {
     return `https://github.com/${rawUrl.slice('github:'.length).replace(/\.git$/, '')}.git`;
   }
-  return rawUrl || null;
+  return scpLikeToSsh(rawUrl) ?? (rawUrl || null);
 }
 
 export function repositoryCacheParts(repoUrl: string): string[] {

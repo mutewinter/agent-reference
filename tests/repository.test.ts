@@ -68,3 +68,50 @@ test('a relative file: repository still resolves against the project', () => {
     path.join(path.resolve('.'), 'checkouts', 'company-ui'),
   );
 });
+
+// `git@host:path` is what `git remote -v` prints and what a user pastes out of it. It was
+// accepted by the classifier and the config parser, then refused at materialization as an
+// unusable URL, so `validate` called a config ok that `get` could not use. The ssh form is
+// what git treats it as, and keeps the credentials that are the reason for writing it.
+test('an scp-style remote resolves to the ssh URL git reads it as', () => {
+  assert.equal(
+    normalizeConfiguredRepository('git@github.com:acme/company-ui.git', path.resolve('.')),
+    'ssh://git@github.com/acme/company-ui.git',
+  );
+  assert.equal(
+    normalizeConfiguredRepository('deploy@git.acme.dev:ui.git', path.resolve('.')),
+    'ssh://deploy@git.acme.dev/ui.git',
+  );
+  // A user is optional, and a path may be several segments deep.
+  assert.equal(
+    normalizeConfiguredRepository('git.acme.dev:team/ui.git', path.resolve('.')),
+    'ssh://git.acme.dev/team/ui.git',
+  );
+  assert.equal(
+    normalizeConfiguredRepository('git@ssh.dev.azure.com:v3/acme/proj/ui', path.resolve('.')),
+    'ssh://git@ssh.dev.azure.com/v3/acme/proj/ui',
+  );
+});
+
+// Both halves of one repository, spelled two ways, share a mirror rather than cloning twice.
+test('an scp-style remote caches beside the https spelling of the same repository', () => {
+  assert.deepEqual(
+    repositoryCacheParts(
+      normalizeConfiguredRepository('git@github.com:acme/ui.git', path.resolve('.')) ?? '',
+    ),
+    repositoryCacheParts('https://github.com/acme/ui.git'),
+  );
+});
+
+// The rewrite must never manufacture a URL the transport check would otherwise have refused.
+// `ext::sh -c whoami` is git's remote-helper form and runs an arbitrary command; read as a
+// host it becomes a valid ssh URL and sails straight past `assertSafeRepositoryUrl`.
+test('a transport that is not a host is left for the transport check to refuse', () => {
+  for (const hostile of ['ext::sh -c whoami', 'ext::whoami', 'fd::7,8', 'evil:sh -c whoami']) {
+    assert.equal(normalizeConfiguredRepository(hostile, path.resolve('.')), hostile);
+  }
+  // A Windows path is a path, not a host named `C`, whichever separator it uses.
+  for (const windows of ['C:\\src\\repo', 'C:/src/repo', 'C:repo']) {
+    assert.equal(normalizeConfiguredRepository(windows, path.resolve('.')), windows);
+  }
+});
