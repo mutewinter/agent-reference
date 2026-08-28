@@ -16,6 +16,8 @@ export interface CliOptions {
   /** Reference names, or one project directory / package.json path. */
   positionals: string[];
   json: boolean;
+  /** `get --path`: the path alone, for a caller holding it in a shell variable. */
+  path: boolean;
   prune: boolean;
   days: number | null;
   /** `--help` after a command, which asks about that command rather than running it. */
@@ -40,13 +42,14 @@ export const CLI_COMMANDS: readonly string[] = [
 ];
 
 const COMMANDS = new Set<string>(CLI_COMMANDS);
-const VALID_OPTIONS = '--json, --prune, --days <n>';
+const VALID_OPTIONS = '--json, --path, --prune, --days <n>';
 
 export function parseArgv(argv: string[]): CliOptions {
   const options: CliOptions = {
     command: 'status',
     positionals: [],
     json: false,
+    path: false,
     prune: false,
     days: null,
     help: false,
@@ -67,6 +70,8 @@ export function parseArgv(argv: string[]): CliOptions {
       options.command = 'version';
     } else if (flag === '--json') {
       options.json = true;
+    } else if (flag === '--path') {
+      options.path = true;
     } else if (flag === '--prune') {
       options.prune = true;
     } else if (flag === '--days') {
@@ -99,6 +104,20 @@ export function parseArgv(argv: string[]): CliOptions {
   if (options.help) {
     if (named && options.command !== 'help') options.helpTopic = options.command;
     options.command = 'help';
+  }
+
+  // Both are output formats, and a caller that asked for two of them has one of the two in
+  // mind. Refusing costs a turn; guessing hands back a shape the caller is not parsing.
+  if (options.path && options.json && options.command !== 'help') {
+    throw new Error('--path and --json are two output formats. Ask for one.');
+  }
+
+  // Only `get` resolves a spec to a path. Elsewhere the flag would be accepted and ignored,
+  // which reads as an answer and is the failure this flag exists to remove.
+  if (options.path && options.command !== 'get' && options.command !== 'help') {
+    throw new Error(
+      `--path is a get option: agent-reference get <spec> --path. ${options.command} does not resolve a spec to a path.`,
+    );
   }
 
   return options;

@@ -433,7 +433,7 @@ installed version, git repositories, and local files and folders, all by name.
 Nothing is fetched until asked for.
 
 Usage:
-  agent-reference get <spec>... [--json]
+  agent-reference get <spec>... [--json | --path]
   agent-reference versions <name> [--json]
   agent-reference status [name...] [--json]
   agent-reference clone  [name...] [--json]
@@ -470,6 +470,8 @@ Commands:
 
 Options:
   --json          Print machine-readable JSON.
+  --path          For get: the resolved paths alone, one per line, for a shell
+                  variable. Problems still print, on stderr.
   --prune         For store: delete stale checkouts.
   --days <n>      For store --prune: age threshold in days. Default 30.
 
@@ -508,6 +510,14 @@ package versions read from pnpm-lock.yaml
 # a name in, a path out. This is the one agents live in
 $ agent-reference get brief
 brief -> ~/code/my-app/notes/brief.md
+```
+
+### agent-reference get brief --path
+
+```text
+# the path alone, for a shell variable: BRIEF=$(agent-reference get brief --path)
+$ agent-reference get brief --path
+~/code/my-app/notes/brief.md
 ```
 
 ### agent-reference versions semver

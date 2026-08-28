@@ -20,6 +20,8 @@ agent-reference get harnesses               # a set: one name, every path in it
 
 A set is a reference that resolves to more than one path, and its name works everywhere a single name does. There is nothing to qualify: one name means one thing in a project.
 
+Add `--path` whenever the path is going into a shell variable rather than onto the screen: `EL=$(agent-reference get electron --path)`. The default line names the spec before the path and the confidence after it, so cutting a path out of it with `tail` or `sed` captures text that is not a path, and the command that opens it either fails or silently matches nothing.
+
 ## Writing code against a library
 
 Before writing against an API you cannot recall exactly, `get` the library and read that version's own `README`, `docs/`, `examples/`, and changelog. Your memory holds whatever was current at training and a docs site holds whatever shipped last; the checkout holds what this project installs. `node_modules` is not the same answer: it carries the published build and almost none of the prose, so which of two exported names is the current one, and what a required option is for, is usually only in the repository.

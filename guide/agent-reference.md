@@ -12,6 +12,19 @@ The instructions the skill on disk is too short to carry, printed by the install
 
 `node_modules` holds only what a package published, usually build output. `get` checks out the package's repository at the exact shipped commit, which is the only way to read the full `README`, `docs/`, examples, tests, CI workflows, the changelog and its migration guides, git history, and the source behind `dist/`. That list is why a checkout answers ordinary API questions too, not just archaeology: the published build carries the code and almost none of the prose, and a docs site describes whatever version is current rather than the one this project installs. The path it prints is a git worktree, so the repository's history is already there: `git -C <path> log`, `show <tag>:<file>`, `blame`, and diffs between releases all run against the whole repository rather than the one commit checked out. Mirrors are cloned without file contents, so commit metadata and `--name-only` are free and offline, while `-p`, `--stat`, `blame`, and `-S` fetch what they need the first time they run.
 
+## Holding the path in a variable
+
+`get --path` prints the resolved paths alone, one per line, and nothing else. It is what to use whenever the path is going into a shell variable or a loop rather than onto the screen:
+
+```sh
+EL=$(agent-reference get electron --path)
+rg -n "createThumbnailFromPath" "$EL/docs/api/native-image.md"
+```
+
+Do not cut the path out of the default line. That line names the spec before the path and the confidence after it, so `sed 's/.*-> //'` leaves the trailing parenthetical inside the variable and the next command opens a directory whose name carries `(unverified, tag ...)`. `tail -1` is worse: a problem prints under the path, so on the result that most needs reading it returns the `fix:` sentence instead of a path.
+
+Problems still print under `--path`, on stderr, so a `$(...)` capture takes the path and leaves the warning in front of you. Redirecting stderr to `/dev/null` throws away the only thing that says a checkout is not the version you asked for.
+
 ## The config is one map
 
 Both files hold a single `references` object, from the name an agent asks for to where that source comes from:

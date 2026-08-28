@@ -6,6 +6,8 @@ import process from 'node:process';
 import { parseArgv, type CliOptions } from './args.ts';
 import {
   formatCloneResult,
+  formatGetPaths,
+  formatGetProblems,
   formatGetResults,
   formatStoreReport,
   formatValidationReport,
@@ -77,6 +79,11 @@ async function main(argv: string[]): Promise<void> {
       // Every positional is a spec: get runs against the current directory's project, and
       // specs like github:owner/repo would be misread as paths by splitPositionals.
       const results = await getReferences(null, options.positionals);
+      if (options.path) {
+        process.stdout.write(formatGetPaths(results));
+        process.stderr.write(formatGetProblems(results));
+        return;
+      }
       write(options, results, (result) => formatGetResults(result, format));
       return;
     }
@@ -163,7 +170,7 @@ function write<T>(options: CliOptions, result: T, format: (result: T) => string)
 
 /** Per-command help, so `get --help` answers about get rather than printing the whole page. */
 const COMMAND_HELP: Record<string, string> = {
-  get: `agent-reference get <spec>... [--json]
+  get: `agent-reference get <spec>... [--json | --path]
 
 Materialize each spec and print its path. A spec is a configured name, which may
 be a set and then stands for every reference in it, or any source written the way
@@ -176,7 +183,12 @@ the config writes one:
   openai/codex#v0.2.0  the same, at a tag or commit
   ./docs/decisions     a path, read where it lives
 
-Works with no config and no project at all.`,
+Works with no config and no project at all.
+
+--path prints the paths alone, one per line, for a caller holding one in a shell
+variable: PI=$(agent-reference get pi --path). The default line names the spec
+before the path and the confidence after it, so cutting a path out of it with
+tail or sed takes the wrong text. Problems still print, on stderr.`,
   versions: `agent-reference versions <name> [--json]
 
 Report every version of a package this project installs, which workspace package
@@ -227,7 +239,7 @@ installed version, git repositories, and local files and folders, all by name.
 Nothing is fetched until asked for.
 
 Usage:
-  agent-reference get <spec>... [--json]
+  agent-reference get <spec>... [--json | --path]
   agent-reference versions <name> [--json]
   agent-reference status [name...] [--json]
   agent-reference clone  [name...] [--json]
@@ -264,6 +276,8 @@ Commands:
 
 Options:
   --json          Print machine-readable JSON.
+  --path          For get: the resolved paths alone, one per line, for a shell
+                  variable. Problems still print, on stderr.
   --prune         For store: delete stale checkouts.
   --days <n>      For store --prune: age threshold in days. Default 30.
 

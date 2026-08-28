@@ -55,6 +55,10 @@ export const commands = [
   { argv: ['status'], note: 'what this project declares, and whether it is on disk yet' },
   { argv: ['get', 'brief'], note: 'a name in, a path out. This is the one agents live in' },
   {
+    argv: ['get', 'brief', '--path'],
+    note: 'the path alone, for a shell variable: BRIEF=$(agent-reference get brief --path)',
+  },
+  {
     argv: ['versions', 'semver'],
     note: 'which versions this project installs, and where. Never fetches',
   },

@@ -45,6 +45,31 @@ export function formatGetResults(results: GetReferenceResult[], options: CliForm
   return `${lines.join('\n')}\n`;
 }
 
+/**
+ * The paths alone, one per line, and never shortened to `~`: this output exists to be held
+ * in a shell variable and handed to a file API, which does not expand it.
+ *
+ * The human line puts a coordinate before the path and a confidence after it, so a caller
+ * that wants only the middle has to cut the line up, and every cut invented for it so far
+ * has been wrong: `tail -1` takes the problem line whenever there is one, and dropping
+ * everything through `-> ` keeps the trailing parenthetical inside the path.
+ */
+export function formatGetPaths(results: GetReferenceResult[]): string {
+  if (results.length === 0) return '';
+  return `${results.map((result) => result.path).join('\n')}\n`;
+}
+
+/**
+ * The problems from a `--path` run, for stderr. A result can succeed and still not be what
+ * was asked for, and under `--path` the line that would have said so is the path itself, so
+ * the warning goes to the stream the caller is not capturing.
+ */
+export function formatGetProblems(results: GetReferenceResult[]): string {
+  const problems = results.flatMap((result) => (result.problem ? [result.problem] : []));
+  if (problems.length === 0) return '';
+  return `${problems.map(formatProblem).join('\n')}\n`;
+}
+
 export function formatCloneResult(
   result: CloneReferencesResult,
   options: CliFormatOptions,

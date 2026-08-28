@@ -6,7 +6,7 @@
       "type": "skill-md",
       "description": "Get readable upstream source on demand - any dependency at its exact installed version, any git repository, any declared local file or folder - by name, via the agent-reference CLI. Use whenever a task needs a library's real source rather than a memory of it. That covers writing code against an API you cannot recall exactly (\"use the combobox from this component library\", \"wire this up with X\"), because the checkout carries that version's own README, docs, examples, and changelog while a docs site carries whatever shipped last, and it covers asking how X implements something, how its maintainers test it, why it behaves this way, or whether it is worth adopting. Also whenever the user asks to add something as a reference, whenever the user asks to set up or initialize agent-reference in a project, whenever the user names a repository, app, folder, or file that is not in this repo and gives no path for it, and whenever a repo contains agent-reference.json or agent-reference.local.json.",
       "url": "/.well-known/agent-skills/agent-reference/SKILL.md",
-      "digest": "sha256:22d8f81bbdc8dce886cb8f07c5498ceb1246d4eae842a8cb5b16b3f82789151d"
+      "digest": "sha256:ebae75783620e842c16c01c564ce99136d5f4b3d0370330ff224f65e10723b58"
     }
   ]
 }
