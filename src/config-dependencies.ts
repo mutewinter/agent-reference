@@ -1,3 +1,4 @@
+import { referencesOfKind } from './config.ts';
 import { mergeDependencyEntries, selectInstalledPackage } from './package-utils.ts';
 import type {
   AgentReferenceConfig,
@@ -26,14 +27,15 @@ export function resolveConfigPackageReferences(
   installedPackages: PackageReference[],
   options: { importer?: string; packageManager?: PackageManager } = {},
 ): ConfigPackageReferences {
-  if (!config || config.packages.length === 0) {
+  const configured = referencesOfKind(config, 'package');
+  if (configured.length === 0) {
     return { packages: [], drift: [] };
   }
 
   const packages: PackageReference[] = [];
   const drift: PackageDrift[] = [];
 
-  for (const entry of config.packages) {
+  for (const entry of configured) {
     packages.push({
       name: entry.name,
       version: entry.version,

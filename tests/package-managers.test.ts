@@ -4,8 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { getVersionsReport } from '../src/versions.ts';
+import { formatVersionsReport, getVersionsReport } from '../src/versions.ts';
 import { scanProject } from '../src/scanner.ts';
+import { getStatusReport } from '../src/status.ts';
 
 const repoRoot = path.resolve(import.meta.dirname, '..');
 
@@ -88,4 +89,37 @@ test('an npm workspace member stays visible instead of looking uninstalled', asy
     report.versions[0]?.path,
     path.join(repoRoot, 'fixtures/npm-workspace/packages/shared'),
   );
+});
+
+// bun.lockb threw out of the scanner, and the throw escaped every command that loads a
+// project context: `get github:owner/repo` and `status` both died on a lockfile neither of
+// them needed. A lockfile this tool cannot read answers the same as no lockfile at all, so
+// it is a fact to report rather than a failure.
+test('a binary Bun lockfile reports why it read nothing instead of failing', async () => {
+  const project = path.join(repoRoot, 'fixtures/bun-binary/package.json');
+
+  const dependencies = await scanProject(project);
+  assert.deepEqual(dependencies, []);
+
+  const report = await getVersionsReport(project, 'react');
+  assert.deepEqual(report.versions, []);
+  assert.match(report.lockfileUnreadable ?? '', /bun\.lockb is binary/);
+  // Never "nothing installs react": that is a claim about a file that was never opened.
+  const text = formatVersionsReport(report);
+  assert.match(text, /bun\.lockb is binary/);
+  assert.doesNotMatch(text, /Nothing in bun\.lockb installs/);
+});
+
+test('a git reference works in a project whose lockfile cannot be read', async () => {
+  const status = await getStatusReport(path.join(repoRoot, 'fixtures/bun-binary'), {
+    storeDir: path.join(os.tmpdir(), 'agent-reference-bun-binary-store'),
+  });
+
+  assert.equal(status.packageManager, 'bun');
+  assert.match(status.lockfileUnreadable ?? '', /bun\.lockb is binary/);
+  // Reported as a fact about the project, so the note telling a reader not to delete a
+  // reference stays off: there is no reference to keep.
+  const [first] = status.problems;
+  assert.equal(first?.about, 'project');
+  assert.equal(first?.severity, 'warning');
 });

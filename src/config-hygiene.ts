@@ -1,5 +1,6 @@
 import path from 'node:path';
 
+import { referencesOfKind } from './config.ts';
 import type { AgentReferenceConfig, ProblemSeverity } from './types.ts';
 
 /**
@@ -31,7 +32,7 @@ const ESCAPE_FIX =
 export function committedPathLeaks(config: AgentReferenceConfig): CommittedPathLeak[] {
   const leaks: CommittedPathLeak[] = [];
 
-  for (const reference of config.paths) {
+  for (const reference of referencesOfKind(config, 'path')) {
     if (reference.scope === 'local') continue;
     const verdict = classifyConfiguredPath(reference.path);
     if (verdict === 'machine') {
@@ -53,7 +54,7 @@ export function committedPathLeaks(config: AgentReferenceConfig): CommittedPathL
 
   // A `file://` repository is a machine path wearing a git costume: it clones from disk, so
   // it travels no better than a path reference does.
-  for (const reference of config.git) {
+  for (const reference of referencesOfKind(config, 'git')) {
     if (reference.scope === 'local') continue;
     const local = localRepositoryPath(reference.repository);
     if (local === null) continue;

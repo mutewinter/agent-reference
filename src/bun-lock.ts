@@ -11,12 +11,6 @@ interface BunLock {
 export async function scanBunDependencies(
   context: LockfileProjectContext,
 ): Promise<PackageReference[]> {
-  if (context.lockfilePath.endsWith('bun.lockb')) {
-    throw new Error(
-      'bun.lockb is binary and cannot be inspected. Generate bun.lock with Bun v1.2+ first.',
-    );
-  }
-
   const lockfile = await readJsoncFile<BunLock>(context.lockfilePath);
 
   return dependenciesFromPackageJsonDirectives(context, ({ name }) => {

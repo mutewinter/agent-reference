@@ -6,8 +6,8 @@ import { classifySource, UnknownSourceError } from './source.ts';
 import type { ClassifiedSource } from './source.ts';
 import type {
   AgentReferenceConfig,
+  AgentReferenceKind,
   ConfiguredReference,
-  ConfiguredSet,
   LoadedAgentReferenceConfig,
 } from './types.ts';
 
@@ -29,8 +29,40 @@ const SET_KEYS = ['description', 'references'];
 const VERSION_HELP =
   'Run `agent-reference versions <name>` to see every version this project installs, then pin that number.';
 
-function emptyConfig(): AgentReferenceConfig {
-  return { packages: [], paths: [], git: [], sets: [] };
+export function emptyConfig(): AgentReferenceConfig {
+  return { references: [], sets: [] };
+}
+
+/** Every reference this config declares, in file order. Null-safe, because config is optional. */
+export function configuredReferences(
+  config: AgentReferenceConfig | undefined,
+): ConfiguredReference[] {
+  return config?.references ?? [];
+}
+
+/**
+ * The one reference of this kind answering to this name. A name means one thing in a config,
+ * so this either finds it or it is not declared; the kind is asserted rather than searched
+ * for, which is what lets a caller work with the narrowed type.
+ */
+export function configuredReference<Kind extends AgentReferenceKind>(
+  config: AgentReferenceConfig | undefined,
+  kind: Kind,
+  name: string,
+): Extract<ConfiguredReference, { kind: Kind }> | null {
+  const found = configuredReferences(config).find((reference) => reference.name === name);
+  return found?.kind === kind ? (found as Extract<ConfiguredReference, { kind: Kind }>) : null;
+}
+
+/** Every reference of one kind, for the callers that genuinely work a kind at a time. */
+export function referencesOfKind<Kind extends AgentReferenceKind>(
+  config: AgentReferenceConfig | undefined,
+  kind: Kind,
+): Array<Extract<ConfiguredReference, { kind: Kind }>> {
+  return configuredReferences(config).filter(
+    (reference): reference is Extract<ConfiguredReference, { kind: Kind }> =>
+      reference.kind === kind,
+  );
 }
 
 export async function loadAgentReferenceConfig(
@@ -47,7 +79,7 @@ export async function loadAgentReferenceConfig(
   const localConfig = localPath
     ? parseConfig(await readConfigJson(localPath), localPath)
     : emptyConfig();
-  for (const reference of [...localConfig.packages, ...localConfig.paths, ...localConfig.git]) {
+  for (const reference of localConfig.references) {
     reference.scope = 'local';
   }
   for (const set of localConfig.sets) {
@@ -348,9 +380,7 @@ function pushReference(
 ): void {
   const existing = findByName(config, reference.name);
   if (!existing) {
-    if (reference.kind === 'package') config.packages.push(reference);
-    else if (reference.kind === 'path') config.paths.push(reference);
-    else config.git.push(reference);
+    config.references.push(reference);
     return;
   }
 
@@ -368,9 +398,7 @@ function pushReference(
 }
 
 function findByName(config: AgentReferenceConfig, name: string): ConfiguredReference | undefined {
-  return [...config.packages, ...config.paths, ...config.git].find(
-    (reference) => reference.name === name,
-  );
+  return config.references.find((reference) => reference.name === name);
 }
 
 function identity(reference: ConfiguredReference): string {
@@ -402,10 +430,6 @@ function assertSetNamesAreFree(config: AgentReferenceConfig, configPath: string)
       );
     }
   }
-}
-
-export function setLabel(set: ConfiguredSet): string {
-  return set.name;
 }
 
 /**
@@ -458,11 +482,10 @@ function optionalString(value: unknown, configPath: string, field: string): stri
 }
 
 /**
- * The local file wins by name, which is the rule the guide states and two
- * comments repeat. It only held inside a kind: the three arrays merged
- * separately, so a local path and a committed package sharing a name both
- * survived, `get` answered with whichever it looked at first, and `status`
- * printed two rows for one name. Overriding now spans all three.
+ * The local file wins by name, which is the rule the guide states and two comments repeat.
+ * A name is a name whatever kind of reference it turns out to be, so overriding is one
+ * `set` into a map keyed by it; keying by insertion also keeps an overridden reference where
+ * the committed file put it rather than moving it to the end.
  */
 function mergeConfigs(
   base: AgentReferenceConfig,
@@ -473,21 +496,15 @@ function mergeConfigs(
     if (!sets.some((existing) => existing.name === set.name)) sets.push(set);
   }
 
-  // Only a local entry of a different kind drops the committed one here; a local
-  // entry of the same kind replaces it in place further down, which keeps the
-  // reference where it was in the file rather than moving it to the end.
-  const overriddenKind = new Map(
-    [...local.packages, ...local.paths, ...local.git].map((entry) => [entry.name, entry.kind]),
-  );
-  const kept = <T extends ConfiguredReference>(entries: T[]): T[] =>
-    entries.filter((entry) => (overriddenKind.get(entry.name) ?? entry.kind) === entry.kind);
+  const references = new Map(base.references.map((entry) => [entry.name, entry]));
+  for (const entry of local.references) {
+    references.set(entry.name, entry);
+  }
 
   const cacheDir = local.cacheDir ?? base.cacheDir;
 
   return {
-    packages: mergeByName(kept(base.packages), local.packages),
-    paths: mergeByName(kept(base.paths), local.paths),
-    git: mergeByName(kept(base.git), local.git),
+    references: [...references.values()],
     sets,
     allImporters: local.allImporters ?? base.allImporters,
     registry: local.registry ?? base.registry,
@@ -495,14 +512,6 @@ function mergeConfigs(
     cacheDirScope:
       cacheDir === undefined ? undefined : local.cacheDir === undefined ? 'shared' : 'local',
   };
-}
-
-function mergeByName<T extends { name: string }>(base: T[], local: T[]): T[] {
-  const byName = new Map(base.map((entry) => [entry.name, entry]));
-  for (const entry of local) {
-    byName.set(entry.name, entry);
-  }
-  return [...byName.values()];
 }
 
 function expectObject(

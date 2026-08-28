@@ -5,13 +5,13 @@ import {
   resolveSubpath,
   resolveStoreDir,
 } from './git.ts';
+import { missingSelectionMessage, resolveSets, selectionFilter, setMemberKey } from './sets.ts';
 import {
+  configuredReference,
   configuredReferences,
-  missingSelectionMessage,
-  resolveSets,
-  selectionFilter,
-  setMemberKey,
-} from './sets.ts';
+  emptyConfig,
+  referencesOfKind,
+} from './config.ts';
 import { committedPathLeaks } from './config-hygiene.ts';
 import { readManifest } from './manifest.ts';
 import { SUPPORTED_ECOSYSTEM } from './package-utils.ts';
@@ -19,6 +19,7 @@ import {
   DESCRIPTION_PLACEHOLDER,
   getCommand,
   missingDirectoryProblem,
+  missingVersionMessage,
   pinFix,
   unresolvedProblem,
 } from './problems.ts';
@@ -30,7 +31,6 @@ import type {
   AgentReferenceStatusEntry,
   AgentReferenceStatusReport,
   AgentReferenceStatusState,
-  ConfigScope,
   ConfiguredPathReference,
   ConfiguredGitReference,
   ConfiguredPackageReference,
@@ -69,51 +69,49 @@ export async function getStatusReport(
     }
   }
 
-  const annotations = referenceAnnotations(config);
-  const pinsByName = new Map((config?.packages ?? []).map((entry) => [entry.name, entry]));
   const unresolvedByName = new Map(
     (loadedManifest?.manifest.unresolved ?? []).map((entry) => [entry.name, entry]),
   );
   const entries: AgentReferenceStatusEntry[] = [];
 
-  for (const dependency of configPackages.packages) {
+  // One pass in the order the config declares them, because that is the order someone wrote
+  // and the only one that carries meaning. Three passes reported the file back grouped by a
+  // kind the writer never chose to group by.
+  for (const reference of configuredReferences(config)) {
+    if (reference.kind === 'path') {
+      entries.push(await buildPathStatus(project.projectRoot, reference));
+      continue;
+    }
+
+    if (reference.kind === 'git') {
+      entries.push(
+        await buildGitStatus(
+          reference,
+          gitManifestByName.get(reference.name) ?? null,
+          referencePathFor,
+        ),
+      );
+      continue;
+    }
+
+    // A package entry's version, package manager and importers come from the resolution
+    // pass, which is what reads the lockfile to report drift. The same invariant `get`
+    // asserts, and said the same way, so the two cannot drift apart.
+    const dependency = configPackages.packages.find((entry) => entry.name === reference.name);
+    if (!dependency) throw new Error(missingVersionMessage(reference.name));
     entries.push(
       await buildPackageStatus(
         dependency,
-        packageManifestByName.get(dependency.name) ?? null,
+        packageManifestByName.get(reference.name) ?? null,
         referencePathFor,
-        annotations.get(`package:${dependency.name}`),
-        pinsByName.get(dependency.name) ?? null,
-        unresolvedByName.get(dependency.name) ?? null,
-      ),
-    );
-  }
-
-  for (const reference of config?.paths ?? []) {
-    entries.push(
-      await buildPathStatus(
-        project.projectRoot,
         reference,
-        annotations.get(`path:${reference.name}`),
-      ),
-    );
-  }
-
-  for (const reference of config?.git ?? []) {
-    entries.push(
-      await buildGitStatus(
-        reference,
-        gitManifestByName.get(reference.name) ?? null,
-        referencePathFor,
-        annotations.get(`git:${reference.name}`),
+        unresolvedByName.get(reference.name) ?? null,
       ),
     );
   }
 
   const selection = selectionFilter(config, options);
-  const references = selection
-    ? entries.filter((entry) => selection.matches(entry.kind, entry.name))
-    : entries;
+  const references = selection ? entries.filter((entry) => selection.matches(entry.name)) : entries;
   // Silently printing a table without a selector's reference in it, or no table at all,
   // would read as "that reference has no problems".
   const missing = selection?.unmatched() ?? [];
@@ -121,11 +119,28 @@ export async function getStatusReport(
   const problems = collectProblems(
     references,
     unresolvedByName,
-    new Set((config?.packages ?? []).filter((entry) => entry.directory).map((entry) => entry.name)),
+    new Set(
+      referencesOfKind(config, 'package')
+        .filter((entry) => entry.directory)
+        .map((entry) => entry.name),
+    ),
     configPackages.drift,
     config,
     storeDir,
   );
+
+  // Leading, because it explains every package line below it: nothing was read, so a pin has
+  // nothing to be checked against and a bare `get <name>` answers from the registry.
+  if (project.lockfileUnreadable) {
+    problems.unshift({
+      reference: null,
+      about: 'project',
+      severity: 'warning',
+      summary: project.lockfileUnreadable,
+      fix: 'Everything that does not need a package version works as it is. For versions, generate a lockfile this tool reads, or give each package reference an exact version in its source.',
+      configPatch: null,
+    });
+  }
 
   return {
     generatedAt: new Date().toISOString(),
@@ -135,6 +150,7 @@ export async function getStatusReport(
     manifestPath: loadedManifest?.path ?? null,
     lockfilePath: project.lockfilePath,
     packageManager: project.packageManager,
+    lockfileUnreadable: project.lockfileUnreadable,
     installedPackageCount: installedPackages.length,
     sets: resolveSets(config).map((set) => ({
       name: set.name,
@@ -163,10 +179,6 @@ function collectProblems(
   storeDir: string,
 ): AgentReferenceProblem[] {
   const problems: AgentReferenceProblem[] = [];
-  const gitByName = new Map((config?.git ?? []).map((entry) => [entry.name, entry]));
-  // A patch has to edit the entry that is there, so it is keyed by the name the config
-  // gave it. Everything else about the entry, the source included, stays as written.
-  const packageByName = new Map((config?.packages ?? []).map((entry) => [entry.name, entry]));
 
   for (const entry of entries) {
     const reference = `${entry.kind}:${entry.name}`;
@@ -175,7 +187,7 @@ function collectProblems(
     const configFile = configFileFor(entry.scope ?? 'shared');
 
     if (entry.directoryMissing) {
-      const configured = gitByName.get(entry.name);
+      const configured = configuredReference(config, 'git', entry.name);
       if (configured?.directory) {
         problems.push(
           missingDirectoryProblem(
@@ -201,7 +213,7 @@ function collectProblems(
 
     const drifted = drift.find((candidate) => candidate.name === entry.name);
     if (drifted) {
-      const configured = packageByName.get(entry.name);
+      const configured = configuredReference(config, 'package', entry.name);
       const ecosystem = configured?.ecosystem ?? SUPPORTED_ECOSYSTEM;
       const source = `${ecosystem}:${entry.name}@${drifted.installed[0]}`;
       problems.push({
@@ -229,7 +241,7 @@ function collectProblems(
         fix: pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile),
         configPatch: pinPatch(
           entry,
-          packageByName.get(entry.name)?.ecosystem ?? SUPPORTED_ECOSYSTEM,
+          configuredReference(config, 'package', entry.name)?.ecosystem ?? SUPPORTED_ECOSYSTEM,
         ),
         configFile,
       });
@@ -248,7 +260,7 @@ function collectProblems(
         fix: `Spot-check ${entry.path}/package.json. If it is wrong, ${pinFix(entry.name, entry.currentVersion, entry.repositoryUrl, storeDir, configFile)}`,
         configPatch: pinPatch(
           entry,
-          packageByName.get(entry.name)?.ecosystem ?? SUPPORTED_ECOSYSTEM,
+          configuredReference(config, 'package', entry.name)?.ecosystem ?? SUPPORTED_ECOSYSTEM,
         ),
         configFile,
       });
@@ -259,7 +271,7 @@ function collectProblems(
   // references asked for, and a leak the caller filtered past is still a leak. Warnings
   // rather than the errors `validate` raises, because nothing here is unusable; the agent
   // maintaining this config is the one who can move the entry, and status is what it runs.
-  for (const leak of committedPathLeaks(config ?? { packages: [], paths: [], git: [], sets: [] })) {
+  for (const leak of committedPathLeaks(config ?? emptyConfig())) {
     problems.push({
       reference: leak.reference,
       about: 'config',
@@ -296,24 +308,6 @@ function pinPatch(entry: AgentReferenceStatusEntry, ecosystem: string): Record<s
   };
 }
 
-interface ReferenceAnnotation {
-  description: string | null;
-  scope: ConfigScope;
-  sets: string[];
-}
-
-/** Set membership rides on each parsed reference, so the config is the whole key set. */
-function referenceAnnotations(
-  config: AgentReferenceConfig | undefined,
-): Map<string, ReferenceAnnotation> {
-  return new Map<string, ReferenceAnnotation>(
-    configuredReferences(config).map((reference) => [
-      `${reference.kind}:${reference.name}`,
-      { description: reference.description, scope: reference.scope, sets: reference.sets },
-    ]),
-  );
-}
-
 type StatusEntryInput = Partial<AgentReferenceStatusEntry> &
   Pick<AgentReferenceStatusEntry, 'kind' | 'name' | 'status' | 'action'>;
 
@@ -343,8 +337,7 @@ async function buildPackageStatus(
   dependency: PackageReference,
   manifestEntry: PackageManifestReference | null,
   referencePathFor: (reference: PackageManifestReference | GitManifestReference) => string,
-  annotation: ReferenceAnnotation | undefined,
-  configEntry: ConfiguredPackageReference | null,
+  configEntry: ConfiguredPackageReference,
   unresolved: UnresolvedManifestReference | null,
 ): Promise<AgentReferenceStatusEntry> {
   const worktreePath = manifestEntry ? referencePathFor(manifestEntry) : null;
@@ -359,10 +352,10 @@ async function buildPackageStatus(
   return statusEntry({
     kind: 'package',
     name: dependency.name,
-    ecosystem: configEntry?.ecosystem ?? SUPPORTED_ECOSYSTEM,
-    description: annotation?.description ?? null,
-    scope: annotation?.scope ?? null,
-    sets: annotation?.sets ?? [],
+    ecosystem: configEntry.ecosystem,
+    description: configEntry.description,
+    scope: configEntry.scope,
+    sets: configEntry.sets,
     requested: dependency.specifier,
     packageManager: dependency.packageManager,
     currentVersion: dependency.version,
@@ -383,7 +376,6 @@ async function buildPackageStatus(
 async function buildPathStatus(
   projectRoot: string,
   reference: ConfiguredPathReference,
-  annotation: ReferenceAnnotation | undefined,
 ): Promise<AgentReferenceStatusEntry> {
   const resolvedPath = resolveReferencePath(projectRoot, reference.path);
   const found = await pathKind(resolvedPath);
@@ -394,7 +386,7 @@ async function buildPathStatus(
     name: reference.name,
     description: reference.description,
     scope: reference.scope,
-    sets: annotation?.sets ?? [],
+    sets: reference.sets,
     pathType: found,
     requested: reference.path,
     path: resolvedPath,
@@ -407,7 +399,6 @@ async function buildGitStatus(
   reference: ConfiguredGitReference,
   manifestEntry: GitManifestReference | null,
   referencePathFor: (entry: PackageManifestReference | GitManifestReference) => string,
-  annotation: ReferenceAnnotation | undefined,
 ): Promise<AgentReferenceStatusEntry> {
   const worktreePath = manifestEntry ? referencePathFor(manifestEntry) : null;
   const ready = worktreePath ? await pathExists(worktreePath) : false;
@@ -423,7 +414,7 @@ async function buildGitStatus(
     name: reference.name,
     description: reference.description,
     scope: reference.scope,
-    sets: annotation?.sets ?? [],
+    sets: reference.sets,
     requested: reference.spec,
     path: subpath?.path ?? worktreePath,
     repositoryPath: worktreePath,

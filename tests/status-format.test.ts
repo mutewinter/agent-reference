@@ -259,6 +259,7 @@ function report(
     manifestPath: null,
     lockfilePath: '/project/pnpm-lock.yaml',
     packageManager: 'pnpm',
+    lockfileUnreadable: null,
     installedPackageCount: 0,
     sets: [],
     references,

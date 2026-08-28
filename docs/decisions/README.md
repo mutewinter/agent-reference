@@ -23,3 +23,4 @@ One Markdown file per decision, named for the date it was made: `YYYY-MM-DD-shor
 | 2026-08-25 | [Two readers, one URL: the site answers agents in markdown](2026-08-25-two-readers-one-url.md) |
 | 2026-08-26 | [One shape for a reference, and a description is required](2026-08-26-one-shape-for-a-reference.md) |
 | 2026-08-26 | [The site hosts the schema, not a package CDN](2026-08-26-the-site-hosts-the-schema.md) |
+| 2026-08-28 | [The parsed config is one list, because the namespace is one namespace](2026-08-28-the-parsed-config-is-one-list.md) |

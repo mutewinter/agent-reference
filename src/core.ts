@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG_FILE } from './config.ts';
+import { configuredReference, DEFAULT_CONFIG_FILE, referencesOfKind } from './config.ts';
 import {
   ensureDependencyWorktree,
   ensureGitAvailable,
@@ -38,14 +38,11 @@ export async function cloneReferences(
   );
 
   const selection = selectionFilter(config, options);
-  const packages = configPackages.packages.filter(
-    (entry) => !selection || selection.matches('package', entry.name),
-  );
-  const gitReferences = (config?.git ?? []).filter(
-    (entry) => !selection || selection.matches('git', entry.name),
-  );
-  const paths = (config?.paths ?? [])
-    .filter((entry) => !selection || selection.matches('path', entry.name))
+  const selected = (name: string): boolean => !selection || selection.matches(name);
+  const packages = configPackages.packages.filter((entry) => selected(entry.name));
+  const gitReferences = referencesOfKind(config, 'git').filter((entry) => selected(entry.name));
+  const paths = referencesOfKind(config, 'path')
+    .filter((entry) => selected(entry.name))
     .map((entry) => entry.name);
 
   // Every selector has to hit something. One typo among several names was dropped in
@@ -74,13 +71,14 @@ export async function cloneReferences(
   const cloned: CloneReferencesResult['cloned'] = [];
   const unresolved: UnresolvedManifestReference[] = [];
   const skipped: CloneReferencesResult['skipped'] = [];
-  const overrides = new Map((config?.packages ?? []).map((entry) => [entry.name, entry]));
+  const override = (name: string): ConfiguredPackageReference | undefined =>
+    configuredReference(config, 'package', name) ?? undefined;
 
   for (const dependency of packages) {
     // One unresolvable package must not abort the references that would have worked.
     const outcome = await materializePackage(
       dependency,
-      overrides.get(dependency.name),
+      override(dependency.name),
       registryOptions,
       worktreeOptions,
     );
@@ -146,7 +144,7 @@ export async function cloneReferences(
         unresolvedProblem(
           failure,
           worktreeOptions.storeDir,
-          configFileFor(overrides.get(failure.name)?.scope ?? 'shared'),
+          configFileFor(override(failure.name)?.scope ?? 'shared'),
         ),
       ),
       ...gitFailures,

@@ -576,6 +576,7 @@ test('a workspace link does not hide the versions other importers install', () =
     name: 'shared',
     projectRoot: '/repo',
     lockfile: '/repo/pnpm-lock.yaml',
+    lockfileUnreadable: null,
     packageManager: 'pnpm',
     importer: '.',
     versions: [

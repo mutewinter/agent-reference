@@ -1,11 +1,16 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { DEFAULT_LOCAL_CONFIG_FILE, loadAgentReferenceConfig } from './config.ts';
+import {
+  configuredReferences,
+  DEFAULT_LOCAL_CONFIG_FILE,
+  loadAgentReferenceConfig,
+  referencesOfKind,
+} from './config.ts';
 import { committedPathLeaks } from './config-hygiene.ts';
 import { pathExists, resolveReferencePath } from './fs-utils.ts';
 import { runGit } from './git.ts';
-import { configuredReferences, resolveSets, setMemberKey } from './sets.ts';
+import { resolveSets, setMemberKey } from './sets.ts';
 import { resolveProjectInput } from './scanner.ts';
 import type { AgentReferenceKind } from './types.ts';
 
@@ -95,7 +100,7 @@ export async function validateConfig(
     }
   }
 
-  for (const reference of loaded.config.paths) {
+  for (const reference of referencesOfKind(loaded.config, 'path')) {
     const resolved = resolveReferencePath(projectRoot, reference.path);
     if (!(await pathExists(resolved))) {
       report.warnings.push(
@@ -107,7 +112,7 @@ export async function validateConfig(
   // `docs/decisions` is a valid `owner/repo` shorthand and a plausible folder, and the
   // source alone cannot say which was meant. Only the disk can, and only here: parsing
   // stays pure so it answers the same on every machine.
-  for (const reference of loaded.config.git) {
+  for (const reference of referencesOfKind(loaded.config, 'git')) {
     const shorthand = githubShorthandPath(reference.repository);
     if (!shorthand) continue;
     if (await pathExists(path.resolve(projectRoot, shorthand))) {
@@ -132,7 +137,7 @@ export async function validateConfig(
     );
   }
 
-  if (loaded.config?.allImporters) {
+  if (loaded.config.allImporters) {
     report.warnings.push(
       'allImporters no longer does anything: every workspace importer is read now, and a name installed at several versions is reported rather than picked. The key can be removed.',
     );

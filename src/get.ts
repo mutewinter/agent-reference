@@ -4,7 +4,12 @@ import process from 'node:process';
 import semver from 'semver';
 
 import { materializePackage } from './core.ts';
-import { DEFAULT_CONFIG_FILE, DEFAULT_LOCAL_CONFIG_FILE } from './config.ts';
+import {
+  configuredReference,
+  configuredReferences,
+  DEFAULT_CONFIG_FILE,
+  DEFAULT_LOCAL_CONFIG_FILE,
+} from './config.ts';
 import { resolveReferencePath, pathExists } from './fs-utils.ts';
 import { ensureGitReferenceWorktree, resolvePackagePath, resolveStoreDir } from './git.ts';
 import { writeManifest } from './manifest.ts';
@@ -13,6 +18,7 @@ import {
   DESCRIPTION_PLACEHOLDER,
   getCommand,
   missingDirectoryProblem,
+  missingVersionMessage,
   pinFix,
   unresolvedProblem,
 } from './problems.ts';
@@ -22,7 +28,7 @@ import {
   workspaceVersionPath,
 } from './pnpm-lock.ts';
 import { loadReferenceContext, type LoadedReferenceContext } from './reference-context.ts';
-import { configuredReferences, knownSelectorsMessage } from './sets.ts';
+import { knownSelectorsMessage } from './sets.ts';
 import { classifySource, derivedName, type ClassifiedSource } from './source.ts';
 import {
   formatCoordinate,
@@ -223,11 +229,7 @@ async function getConfigured(
   }
 
   const dependency = context.configPackages.packages.find((entry) => entry.name === reference.name);
-  if (!dependency) {
-    throw new Error(
-      `references.${reference.name} is declared but carries no version. Give it an exact version such as "npm:${reference.name}@1.2.3".`,
-    );
-  }
+  if (!dependency) throw new Error(missingVersionMessage(reference.name));
 
   return materializeToResult(
     dependency,
@@ -239,6 +241,7 @@ async function getConfigured(
       override: reference,
       record: recordedPackages,
       versionSource: 'config',
+      lockfileUnreadable: context.project.lockfileUnreadable,
     },
   );
 }
@@ -293,9 +296,8 @@ async function getPackage(
     versionSource = 'registry';
   }
 
-  const override = context.config?.packages.find(
-    (entry) => entry.ecosystem === ecosystem && entry.name === name,
-  );
+  const declared = configuredReference(context.config, 'package', name);
+  const override = declared?.ecosystem === ecosystem ? declared : undefined;
   return materializeToResult(dependency, spec, name, registryOptions, worktreeOptions, {
     // A pin belongs to the version it was made for: it must not redirect an explicit
     // historical request like name@old-version.
@@ -304,6 +306,7 @@ async function getPackage(
     // installs is worth recording as its current checkout.
     record: versionSource === 'lockfile' ? recordedPackages : null,
     versionSource,
+    lockfileUnreadable: context.project.lockfileUnreadable,
   });
 }
 
@@ -356,6 +359,8 @@ async function materializeToResult(
     override: Parameters<typeof materializePackage>[1];
     record: GitWorktreeResult[] | null;
     versionSource: PackageVersionSource;
+    /** Why no lockfile version was available, when there is a lockfile this cannot read. */
+    lockfileUnreadable: string | null;
   },
 ): Promise<GetReferenceResult> {
   // An edit has to be made in the file this entry is in. A package declared in the local
@@ -394,16 +399,17 @@ async function materializeToResult(
     confidence: outcome.result.confidence,
     description: null,
     recorded: options.record !== null,
-    problem: resultProblem(
+    problem: resultProblem({
       name,
-      dependency.version,
-      outcome.result,
-      options.versionSource,
-      worktreeOptions.storeDir,
-      Boolean(options.override?.directory),
+      version: dependency.version,
+      result: outcome.result,
+      versionSource: options.versionSource,
+      storeDir: worktreeOptions.storeDir,
+      directoryPinned: Boolean(options.override?.directory),
       configFile,
-      options.override?.description ?? null,
-    ),
+      description: options.override?.description ?? null,
+      lockfileUnreadable: options.lockfileUnreadable,
+    }),
   };
 }
 
@@ -413,16 +419,30 @@ async function materializeToResult(
  * nothing by that name. Both are reported here, with the same fix text `status` would give,
  * because `get` is the command an agent runs and the output it acts on.
  */
-function resultProblem(
-  name: string,
-  version: string,
-  result: GitWorktreeResult,
-  versionSource: PackageVersionSource,
-  storeDir: string,
-  directoryPinned: boolean,
-  configFile: string,
-  description: string | null,
-): AgentReferenceProblem | null {
+interface ResultProblemInput {
+  name: string;
+  version: string;
+  result: GitWorktreeResult;
+  versionSource: PackageVersionSource;
+  storeDir: string;
+  /** The package directory was chosen by hand, so an unconfirmed version is expected. */
+  directoryPinned: boolean;
+  configFile: string;
+  description: string | null;
+  lockfileUnreadable: string | null;
+}
+
+function resultProblem({
+  name,
+  version,
+  result,
+  versionSource,
+  storeDir,
+  directoryPinned,
+  configFile,
+  description,
+  lockfileUnreadable,
+}: ResultProblemInput): AgentReferenceProblem | null {
   if (result.confidence === 'fallback') {
     return {
       reference: `package:${name}`,
@@ -469,10 +489,14 @@ function resultProblem(
   }
 
   if (versionSource === 'registry') {
+    // "Nothing installs it" is a claim about the lockfile, so it cannot be made about one
+    // that was never opened: the package may well be installed, at a version not read here.
     return {
       reference: `package:${name}`,
       severity: 'warning',
-      summary: `Nothing in this project installs ${name}, so this is ${version}, the registry's latest, rather than a version this repository depends on.`,
+      summary: lockfileUnreadable
+        ? `${lockfileUnreadable} So this is ${version}, the registry's latest, rather than whatever this project installs.`
+        : `Nothing in this project installs ${name}, so this is ${version}, the registry's latest, rather than a version this repository depends on.`,
       fix: `If you meant a specific version, ask for it: agent-reference get ${name}@<version>.`,
       configPatch: null,
     };

@@ -28,11 +28,6 @@ export function ambiguousInstalledMessage(name: string, candidates: PackageRefer
 }
 
 /**
- * Whoever reports a failure has to report its fix too. An agent acts on the output of the
- * command it just ran, so this is shared by `clone` and `status` rather than leaving one
- * of them telling the caller to go run the other.
- */
-/**
  * What a patch writes into `description` when it is adding an entry rather than correcting
  * one. Every entry carries a description, so a patch has to supply one; where the reference
  * is already declared the producer passes the description it has, and a shallow merge then
@@ -44,6 +39,21 @@ export const KEEP_REFERENCE_NOTE: string =
   'Fix the reference. Do not delete it from agent-reference.json to clear this;\n' +
   '  it was declared on purpose and removing it drops that source for everyone.';
 
+/**
+ * A package entry that produced no resolved reference. Unreachable: every configured package
+ * carries an exact version and maps one to one. Stated rather than skipped because both
+ * commands that do this lookup would otherwise fail silently, and `status` dropping a
+ * declared reference from its table reads as that reference having nothing wrong with it.
+ */
+export function missingVersionMessage(name: string): string {
+  return `references.${name} is declared but carries no version. Give it an exact version such as "${SUPPORTED_ECOSYSTEM}:${name}@1.2.3".`;
+}
+
+/**
+ * Whoever reports a failure has to report its fix too. An agent acts on the output of the
+ * command it just ran, so this is shared by `clone` and `status` rather than leaving one
+ * of them telling the caller to go run the other.
+ */
 export function unresolvedProblem(
   failure: UnresolvedManifestReference,
   storeDir: string,

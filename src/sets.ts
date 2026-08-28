@@ -1,21 +1,11 @@
 import { CLI_COMMANDS } from './args.ts';
+import { configuredReferences } from './config.ts';
 import type {
   AgentReferenceConfig,
-  AgentReferenceKind,
-  ConfiguredReference,
   ReferenceSelectionOptions,
   ReferenceSet,
   ReferenceSetMember,
 } from './types.ts';
-
-const KINDS: AgentReferenceKind[] = ['package', 'path', 'git'];
-
-export function configuredReferences(
-  config: AgentReferenceConfig | undefined,
-): ConfiguredReference[] {
-  if (!config) return [];
-  return [...config.packages, ...config.paths, ...config.git];
-}
 
 /**
  * Sets resolve from containment: members are declared inside the set, and each parsed
@@ -45,7 +35,8 @@ export interface UnmatchedSelector {
 }
 
 export interface ReferenceSelection {
-  matches: (kind: AgentReferenceKind, name: string) => boolean;
+  /** A name, and nothing else: one name means one thing, so there is no kind to qualify it. */
+  matches: (name: string) => boolean;
   /**
    * Which selectors nothing answered to. Only meaningful once every candidate has been
    * offered to `matches`, because that is what records the hits.
@@ -67,31 +58,30 @@ export function selectionFilter(
   // Per selector rather than one flat set: a run naming several references used to report
   // success as long as any one of them hit, so a typo was dropped in silence and the
   // reference it meant was never materialized.
-  const selectors: Array<UnmatchedSelector & { keys: Set<string> }> = [];
+  const selectors: Array<UnmatchedSelector & { names: Set<string> }> = [];
   const sets = resolveSets(config);
 
   for (const input of inputs) {
-    selectors.push({ label: `reference "${input}"`, input, keys: selectorKeys(input, sets) });
+    selectors.push({ label: `reference "${input}"`, input, names: selectorNames(input, sets) });
   }
 
   const hits = new Set<string>();
 
   return {
-    matches(kind, name) {
-      const key = memberKey(kind, name);
-      if (!selectors.some((selector) => selector.keys.has(key))) return false;
-      hits.add(key);
+    matches(name) {
+      if (!selectors.some((selector) => selector.names.has(name))) return false;
+      hits.add(name);
       return true;
     },
     unmatched: () =>
       selectors
-        .filter((selector) => ![...selector.keys].some((key) => hits.has(key)))
+        .filter((selector) => ![...selector.names].some((name) => hits.has(name)))
         .map(({ label, input }) => ({ label, input })),
   };
 }
 
 /**
- * What one selector stands for: a name, exactly. A set expands to its members, and
+ * What one selector stands for: a name, exactly. A set expands to its members' names, and
  * everything else is the name it is.
  *
  * Matching a description substring was tried and taken back out. It ran in `status` and
@@ -100,13 +90,13 @@ export function selectionFilter(
  * of them a network fetch of something unrelated. A fuzzy match also sits badly in an API
  * whose whole claim is that a name means one thing.
  */
-function selectorKeys(input: string, sets: ReferenceSet[]): Set<string> {
+function selectorNames(input: string, sets: ReferenceSet[]): Set<string> {
   const set = sets.find((candidate) => candidate.name === input);
-  if (set) return new Set(set.members.map((member) => memberKey(member.kind, member.name)));
+  if (set) return new Set(set.members.map((member) => member.name));
 
-  // Generated whether or not anything answers to the name, so a miss is reported as the
-  // selector that missed rather than silently narrowing the selection to nothing.
-  return new Set(KINDS.map((kind) => memberKey(kind, input)));
+  // Kept whether or not anything answers to it, so a miss is reported as the selector that
+  // missed rather than silently narrowing the selection to nothing.
+  return new Set([input]);
 }
 
 /** Says which selector missed and what could have been written instead. */
@@ -166,10 +156,10 @@ export function splitSelectors(values: string[] | undefined): string[] {
   );
 }
 
-function memberKey(kind: AgentReferenceKind, name: string): string {
-  return `${kind}:${name}`;
-}
-
+/**
+ * How a set's members are spelled in a report. The kind rides along because this is read
+ * output rather than a lookup: the name alone is what `get` takes.
+ */
 export function setMemberKey(member: ReferenceSetMember): string {
-  return memberKey(member.kind, member.name);
+  return `${member.kind}:${member.name}`;
 }

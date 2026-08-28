@@ -6,13 +6,20 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { samples } from '../site/code-samples.ts';
-import { loadAgentReferenceConfig, parseConfig } from '../src/config.ts';
+import { loadAgentReferenceConfig, parseConfig, referencesOfKind } from '../src/config.ts';
 import { parseJsonc } from '../src/jsonc.ts';
 import { runGit } from '../src/git.ts';
 import { missingSelectionMessage, resolveSets, selectionFilter } from '../src/sets.ts';
 import { resolveReferencePath } from '../src/fs-utils.ts';
 import { classifySource } from '../src/source.ts';
 import { validateConfig } from '../src/validate.ts';
+import type { AgentReferenceConfig } from '../src/types.ts';
+
+// The config is one list of references in file order. These read it back a kind at a time,
+// which is what most of these assertions are about; order within a kind still holds.
+const packages = (config: AgentReferenceConfig | undefined) => referencesOfKind(config, 'package');
+const paths = (config: AgentReferenceConfig | undefined) => referencesOfKind(config, 'path');
+const gitReferences = (config: AgentReferenceConfig | undefined) => referencesOfKind(config, 'git');
 
 test('one map holds every kind, and the kind comes out of the source', () => {
   const config = parseConfig(
@@ -38,7 +45,7 @@ test('one map holds every kind, and the kind comes out of the source', () => {
     'agent-reference.json',
   );
 
-  assert.deepEqual(config.packages[0], {
+  assert.deepEqual(packages(config)[0], {
     kind: 'package',
     name: 'react',
     ecosystem: 'npm',
@@ -50,18 +57,18 @@ test('one map holds every kind, and the kind comes out of the source', () => {
     description: 'The framework this project is written in',
     sets: [],
   });
-  assert.equal(config.packages[1]?.description, 'Schema shapes');
+  assert.equal(packages(config)[1]?.description, 'Schema shapes');
   // A bare name still means npm, so the two spellings land on the same ecosystem.
   assert.deepEqual(
-    config.packages.map((entry) => [entry.name, entry.ecosystem, entry.version]),
+    packages(config).map((entry) => [entry.name, entry.ecosystem, entry.version]),
     [
       ['react', 'npm', '18.2.0'],
       ['zod', 'npm', '3.25.0'],
     ],
   );
-  assert.equal(config.paths[1]?.path, '../platform/docs');
+  assert.equal(paths(config)[1]?.path, '../platform/docs');
   assert.deepEqual(
-    config.git.map((entry) => [entry.repository, entry.ref, entry.spec]),
+    gitReferences(config).map((entry) => [entry.repository, entry.ref, entry.spec]),
     [
       ['github:microsoft/TypeScript', 'main', 'github:microsoft/TypeScript#main'],
       ['github:acme/tooling', 'v4', 'github:acme/tooling#v4'],
@@ -167,13 +174,14 @@ test('a set is a reference that resolves to several paths, keyed by its own name
   assert.equal(sets.length, 1);
   assert.equal(sets[0]?.name, 'docs');
   assert.equal(sets[0]?.description, 'Documentation sources to read before writing docs');
-  // One map holds every kind, so a set can mix a package, a repository and a folder.
+  // One map holds every kind, so a set can mix a package, a repository and a folder, and it
+  // reads back in the order it was written rather than regrouped by a kind nobody chose.
   assert.deepEqual(
     sets[0]?.members.map((member) => `${member.kind}:${member.name}`),
-    ['package:zod', 'path:design-notes', 'path:api-docs', 'git:design-system'],
+    ['path:design-notes', 'path:api-docs', 'git:design-system', 'package:zod'],
   );
-  assert.equal(config.git[0]?.ref, 'v4');
-  assert.equal(config.packages[0]?.version, '3.25.0');
+  assert.equal(gitReferences(config)[0]?.ref, 'v4');
+  assert.equal(packages(config)[0]?.version, '3.25.0');
 });
 
 test('the shorthands that are gone name what replaced them', () => {
@@ -244,8 +252,8 @@ test('the same source in two sets merges into one reference with both labels', (
     'agent-reference.json',
   );
 
-  assert.equal(config.git.length, 1);
-  assert.deepEqual(config.git[0]?.sets, ['engines', 'rewrite']);
+  assert.equal(gitReferences(config).length, 1);
+  assert.deepEqual(gitReferences(config)[0]?.sets, ['engines', 'rewrite']);
 });
 
 test('two declarations disagreeing about a name is a conflict, not repetition', () => {
@@ -387,7 +395,7 @@ test('a local checkout is read where it lives, so the file: prefix names the pat
     },
     'agent-reference.json',
   );
-  assert.equal(config.git[0]?.repository, 'file:///opt/checkouts/company-ui');
+  assert.equal(gitReferences(config)[0]?.repository, 'file:///opt/checkouts/company-ui');
 });
 
 test('a selector is a name, and a set name stands for its members', () => {
@@ -414,18 +422,18 @@ test('a selector is a name, and a set name stands for its members', () => {
   );
 
   const bySetName = selectionFilter(config, { references: ['docs'] });
-  assert.equal(bySetName?.matches('path', 'notes'), true);
-  assert.equal(bySetName?.matches('package', 'react'), false);
+  assert.equal(bySetName?.matches('notes'), true);
+  assert.equal(bySetName?.matches('react'), false);
 
   const byName = selectionFilter(config, { references: ['react-notes'] });
-  assert.equal(byName?.matches('path', 'react-notes'), true);
-  assert.equal(byName?.matches('package', 'react'), false);
+  assert.equal(byName?.matches('react-notes'), true);
+  assert.equal(byName?.matches('react'), false);
 
   // A word out of a description is not a selector. It resolved here and not in `get`,
   // which classifies the spec itself and would have asked a registry for a package by
   // that word: one selector, two behaviors, one of them a network fetch.
   const bySubstring = selectionFilter(config, { references: ['documentation'] });
-  assert.equal(bySubstring?.matches('path', 'notes'), false);
+  assert.equal(bySubstring?.matches('notes'), false);
 
   assert.equal(selectionFilter(config, {}), null);
 });
@@ -446,11 +454,8 @@ test('a selector that matched nothing is named, not dropped', () => {
 
   const selection = selectionFilter(config, { references: ['react', 'tanstck-router'] });
   // Offering every candidate is what records the hits, exactly as a caller filters.
-  for (const [kind, name] of [
-    ['package', 'react'],
-    ['path', 'notes'],
-  ] as const) {
-    selection?.matches(kind, name);
+  for (const name of ['react', 'notes'] as const) {
+    selection?.matches(name);
   }
 
   // One name hitting used to be enough to report the whole run a success, so the reference
@@ -478,7 +483,7 @@ test('every selector hitting leaves nothing unmatched', () => {
   );
   const selection = selectionFilter(config, { references: ['react'] });
 
-  assert.equal(selection?.matches('package', 'react'), true);
+  assert.equal(selection?.matches('react'), true);
   assert.deepEqual(selection?.unmatched(), []);
 });
 
@@ -505,7 +510,7 @@ test('local config overrides shared entries by name', async () => {
   const loaded = await loadAgentReferenceConfig(projectRoot);
 
   assert.deepEqual(
-    loaded?.config.paths.map((entry) => [entry.name, entry.path, entry.description]),
+    paths(loaded?.config).map((entry) => [entry.name, entry.path, entry.description]),
     [
       ['company-ui', '~/code/company-ui', 'Local checkout'],
       ['notes', './notes', 'Project notes, read where they live'],
@@ -530,9 +535,9 @@ test('a local entry overrides a committed one of any kind, not just its own', as
   // it reached first and `status` printed two rows for one name.
   const loaded = await loadAgentReferenceConfig(projectRoot);
 
-  assert.equal(loaded?.config.packages.length, 0);
+  assert.equal(packages(loaded?.config).length, 0);
   assert.deepEqual(
-    loaded?.config.paths.map((entry) => [entry.name, entry.path]),
+    paths(loaded?.config).map((entry) => [entry.name, entry.path]),
     [['zod', '~/code/zod']],
   );
 });
@@ -597,11 +602,11 @@ test('config files are JSONC, and the same characters inside a string stay data'
   const loaded = await loadAgentReferenceConfig(projectRoot);
 
   assert.equal(
-    loaded?.config.git[0]?.description,
+    gitReferences(loaded?.config)[0]?.description,
     'Docs at https://acme.example/docs, and the config shape is { "zod": "npm:zod@3.25.0", }',
   );
   assert.deepEqual(
-    loaded?.config.paths.map((entry) => [entry.name, entry.path]),
+    paths(loaded?.config).map((entry) => [entry.name, entry.path]),
     [
       ['notes', './notes'],
       ['vault', '~/notes'],
@@ -822,7 +827,7 @@ test('two subtrees of one repository are two references, not one repeated declar
   );
 
   assert.deepEqual(
-    withNames.git.map((entry) => [entry.name, entry.directory]),
+    gitReferences(withNames).map((entry) => [entry.name, entry.directory]),
     [
       ['design-system', 'packages/design-system'],
       ['api-client', 'packages/api-client'],
@@ -869,13 +874,13 @@ test('a package source may carry the ecosystem prefix that get prints back', () 
     'agent-reference.json',
   );
 
-  const zod = config.packages.find((entry) => entry.name === 'zod');
+  const zod = packages(config).find((entry) => entry.name === 'zod');
   // The prefix names the registry, never the name, so every lookup that has only the
   // package name still finds the entry.
   assert.equal(zod?.name, 'zod');
   assert.equal(zod?.ecosystem, 'npm');
 
-  const react = config.packages.find((entry) => entry.name === 'react');
+  const react = packages(config).find((entry) => entry.name === 'react');
   assert.equal(react?.ecosystem, 'npm');
   assert.equal(react?.version, '18.2.0');
 });
@@ -943,8 +948,8 @@ test('a package source without an exact version is refused, naming the command t
     },
     'agent-reference.json',
   );
-  assert.equal(config.packages[0]?.name, '@scope/thing');
-  assert.equal(config.packages[0]?.version, '1.0.0');
+  assert.equal(packages(config)[0]?.name, '@scope/thing');
+  assert.equal(packages(config)[0]?.version, '1.0.0');
 });
 
 test('a package reference is keyed by its package name', () => {

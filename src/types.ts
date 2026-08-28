@@ -16,6 +16,12 @@ export interface ProjectContext {
   packageJsonPath: string | null;
   lockfilePath: string | null;
   packageManager: PackageManager;
+  /**
+   * Why this lockfile yields no packages, for the formats this tool cannot read. A lockfile
+   * it cannot open is the same situation as no lockfile at all, so it is a fact to report
+   * rather than a failure: every command that needs no package versions still works.
+   */
+  lockfileUnreadable: string | null;
   /** Workspace importer path relative to the lockfile's directory. */
   importer: string;
 }
@@ -304,10 +310,11 @@ export type ProblemSeverity = 'error' | 'warning';
 export interface AgentReferenceProblem {
   reference: string | null;
   /**
-   * `config` when the file itself is wrong and the fix is to edit it. Absent means the
+   * `config` when the file itself is wrong and the fix is to edit it, `project` when the
+   * fact is about this repository rather than about anything declared. Absent means the
    * reference cannot be materialized, which is the case the keep-the-reference note is for.
    */
-  about?: 'config';
+  about?: 'config' | 'project';
   severity: ProblemSeverity;
   summary: string;
   fix: string;
@@ -337,6 +344,8 @@ export interface AgentReferenceStatusReport {
    */
   lockfilePath: string | null;
   packageManager: PackageManager;
+  /** Why that lockfile yielded nothing, for a format this tool cannot read. */
+  lockfileUnreadable: string | null;
   /** Lockfile dependencies available to `get` whether or not they are configured. */
   installedPackageCount: number;
   sets: AgentReferenceStatusSet[];
@@ -423,9 +432,13 @@ export interface ReferenceSet {
 }
 
 export interface AgentReferenceConfig {
-  packages: ConfiguredPackageReference[];
-  paths: ConfiguredPathReference[];
-  git: ConfiguredGitReference[];
+  /**
+   * Every reference, in the order the file declares them. One list, because one name means
+   * one thing here: what kind a reference is follows from its source, so partitioning by
+   * kind would make the shape of the config disagree with the shape of its namespace, and
+   * every lookup would have to search three places for a name that can only be in one.
+   */
+  references: ConfiguredReference[];
   sets: ConfiguredSet[];
   allImporters?: boolean;
   registry?: string;

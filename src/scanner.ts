@@ -23,6 +23,17 @@ const LOCKFILE_CANDIDATES: Array<{ file: string; packageManager: PackageManager 
   { file: 'yarn.lock', packageManager: 'yarn' },
 ];
 
+/**
+ * Lockfiles this tool finds but cannot read. Detected rather than ignored, so the reason
+ * can be stated: a project holding one has dependencies, and reporting zero without saying
+ * why reads as an answer. Nothing here throws, because a lockfile is optional context and
+ * `get github:owner/repo` needs no package versions at all.
+ */
+const UNREADABLE_LOCKFILES: Record<string, string> = {
+  'bun.lockb':
+    'bun.lockb is binary and cannot be inspected, so no package versions were read. Generate bun.lock with Bun v1.2+ to have them.',
+};
+
 export async function resolveProjectInput(
   projectPath: string | null | undefined,
   cwd: string = process.cwd(),
@@ -62,6 +73,9 @@ export async function resolveProjectInput(
     packageJsonPath,
     lockfilePath: lockfile?.path ?? null,
     packageManager: lockfile?.packageManager ?? 'unknown',
+    lockfileUnreadable: lockfile
+      ? (UNREADABLE_LOCKFILES[path.basename(lockfile.path)] ?? null)
+      : null,
     // Lockfile importer keys are slash-separated whatever the platform, so the relative path
     // has to be rejoined rather than used as the OS wrote it.
     importer: lockfile
@@ -82,7 +96,9 @@ export async function scanResolvedProject(
   context: ProjectContext,
   options: ScanProjectOptions = {},
 ): Promise<PackageReference[]> {
-  if (context.lockfilePath === null) return [];
+  // A lockfile that cannot be read answers the same as none: no packages, and the reason
+  // travels on the context so `status` and `versions` can say it rather than report zero.
+  if (context.lockfilePath === null || context.lockfileUnreadable) return [];
   const lockfileContext: LockfileProjectContext = {
     ...context,
     lockfilePath: context.lockfilePath,

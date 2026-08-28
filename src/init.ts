@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  configuredReferences,
   DEFAULT_CONFIG_FILE,
   DEFAULT_LOCAL_CONFIG_FILE,
   loadAgentReferenceConfig,
@@ -11,7 +12,6 @@ import {
 import { pathExists } from './fs-utils.ts';
 import { runGit } from './git.ts';
 import { resolveProjectInput, scanResolvedProject } from './scanner.ts';
-import { configuredReferences } from './sets.ts';
 import type { PackageManager } from './types.ts';
 
 export interface InstructionFile {

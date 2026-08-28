@@ -24,6 +24,8 @@ export interface VersionsReport {
   name: string;
   projectRoot: string;
   lockfile: string | null;
+  /** Why that lockfile yielded nothing, for a format this tool cannot read. */
+  lockfileUnreadable: string | null;
   packageManager: string;
   /** The importer the command ran in, which decides a bare `get` when several disagree. */
   importer: string;
@@ -53,6 +55,7 @@ export async function getVersionsReport(
     name,
     projectRoot: project.projectRoot,
     lockfile: project.lockfilePath,
+    lockfileUnreadable: project.lockfileUnreadable,
     packageManager: project.packageManager,
     importer: project.importer,
     versions: describeVersions(
@@ -123,9 +126,16 @@ function merge(into: string[], values: string[]): void {
 
 export function formatVersionsReport(report: VersionsReport): string {
   if (report.versions.length === 0) {
-    const where = report.lockfile
-      ? `Nothing in ${path.basename(report.lockfile)} installs ${report.name}.`
-      : `No lockfile this tool reads was found under ${report.projectRoot}.`;
+    // An unreadable lockfile is not an absent one, and neither is "nothing installs this".
+    // Reporting a miss for a file that was never opened is the one answer that is wrong.
+    let where: string;
+    if (report.lockfileUnreadable) {
+      where = report.lockfileUnreadable;
+    } else if (report.lockfile) {
+      where = `Nothing in ${path.basename(report.lockfile)} installs ${report.name}.`;
+    } else {
+      where = `No lockfile this tool reads was found under ${report.projectRoot}.`;
+    }
     return [
       where,
       `Read the version from the project yourself, then ask for it directly:`,

@@ -44,9 +44,10 @@ export function formatStatusReport(
     sections.push(`next steps:\n${report.nextSteps.map((step) => `  ${step}`).join('\n')}\n`);
   }
   if (report.problems.length > 0) {
-    // The note tells a reader not to delete a reference. That is the wrong advice when every
-    // problem is a config leak, because moving the entry out of the committed file is the fix.
-    const keepNote = report.problems.some((problem) => problem.about !== 'config')
+    // The note tells a reader not to delete a reference. That is the wrong advice unless some
+    // problem is about a reference: a config leak is fixed by moving the entry, and a fact
+    // about the project is not about any reference at all.
+    const keepNote = report.problems.some((problem) => problem.about === undefined)
       ? `\n\n  ${KEEP_REFERENCE_NOTE}`
       : '';
     sections.push(`problems:\n${report.problems.map(formatProblem).join('\n')}${keepNote}\n`);
@@ -235,9 +236,19 @@ function provenanceLine(
 ): string | null {
   if (!report.references.some((entry) => entry.kind === 'package')) return null;
 
-  const text = report.lockfilePath
-    ? `package versions read from ${path.relative(report.projectRoot, report.lockfilePath) || report.lockfilePath}`
-    : "no lockfile here, so nothing installed is available to check these versions against, and a bare get <name> resolves the registry's latest";
+  const absent =
+    "so nothing installed is available to check these versions against, and a bare get <name> resolves the registry's latest";
+
+  let text: string;
+  if (report.lockfileUnreadable && report.lockfilePath) {
+    // Named rather than called absent: there is a lockfile, and the difference decides
+    // whether the fix is to add one or to generate it in a format this reads.
+    text = `${path.basename(report.lockfilePath)} could not be read, ${absent}`;
+  } else if (report.lockfilePath) {
+    text = `package versions read from ${path.relative(report.projectRoot, report.lockfilePath) || report.lockfilePath}`;
+  } else {
+    text = `no lockfile here, ${absent}`;
+  }
 
   return `${paint(text, 'dim', options.color)}\n`;
 }

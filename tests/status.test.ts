@@ -405,6 +405,61 @@ test('the report names the lockfile package versions were read from', async () =
   assert.equal(report.packageManager, 'pnpm');
 });
 
+// The config is one map, so `status` reads it back in the order it was written. Three passes
+// over three kind-partitioned arrays reported a file grouped by something nobody chose, and
+// put every package first however far down the file it sat.
+test('references are reported in the order the config declares them', async () => {
+  const projectRoot = await copyFixtureProject();
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({
+      references: {
+        decisions: { source: './docs', description: 'Why this is shaped the way it is' },
+        'tiny-invariant': {
+          source: 'npm:tiny-invariant@1.3.3',
+          description: 'The invariant helper this project throws with',
+        },
+        pi: { source: 'github:acme/pi', description: 'A terminal coding agent' },
+      },
+    }),
+  );
+
+  const report = await getStatusReport(projectRoot, { storeDir: STORE_DIR });
+
+  assert.deepEqual(
+    report.references.map((entry) => entry.name),
+    ['decisions', 'tiny-invariant', 'pi'],
+  );
+});
+
+// One name means one thing, so a selector is a name and the kind never enters into it.
+test('a selector names one reference whatever kind it turns out to be', async () => {
+  const projectRoot = await copyFixtureProject();
+  await fs.writeFile(
+    path.join(projectRoot, 'agent-reference.json'),
+    JSON.stringify({
+      references: {
+        decisions: { source: './docs', description: 'Why this is shaped the way it is' },
+        pi: { source: 'github:acme/pi', description: 'A terminal coding agent' },
+      },
+    }),
+  );
+
+  const report = await getStatusReport(projectRoot, {
+    storeDir: STORE_DIR,
+    references: ['pi'],
+  });
+  assert.deepEqual(
+    report.references.map((entry) => entry.name),
+    ['pi'],
+  );
+
+  await assert.rejects(
+    getStatusReport(projectRoot, { storeDir: STORE_DIR, references: ['pie'] }),
+    /Nothing matched reference "pie"/,
+  );
+});
+
 async function copyFixtureProject(): Promise<string> {
   const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-status-test-'));
   await fs.cp(path.join(repoRoot, 'fixtures/pnpm-basic'), tempDir, { recursive: true });
