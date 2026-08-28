@@ -40,6 +40,8 @@ This file is copied into a project once and never updated, so it holds only what
 
 Run it before adding a reference, before editing `agent-reference.json` or `agent-reference.local.json`, and before setting a project up. Guessing config syntax from memory is how a config gets written that this version refuses.
 
+`--help` is not a substitute and reaching for it instead is the usual way this goes wrong. `--help` lists the commands and their flags; `guide` is the only thing that says what goes in the config. Never write config from `--help`.
+
 ## Finding where something is
 
 When the user names a repository, app, folder, or file and you have no path for it, read `agent-reference.json` and `agent-reference.local.json` directly. They are the index: names, paths, and descriptions, resolved without fetching anything or running a command. A name that is not there is not declared, so say so and ask for the path rather than searching the filesystem for it. `get` is for when you need the source itself.

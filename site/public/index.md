@@ -442,7 +442,8 @@ Commands:
             machine paths that do not belong in the committed file, and the
             local file being tracked by git. Exits non-zero, so CI can gate on
             it.
-  guide     Print the full agent instructions for this version.
+  guide     Print the full agent instructions for this version. What goes in the
+            config is here and not in this help.
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
             checkouts unused for --days (default 30).
