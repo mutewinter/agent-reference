@@ -5,3 +5,4 @@ coverage/
 .DS_Store
 agent-reference.local.json
 .turbo/
+.claude/worktrees/
