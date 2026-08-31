@@ -6,3 +6,6 @@ coverage/
 agent-reference.local.json
 .turbo/
 .claude/worktrees/
+
+# repo-local copy replaced by an ignored symlink to ~/.agents/skills/visual-explanation
+.agents/skills/visual-explanation
