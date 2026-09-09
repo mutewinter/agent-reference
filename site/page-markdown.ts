@@ -7,15 +7,11 @@
 import { renderCliReference } from './cli-reference.ts';
 import {
   type Example,
-  agents,
-  cd,
   copy,
   examples,
   format,
   fragments,
   howItWorks,
-  install,
-  prompt,
   samples,
   setupPrompt,
   terminals,
@@ -34,32 +30,35 @@ const fence = (lang: string, text: string) => '```' + lang + '\n' + text + '\n``
 const labeled = (file: string, name: keyof typeof samples) =>
   `\`${file}\`\n\n${fence(samples[name].lang, samples[name].code)}`;
 
-function renderExample({ title, note, tree, file, sample, terminal }: Example): string {
-  const blocks = [`### ${title}`, note];
-  if (tree) blocks.push(fence('text', trees[tree]));
-  blocks.push(labeled(file, sample));
-  if (terminal) blocks.push(fence('text', terminals[terminal]));
+function renderExample({ title, session, tree, config }: Example): string {
+  const blocks = [`### ${title}`];
+  if (session) blocks.push(transcript(terminals[session]));
+  if (tree) blocks.push(fence('text', unmarked(trees[tree])));
+  if (config) {
+    blocks.push(labeled(config.file, config.sample));
+    if (config.note) blocks.push(config.note);
+  }
   return blocks.join('\n\n');
 }
 
-/**
- * The install card, which cycles the harness name on the site. Markdown cannot
- * cycle, so the alternatives ride along as a comment on the line they replace.
- */
-function renderInstall(): string {
-  const [first, ...rest] = agents;
-  return [
-    `### ${copy.install.heading}`,
-    fence(
-      'sh',
-      [install, cd, `${first} "${prompt}"`.padEnd(46) + `# or ${rest.join(', ')}`].join('\n'),
-    ),
-  ].join('\n\n');
-}
+/** Text without the `[[ ]]` the site underlines with, which markdown cannot. */
+const unmarked = (text: string) => text.replaceAll(/\[\[([^\]]+)\]\]/gu, '$1');
 
+/**
+ * A transcript without its markers. `! ` and `+ ` on a result line tell the
+ * site what tone to paint it, and `[[name]]` which names to underline;
+ * markdown has neither, so the lines go out as the agent saw them.
+ */
+const transcript = (text: string) =>
+  fence('text', unmarked(text.replaceAll(/^(\s+(?:\u23BF )?)[!+] /gmu, '$1')));
+
+/**
+ * The transcripts, one level under the heading that introduces them, which is
+ * itself a subsection of how it works.
+ */
 function renderCommands(): string {
   return renderCliReference()
-    .map((entry) => `### ${entry.command}\n\n${fence('text', entry.transcript)}`)
+    .map((entry) => `#### ${entry.command}\n\n${fence('text', entry.transcript)}`)
     .join('\n\n');
 }
 
@@ -77,6 +76,7 @@ const table = (heading: string, rows: typeof format.values) =>
  */
 function renderFormat(): string {
   return [
+    `### ${format.heading}`,
     format.lead,
     table('a value may be', format.values),
     table('a source may be', format.sources),
@@ -85,7 +85,7 @@ function renderFormat(): string {
 }
 
 /** The two configs, the store they leave behind, and a line on either side. */
-function renderHowItWorks(): string {
+function renderStore(): string {
   return [
     howItWorks.lead,
     ...howItWorks.configs.map((config) => labeled(config.file, config.sample)),
@@ -95,28 +95,32 @@ function renderHowItWorks(): string {
 }
 
 /**
- * Marker id to the markdown it stands for. A function rather than a constant
- * because rendering the commands runs the CLI in a temp directory, and both
- * callers here are scripts that should pay that cost when they ask for it.
+ * Marker id to the markdown it stands for, in the order the page puts them. A
+ * function rather than a constant because rendering the commands runs the CLI
+ * in a temp directory, and both callers here are scripts that should pay that
+ * cost when they ask for it.
  */
 export function renderRegions(): Record<string, string> {
   return {
     // Bold, so a lone sentence under the title reads as the tagline it is.
     tagline: `**${copy.tagline}**`,
+    lead: copy.lead,
     hero: [
-      fence('text', terminals.setup),
-      labeled('agent-reference.json', 'shared'),
-      copy.demo.configNote,
-      `### ${copy.thenUse.heading}`,
-      fence('text', terminals.session),
-      copy.thenUse.note,
+      `### ${copy.hero.before}`,
+      transcript(terminals.today),
+      `### ${copy.hero.after}`,
+      transcript(terminals.after),
     ].join('\n\n'),
-    agent: [`### ${copy.agent.heading}`, fence('text', setupPrompt), copy.agent.note].join('\n\n'),
-    install: renderInstall(),
-    format: renderFormat(),
+    agent: [
+      `### ${copy.agent.heading}`,
+      fence('text', setupPrompt),
+      copy.agent.note,
+      copy.install.note,
+    ].join('\n\n'),
     examples: examples.map((example) => renderExample(example)).join('\n\n'),
-    'how-it-works': renderHowItWorks(),
-    commands: [copy.commands.note, renderCommands()].join('\n\n'),
+    store: renderStore(),
+    format: renderFormat(),
+    commands: [`### ${copy.commands.heading}`, copy.commands.note, renderCommands()].join('\n\n'),
   };
 }
 
@@ -140,18 +144,15 @@ export function renderHomeMarkdown(): string {
     [
       `# ${copy.title}`,
       regions.tagline,
-      `## ${copy.demo.heading}`,
+      regions.lead,
       regions.hero,
       `## ${copy.getStarted.heading}`,
       regions.agent,
-      regions.install,
       `## ${copy.examples.heading}`,
       regions.examples,
       `## ${howItWorks.heading}`,
-      regions['how-it-works'],
-      `## ${format.heading}`,
+      regions.store,
       regions.format,
-      `## ${copy.commands.heading}`,
       regions.commands,
       `## ${MORE_HEADING}`,
       list(`${SITE}/index.md`),
@@ -161,7 +162,7 @@ export function renderHomeMarkdown(): string {
 
 /**
  * Headings that only the markdown surfaces have. The page's own headings live
- * in code-samples.ts, where both surfaces read them from; these three name
+ * in code-samples.ts, where both surfaces read them from; these two name
  * sections the page does not have, so this is the only place they exist.
  */
 const MORE_HEADING = 'More';

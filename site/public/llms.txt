@@ -1,6 +1,6 @@
 # agent-reference
 
-> Give your agents the source. Readable upstream code on disk, at the exact version your project installs.
+> Give your agents the source. A CLI your agent uses to read the real source of your dependencies, at the version you have installed, plus any repo or folder you point it at.
 
 agent-reference is a command line tool. It puts readable upstream source on disk and prints the path: any dependency at the exact version a project installs, any git repository, and any file or folder a project declares, each one asked for by name. Nothing is fetched until something asks for it, and a project declares what it references in `agent-reference.json` (committed) or `agent-reference.local.json` (machine-specific).
 

@@ -25,3 +25,4 @@ One Markdown file per decision, named for the date it was made: `YYYY-MM-DD-shor
 | 2026-08-26 | [The site hosts the schema, not a package CDN](2026-08-26-the-site-hosts-the-schema.md) |
 | 2026-08-28 | [The parsed config is one list, because the namespace is one namespace](2026-08-28-the-parsed-config-is-one-list.md) |
 | 2026-08-28 | [The CLI checks the stub on disk against the one it ships](2026-08-28-the-cli-checks-its-own-stub.md) |
+| 2026-09-01 | [The page answers why before how](2026-09-01-the-page-answers-why-before-how.md) |

@@ -1,4 +1,4 @@
-import { cloneElement, type ReactElement, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 
 import highlighted from 'virtual:highlighted';
 
@@ -49,7 +49,7 @@ export function Panel({
     >
       {label ? (
         <div
-          className={`flex items-center justify-between gap-3 border-b border-line px-4 py-2 text-sm ${
+          className={`flex items-center justify-between gap-3 border-b border-line px-4 py-2 font-mono text-sm ${
             dim ? 'text-dim' : 'text-muted'
           }`}
         >
@@ -81,7 +81,8 @@ export function Tree({ text }: { text: string }) {
       branch: match ? match[1] : '',
       name: match ? match[2] : body,
       note: at === -1 ? null : line.slice(at + 1),
-      width: body.length,
+      // Measured without the markers, which take no room once drawn.
+      width: unmarked(body).length,
     };
   });
   // Only the annotated lines set the column, so a long path further down runs
@@ -96,7 +97,9 @@ export function Tree({ text }: { text: string }) {
       {rows.map((row, i) => (
         <div key={i}>
           <span className="text-dim select-none">{row.branch}</span>
-          <span className="text-fg">{row.name}</span>
+          <span className="text-fg">
+            <Marked text={row.name} />
+          </span>
           {row.note ? (
             <span className="text-muted">
               <span className="select-none">{' '.repeat(column - row.width + 2)}</span>
@@ -115,28 +118,15 @@ export function Tree({ text }: { text: string }) {
  * markup is the finished file either way, so nothing about the page depends on
  * the animation having run.
  */
-export function Highlighted({ name }: { name: string }) {
-  return (
-    <div className="shiki-block" dangerouslySetInnerHTML={{ __html: highlighted[name].html }} />
+export function Highlighted({ name, marks = [] }: { name: string; marks?: string[] }) {
+  // The keys the panel beside this one names, wrapped where Shiki left them.
+  // A quoted key is one token in Shiki's output, so the first match of
+  // `"name"` is the key and never a value that happens to end in the word.
+  const html = marks.reduce(
+    (out, mark) => out.replace(`"${mark}"`, `<mark>"${mark}"</mark>`),
+    highlighted[name].html,
   );
-}
-
-/**
- * The same file, twice: what the agent wrote and what it left after finding
- * more. They are stacked in one grid cell so the panel is the height of the
- * finished file from the moment it appears, and swapping states cannot make the
- * page jump. With motion turned down only the finished one is rendered.
- */
-export function Drafts({ names }: { names: readonly string[] }) {
-  return (
-    <div className="cfg">
-      {names.map((name, i) => (
-        <div key={name} className={i === names.length - 1 ? 'cfg-final' : 'cfg-draft'}>
-          <Highlighted name={name} />
-        </div>
-      ))}
-    </div>
-  );
+  return <div className="shiki-block" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 /** The source behind a snippet, for the clipboard. */
@@ -223,52 +213,26 @@ function Line({ text, inline = false }: { text: string; inline?: boolean }) {
 /**
  * A coding-agent session rather than a shell. The point of showing it this way
  * is that nobody types these commands: the agent does, which is the whole
- * reason the tool prints paths instead of file contents. With `reveal` it plays
- * once, a tool call at a time.
+ * reason the tool prints paths instead of file contents. Names marked in the
+ * text are underlined, the same way the config or the tree beside the session
+ * underlines the entries they name.
  */
-export function Session({ text, reveal = false }: { text: string; reveal?: boolean }) {
-  const lines = text.split('\n');
-  const steps = stepIndices(lines);
-
+export function Session({ text }: { text: string }) {
   return (
     <pre className="code-wrap leading-code">
-      {lines.map((line, i) => {
-        const element = sessionLine(line, i);
-        if (!reveal) return element;
-        const step = STEP_CLASS[steps[i] ?? 0] ?? STEP_CLASS.at(-1);
-        return cloneElement(element, {
-          className: `${element.props.className ?? ''} rv ${step}`.trim(),
-        });
-      })}
+      {text.split('\n').map((line, i) => sessionLine(line, i))}
     </pre>
   );
 }
 
-/**
- * A tool call and the results under it arrive together, the way they do in a
- * real session, so the group is per call rather than per line. The stylesheet
- * holds the timing; this only says what belongs with what.
- */
-function stepIndices(lines: string[]): number[] {
-  const steps: number[] = [];
-  let step = 0;
-  for (const line of lines) {
-    if (line.startsWith('* ')) step += 1;
-    steps.push(step);
-  }
-  return steps;
-}
-
-const STEP_CLASS = ['rv-s0', 'rv-s1', 'rv-s2', 'rv-s3', 'rv-s4', 'rv-s5', 'rv-s6'];
-
-function sessionLine(line: string, i: number): ReactElement<{ className?: string }> {
+function sessionLine(line: string, i: number) {
   if (line === '') return <div key={i}>&nbsp;</div>;
 
   if (line.startsWith('> ')) {
     return (
       <div key={i} className="prompt">
         <span className="text-dim select-none">{'> '}</span>
-        {line.slice(2)}
+        <Marked text={line.slice(2)} />
       </div>
     );
   }
@@ -278,30 +242,48 @@ function sessionLine(line: string, i: number): ReactElement<{ className?: string
     const open = call.indexOf('(');
     // U+25CF rather than U+23FA: the record glyph has an emoji presentation
     // that mobile Safari picks by default, so a transcript came out spotted
-    // with colored circles. This one has no emoji form to fall into.
+    // with colored circles. This one has no emoji form to fall into. The
+    // space after it is a non-breaking one, so a long path breaks inside
+    // itself on a phone rather than leaving the dot alone on its line.
     return (
       <div key={i} className="call">
-        <span className="text-ok select-none">{'\u25CF '}</span>
+        <span className="text-ok select-none">{'\u25CF\u00A0'}</span>
         {open === -1 ? (
           call
         ) : (
           <>
             {call.slice(0, open)}
-            <span className="text-muted">{call.slice(open)}</span>
+            <span className="text-muted">
+              <Marked text={call.slice(open)} />
+            </span>
           </>
         )}
       </div>
     );
   }
 
-  const result = line.match(/^(\s+)(\u23BF )?(.*)$/u);
+  // A result, and optionally a marker: `! ` for what went wrong, the bytes of
+  // a bundle or the markup of a docs site; `+ ` for what went right, the prose
+  // and source read out of a checkout, or a line the agent added to a file.
+  // Markers are data, not output, so they are read off and the line takes the
+  // tone instead: the theme's red, or the green that means on disk everywhere
+  // else.
+  const result = line.match(/^(\s+)(\u23BF )?([!+] )?(.*)$/u);
   if (result) {
-    const [, indent, elbow, rest] = result;
+    const [, indent, elbow, mark, rest] = result;
     return (
       <div key={i}>
         {indent}
-        <span className="text-line select-none">{elbow ? '\u23BF ' : ''}</span>
-        <Line text={rest} inline />
+        <span className="text-line select-none">{elbow ? '\u23BF\u00A0' : ''}</span>
+        {mark ? (
+          <span className={TONE[mark]}>
+            <Marked text={rest} />
+          </span>
+        ) : rest.includes('[[') ? (
+          <Marked text={rest} />
+        ) : (
+          <Line text={rest} inline />
+        )}
       </div>
     );
   }
@@ -310,6 +292,29 @@ function sessionLine(line: string, i: number): ReactElement<{ className?: string
     <div key={i}>
       <Line text={line} inline />
     </div>
+  );
+}
+
+/** What each result marker paints its line in. */
+const TONE: Record<string, string> = { '! ': 'text-bad', '+ ': 'text-ok' };
+
+/** Text without its `[[ ]]` markers, for measuring. */
+const unmarked = (text: string) => text.replaceAll(/\[\[([^\]]+)\]\]/gu, '$1');
+
+/**
+ * Text with `[[name]]` in it: a name the panel beside this one declares,
+ * underlined the way that panel underlines the entry it names. The brackets
+ * are data, and the markdown surfaces drop them.
+ */
+function Marked({ text }: { text: string }) {
+  return (
+    <>
+      {text
+        .split(/\[\[([^\]]+)\]\]/u)
+        .map((part, i) =>
+          i % 2 === 1 ? <mark key={i}>{part}</mark> : <span key={i}>{part}</span>,
+        )}
+    </>
   );
 }
 

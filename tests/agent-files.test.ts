@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { LINK_HEADER, NOT_FOUND_MARKDOWN } from '../site/agent-responses.ts';
-import { copy, format, howItWorks } from '../site/code-samples.ts';
+import { copy, howItWorks } from '../site/code-samples.ts';
 import { LINKS, SITE, renderLlmsTxt } from '../site/page-markdown.ts';
 import { renderAgentFiles } from '../scripts/sync-agent-files.ts';
 
@@ -54,12 +54,9 @@ test('llms.txt has the shape llmstxt.org describes', () => {
 test('index.md carries the page sections, in the page order', () => {
   const headings = [...served('index.md').matchAll(/^## (.+)$/gm)].map((match) => match[1]);
   assert.deepEqual(headings, [
-    copy.demo.heading,
     copy.getStarted.heading,
     copy.examples.heading,
     howItWorks.heading,
-    format.heading,
-    copy.commands.heading,
     'More',
   ]);
   assert.match(served('index.md'), /^# agent-reference\n/, 'and one H1 with the name');

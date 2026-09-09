@@ -4,8 +4,11 @@
    making the page look washed out, so chrome and secondary text now share one
    value and anything dimmer is a border rather than type. */
 @theme {
+  /* Prose is set in a text face and only the things that simulate a terminal
+     or a file are set in the mono, so a panel reads as a panel before a word
+     of it is read. Inter comes from Google Fonts, declared in the root shell. */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-  --font-sans: var(--font-mono);
 
   /* Derived from Jellybeans+, the same theme Shiki highlights the JSON with,
      so code and chrome are one palette rather than two that nearly agree.
@@ -28,14 +31,17 @@
      reference is on disk. */
   --color-accent: #ffb964;
   --color-ok: #99ad6a;
+  /* The theme's terminal red. It marks one thing on the page: what an agent
+     got back when it read a bundle or fetched a docs site, on the first
+     screen, so a reader who skips the words still sees where it went wrong. */
+  --color-bad: #cf6a4c;
 
-  /* The page is an editor, so the type scale is an editor's rather than the
-     web's: 14px of body text, 13px for chrome and code, and one step under
-     that for the copy pill. Tailwind's own steps are 12/14/16, which has no
-     room for the 13, so the three small names are redefined here rather than
-     a fourth one added beside them. Each carries the body leading, because a
-     named size that quietly retightens a block is worse than no name at all. */
-  --leading-body: 1.7;
+  /* 15px of prose, 13px for code and chrome, and one step under that for the
+     copy pill. Tailwind's own steps are 12/14/16, which has no room for the
+     13, so the three small names are redefined here rather than a fourth one
+     added beside them. Each carries the body leading, because a named size
+     that quietly retightens a block is worse than no name at all. */
+  --leading-body: 1.65;
   /* Code sits looser than prose: the box-drawing in a tree and the columns in
      `status` output both read by row, and rows need air between them. */
   --leading-code: 1.75;
@@ -44,7 +50,7 @@
   --text-xs--line-height: var(--leading-body);
   --text-sm: 0.8125rem;
   --text-sm--line-height: var(--leading-body);
-  --text-base: 0.875rem;
+  --text-base: 0.9375rem;
   --text-base--line-height: var(--leading-body);
 
   /* The one thing on the page you click sits on a hard offset shadow in the
@@ -62,10 +68,23 @@ html {
 body {
   background: var(--color-bg);
   color: var(--color-fg);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
+}
+
+/* Anything that is a file, a path, or a terminal is set in the mono, wherever
+   it appears: a whole panel, or one name inside a sentence. */
+pre,
+code {
+  font-family: var(--font-mono);
+}
+
+/* A name inside a sentence sits a step under the prose it interrupts, so it
+   reads as a token rather than as a change of voice. */
+p code {
+  font-size: 0.9em;
 }
 
 ::selection {
@@ -98,6 +117,7 @@ a {
   gap: 0.75rem;
   color: var(--color-muted);
   font-size: var(--text-sm);
+  letter-spacing: 0.02em;
 }
 
 .rule::after {
@@ -140,66 +160,6 @@ a {
   width: 100%;
 }
 
-/* The hero plays once. Every line is in the markup from the first byte and only
-   opacity animates, so the finished state is what a crawler and a reader with
-   JavaScript off both get, and turning motion down costs nothing but the timing.
-
-   All of the timing is here rather than split with the components, which only
-   say what belongs with what. `rv-s*` is a tool call in the session; the file
-   beside it lands with the Write that produced it and is replaced by the Update
-   that follows, so the two panels are one sequence rather than two timers. */
-.rv {
-  opacity: 0;
-  animation: rv-in 400ms ease-out var(--d, 0ms) forwards;
-}
-
-.rv-s0 {
-  --d: 0ms;
-}
-
-.rv-s1 {
-  --d: 1200ms;
-}
-
-.rv-s2 {
-  --d: 2400ms;
-}
-
-/* Write */
-.rv-s3 {
-  --d: 3600ms;
-}
-
-.rv-s4 {
-  --d: 4800ms;
-}
-
-/* Update */
-.rv-s5 {
-  --d: 6000ms;
-}
-
-.rv-s6 {
-  --d: 7200ms;
-}
-
-@keyframes rv-in {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rv {
-    opacity: 1;
-    animation: none;
-  }
-}
-
 /* What the human sent, set the way the deck sets it: a full-bleed band inside
    the panel body rather than another line of prose among the tool calls. The
    negative margin is the panel's own padding, so the band runs edge to edge,
@@ -218,48 +178,18 @@ a {
   text-indent: -2ch;
 }
 
-/* Two states of one file, stacked so the panel is the finished height from the
-   moment it appears and a swap cannot move the page. */
-.cfg {
-  display: grid;
-}
-
-.cfg > * {
-  grid-area: 1 / 1;
-}
-
-.cfg-draft {
-  opacity: 0;
-  animation:
-    rv-in 350ms ease-out 3900ms forwards,
-    rv-out 350ms ease-in 6300ms forwards;
-}
-
-.cfg-final {
-  opacity: 0;
-  animation: rv-in 350ms ease-out 6300ms forwards;
-}
-
-@keyframes rv-out {
-  from {
-    opacity: 1;
-  }
-
-  to {
-    opacity: 0;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  /* Nothing to swap between, so only the file the agent ended up with is drawn. */
-  .cfg-draft {
-    display: none;
-  }
-
-  .cfg-final {
-    opacity: 1;
-    animation: none;
-  }
+/* A name in a session and the entry it names in the config or the tree
+   beside it, underlined alike so the eye joins them across the gap. An
+   underline rather than a fill, so it sits under the token and leaves the
+   token's own color alone, and in the page's own text color rather than a
+   hue, so it reads as a pencil mark and not as a link. */
+mark {
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: --alpha(var(--color-fg) / 55%);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 /* A tool call and its results are one block, so the gap between calls is spacing
@@ -271,19 +201,4 @@ a {
 
 .code-wrap > .prompt + .call {
   margin-top: 0;
-}
-
-/* The install card cycles the agent name, and on a narrow screen the longest of
-   them wraps where the shortest does not, so the swap moved every section under
-   it. Two lines are reserved there. Past the breakpoint the card is wide enough
-   that none of them wraps, and reserving a second line would only cost the fold
-   the height it saves. */
-.cycle {
-  min-height: calc(2 * var(--leading-code) * 1em);
-}
-
-@media (width >= 40rem) {
-  .cycle {
-    min-height: 0;
-  }
 }

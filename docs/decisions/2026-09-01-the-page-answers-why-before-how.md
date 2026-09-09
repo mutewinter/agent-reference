@@ -1,0 +1,33 @@
+# The page answers why before how
+
+## Context
+
+The homepage opened on the tool working: an agent running `init` and a config filling in beside it, then a second session using what it wrote, then the prompt to paste. It was accurate and it was the wrong first screen. A visitor who does not yet know why an agent would need source watched a config get written and was told nothing about what it was for; the one sentence that could have said so, the tagline, does not.
+
+The talk this launched in did not open that way. Its first ten minutes were the four things an agent does today when it needs a library: reads the minified bundle out of `node_modules`, searches the web and gets a docs site's markup back, guesses an API from memory and compiles until it stops failing, clones a repository into `/tmp` and clones it again next session. The room got it before the tool appeared. The first feedback on the launch description, weeks earlier, had said the same thing from the other direction: it was missing the reason to care.
+
+The page also explained itself twice, and in one texture: prose and panels were both set in the mono, so nothing stood apart from anything else. A section called "How it works" held the setup demo, another further down explained the store on disk, and "Get started" sat between them repeating the setup the demo had just shown, as two cards side by side. Seven examples and seven command transcripts followed, and nearly every panel on the page was an agent transcript, so nothing stood apart from anything else.
+
+## Decision
+
+The page reads in the order a first visit asks: what is this and why would I want it, how do I get it, what does the agent keep and reach for once it has it, and only then how it works underneath.
+
+**The first screen is tool calls on the page, not sessions in panels, side by side.** On the left, two things an agent does today when it needs a library, the way a harness shows a call, each ending on what it actually got back in the theme's red: the bytes of a minified bundle, the markup of a docs site. The third failure the talk showed, an API remembered from another version, is not there, because it does not survive being one line. Then what the tool gives it: the command, the checkout it lands, and real lines of the README and of a source file with its comment, because a reader who sees prose and a function with a name knows what changed without being told. No prompts, because nobody reads them; no panels, because three terminals at the top of a page read as three terminals rather than as an argument; no annotations, because the results are the annotation. One library throughout, Effect, chosen because it is recognizable: the lines on the right are quoted from the package at that tag, and the bundle line on the left stands for the pattern rather than for Effect's own build, which is one of the readable ones. The samples file says so.
+
+**Prose is set in a text face and only terminals and files in the mono,** so a panel reads as a panel before a word of it is read, and the transcripts stop competing with the words around them.
+
+**One sentence of prose under the tagline, and it is the author's own.** The line is the one he wrote when he first sent the site to people: a CLI your agent uses to read the real source of your dependencies, at the version you actually have installed, plus any repo or folder you point it at. Everything after it is shown rather than said.
+
+**Get started is one thing to do.** The sentence to hand an agent, set as the plain text it is in a box the width of a text box, with the copy button in its own cell beside it, one line on what it does, one line on installing by hand. No second card, no figure of the setup running: nobody reads a transcript of their own setup before they have started it. The file the setup writes is the first example instead.
+
+**The examples open on the committed config and the agent reading from it,** because every later example is that file in another shape, and the section says so in one line. In every example the name the agent asks for is underlined in the session and the entry it names is underlined in the config or the tree beside it, in the page's own text color, a pencil mark rather than a link, so the two panels read as one thing seen from two sides; that correspondence is what an example exists to show, and the transcripts are cut to the few tools that show the agent using what it was handed. No hash appears anywhere on the page but the section about the store, where each commit is annotated with the version it was resolved from and underlined against the source that named it: a checkout is keyed by commit in the store, and a commit is not something a person reads, so everywhere else a path names the repository and the version instead. The agent's session sits left of the config it reads from, a tree sits slim beside its config, every panel in a row is the height of the tallest, titles say what the tool does for the agent, and the prose is one line under the one file it is about. The npm example shows the checkout the tool built on disk rather than a config, since none is needed for it, and the repositories example names remotion and codex rather than a private remote, because a reader should recognize what is being cloned.
+
+**Everything under the hood is one section, and it says it can be skipped.** The store, the format, and the commands, under a single "How it works", opening with the line that a reader may skip it because the agent handles all of it. Three command transcripts rather than seven: `help` lists every verb, and `status` and `get` are the ones an agent lives in.
+
+## Consequences
+
+- The README and `/index.md` follow the new order out of the same regions, so the test that checks their headings against the page changed with it, and the README's marked regions were renamed to the page's beats. The red markers on the first screen's result lines are data the site reads off; the markdown surfaces get the lines as the agent saw them.
+- The quoted lines on the first screen are real and pinned to a version. Swapping the library means re-reading its README and source, not editing the strings.
+- The setup figure and its reveal are gone, and with them the only animation on the page. What the agent does at setup is now said in one line under the prompt and shown by the first example.
+- The text face is fetched from Google Fonts at load, the first request the page makes off its own origin. Vendoring it is a later call.
+- Four command transcripts left the page and the README. They still exist in `--help` and in the guide, which is where an agent reads them.

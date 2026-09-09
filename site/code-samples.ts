@@ -25,19 +25,6 @@ export const samples = {
 }`,
   },
 
-  /** What `Write` puts on disk, before the transcript mining turns anything up. */
-  heroDraft: {
-    lang: 'jsonc',
-    code: `{
-  "references": {
-    "effect": {
-      "source": "npm:effect@4.0.0-rc.111",
-      "description": "v4's own examples; the ones online are v3"
-    }
-  }
-}`,
-  },
-
   siblings: {
     lang: 'jsonc',
     code: `{
@@ -58,37 +45,17 @@ export const samples = {
 }`,
   },
 
-  upstream: {
+  repos: {
     lang: 'jsonc',
     code: `{
   "references": {
+    "remotion": {
+      "source": "github:remotion-dev/remotion",
+      "description": "Video in React, and the renderers behind it"
+    },
     "codex": {
       "source": "github:openai/codex",
       "description": "OpenAI's coding agent, written in Rust"
-    }
-  }
-}`,
-  },
-
-  pinned: {
-    lang: 'jsonc',
-    code: `{
-  "references": {
-    "ai": {
-      "source": "npm:ai@7.0.78",
-      "description": "Vercel's AI SDK, and the v6-to-v7 migration in its changelog"
-    }
-  }
-}`,
-  },
-
-  skills: {
-    lang: 'jsonc',
-    code: `{
-  "references": {
-    "commit-style": {
-      "source": "~/code/other-app/.claude/skills/commit",
-      "description": "The commit style we use"
     }
   }
 }`,
@@ -143,51 +110,6 @@ export const samples = {
 }`,
   },
 
-  // Ordered the way `status` reports it, so the config and the output beside it
-  // read down the page together: uncollected references first, then the sets.
-  kitchenSink: {
-    lang: 'jsonc',
-    code: `{
-  "references": {
-    "ai": {
-      "source": "npm:ai@7.0.78",
-      "description": "Vercel's AI SDK, and its changelog"
-    },
-    "electron": {
-      "source": "npm:electron@41.0.2",
-      "description": "Pinned: we ship against this build's native module ABI"
-    },
-    // Relative, and inside this repo. A machine path belongs in
-    // agent-reference.local.json, which merges over this file.
-    "decisions": {
-      "source": "./docs/decisions",
-      "description": "Why this project is shaped the way it is, one file per decision"
-    },
-    "style": {
-      "source": "./docs/style-guide.md",
-      "description": "How prose in this repo is written"
-    },
-
-    // A set is a reference that resolves to several paths. Its key is its
-    // name, so \`get harnesses\` takes all of them at once.
-    "harnesses": {
-      "description": "How other agents solve the same problems",
-      "references": {
-        "pi": {
-          "source": "github:earendil-works/pi",
-          "description": "The smallest of the three, in TypeScript"
-        },
-        "codex": {
-          "source": "github:openai/codex",
-          "ref": "v0.20.0",
-          "description": "Pinned: we match this version's tool schema"
-        }
-      }
-    }
-  }
-}`,
-  },
-
   // Two projects in the same checkout tree, pinning two versions of one
   // dependency. A version belongs in the value and never in the key, so one
   // config cannot name two of them; two projects on a machine can, which is
@@ -221,21 +143,41 @@ export const samples = {
   },
 };
 
+/**
+ * Folder layouts. `[[name]]` marks an entry the panel beside it declares, so
+ * the eye can join the two; the markers are read off before the line is drawn.
+ */
 export const trees = {
   siblings: `~/code/acme/
-\u251C\u2500\u2500 web/
-\u2502   \u2514\u2500\u2500 agent-reference.local.json
-\u251C\u2500\u2500 api/
-\u251C\u2500\u2500 workers/
-\u2514\u2500\u2500 shared/`,
+├── web/
+│   └── agent-reference.local.json
+├── [[api/]]
+├── [[workers/]]
+└── [[shared/]]`,
 
   global: `~/
-\u251C\u2500\u2500 agent-reference.local.json
-\u251C\u2500\u2500 .dotfiles/
-\u2514\u2500\u2500 code/
-    \u251C\u2500\u2500 personal/
-    \u251C\u2500\u2500 work/
-    \u2514\u2500\u2500 forks/`,
+├── agent-reference.local.json
+├── [[.dotfiles/]]
+└── code/
+    ├── [[personal/]]
+    ├── [[work/]]
+    └── [[forks/]]`,
+
+  /**
+   * What two `get`s of one package leave on disk, with no entry in any
+   * config: the repository behind each version, side by side, because a
+   * checkout is keyed by version and two versions are two checkouts. The
+   * root is the readable form of the path the page uses everywhere.
+   */
+  checkout: `~/.agent-reference/src/
+├── [[ai@6.0.43]]/
+│   └── packages/ai/
+│       ├── CHANGELOG.md
+│       └── src/
+└── [[ai@7.0.78]]/
+    └── packages/ai/
+        ├── CHANGELOG.md
+        └── src/`,
 
   /**
    * The store those two configs produce, and the only place the how-it-works
@@ -247,170 +189,183 @@ export const trees = {
    * collapse that chain onto one row, since what matters is the mirror against
    * the commits checked out of it, not the depth. A trailing slash marks the
    * directories that would otherwise read as files: a bare mirror already
-   * announces itself with `.git`, a commit name does not.
+   * announces itself with `.git`, a commit name does not. The host is left off
+   * every path for the same reason the chain is collapsed: the panel is half
+   * a page wide, and the notes have to fit beside the longest line. This is the one
+   * place on the page a commit appears, since this is the section about the
+   * store as it is, and each one carries the version it was resolved from,
+   * underlined against the source in the config that named it.
    */
   store: `~/.agent-reference/
-\u251C\u2500\u2500 git/ # one clone per repository
-\u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect.git
-\u2502   \u2514\u2500\u2500 github.com/earendil-works/pi.git
-\u251C\u2500\u2500 src/ # one checked-out worktree per version
-\u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect/6ba41e59c827/
-\u2502   \u251C\u2500\u2500 github.com/Effect-TS/effect/c41d80f2b3e5/
-\u2502   \u2514\u2500\u2500 github.com/earendil-works/pi/dcd461925db2/
-\u2514\u2500\u2500 state/ # one file per project
-    \u251C\u2500\u2500 web-a3f81c0426.json
-    \u2514\u2500\u2500 api-5c02e7d1b8.json`,
+├── git/ # one clone per repo
+│   ├── Effect-TS/effect.git
+│   └── earendil-works/pi.git
+├── src/ # a worktree per version
+│   ├── Effect-TS/effect/[[6ba41e59c827]]/ # 4.0.0-rc.111
+│   ├── Effect-TS/effect/[[c41d80f2b3e5]]/ # 3.19.4
+│   └── earendil-works/pi/[[dcd461925db2]]/ # tip of main
+└── state/ # one file per project
+    ├── web-a3f81c0426.json
+    └── api-5c02e7d1b8.json`,
 };
 
 /**
- * Terminal output, keyed so an example can name the block it pairs with. Not
- * highlighted: the Term component paints the colors the CLI itself prints
- * rather than the ones a shell grammar would guess at.
+ * Agent transcripts, keyed so an example can name the one it pairs with. Not
+ * highlighted: the Session component paints them the way a harness does, and
+ * underlines the names that correspond to the panel beside it, since that
+ * correspondence is what an example exists to show.
  *
- * `session` is shaped after a real session against real checkouts. Both
- * coordinates, both commits, both file paths and both line counts are what
- * agent-reference hands back today. The two references are deliberately
- * different kinds: a repository you read but never install, and a dependency
- * you do. The docs reference carries a `directory`, so it resolves straight
- * into the v4 pages that match the pinned 4.0.0-rc.111 rather than into the
- * repository root: a prerelease whose documentation npm does not distribute
- * and whose published site is not the default view.
+ * `today` and `after` are the first screen, and carry no prompt: two things
+ * an agent does when it needs a library and what each got back, against what
+ * the tool gives it. One library throughout, because a reader recognizes
+ * Effect. The markup is what the docs site hands a fetch, and every line on
+ * the right is real: the README and `src/FileSystem.ts` of the effect package
+ * at that tag, quoted verbatim. The bundle line on the left is the pattern
+ * rather than the package: Effect's own published build keeps its comments,
+ * and the row stands for the many that do not. A result line marked `! ` went
+ * wrong and `+ ` went right; the markers are read off before the line is
+ * painted. `[[name]]` anywhere in a transcript marks a name
+ * the config or the tree beside it declares, so the eye can join the two.
+ *
+ * Paths are the readable form, not the literal one. The store keys a checkout
+ * by commit, and a commit is not something a person reads, so the page names
+ * the repository and, for a package, the version the commit was resolved
+ * from. The repository paths under them are real, and the tools they name
+ * are the few that show the agent using what it was handed. Re-check the
+ * quoted lines before swapping a library.
  */
 export const terminals = {
-  /**
-   * The hero, and the only block on the page that plays. A first run: the agent
-   * reads the brief, mines the machine's own session history for what this
-   * project keeps reaching for, and writes the config filling in beside it.
-   */
-  setup: `> Set this project up for agent-reference: run \`npx agent-reference init\` and follow the brief it prints.
-* Bash(npx agent-reference init)
-  \u23BF 2,723 sessions across claude-code, codex and opencode
-* Read(pnpm-lock.yaml)
-  \u23BF effect 4.0.0-rc.111
-* Write(agent-reference.json)
-  \u23BF 1 reference
-* Bash(rg -o 'github:\\S+' ~/.claude | sort | uniq -c)
-  \u23BF 41 Effect-TS/website
-    12 earendil-works/pi
+  today: `* Read(node_modules/effect/dist/FileSystem.js)
+  ⎿ ! import*as t from"./Array.js";import*as e from…
+    ! …r=t=>e.fail(new n({module:"FileSystem",method…
+    ! …class extends r{readFile(t){return e.suspend(…
+* WebFetch(effect.website/docs/platform/file-system)
+  ⎿ ! <!doctype html><html lang="en" class="dark">…
+    ! …<nav class="sidebar"><a href="/docs/getting…
+    ! …<div class="prose"><h1>FileSystem</h1><p>The…
+    ! …<script id="__NEXT_DATA__" type="applicat…`,
+
+  after: `* Bash(agent-reference get effect)
+  ⎿ effect@4.0.0-rc.111 -> ~/.agent-reference/src/effect@4.0.0-rc.111
+* Read(…/effect@4.0.0-rc.111/packages/effect/README.md)
+  ⎿ + # effect
+    + Effect is a library for building robust, maintainable, type-safe, and…
+    + ## Installation
+* Read(…/effect@4.0.0-rc.111/packages/effect/src/FileSystem.ts)
+  ⎿ + /**
+    +  * Read the contents of a file.
+    +  */
+    + readonly readFileString: (`,
+
+  session: `> Implement an edit tool like [[pi]]'s, using [[Effect]] v4
+* Bash(agent-reference get [[effect]])
+  ⎿ effect -> ~/.agent-reference/src/effect@4.0.0-rc.111
+* Bash(agent-reference get [[effect-docs]])
+  ⎿ effect-docs -> ~/.agent-reference/src/effect-website/docs/v4
+* Read(…/docs/v4/platform/file-system.mdx)
 * Update(agent-reference.json)
-  \u23BF 3 references`,
+  ⎿ + "[[pi]]": { "source": "github:earendil-works/pi", … }
+* Bash(agent-reference get [[pi]])
+  ⎿ pi -> ~/.agent-reference/src/pi
+* Read(…/pi/packages/coding-agent/src/core/tools/edit.ts)`,
 
-  session: `> Implement an edit tool like pi's, using Effect v4
-* Skill(agent-reference)
-  \u23BF Launching skill: agent-reference
-* Bash(agent-reference get pi)
-  \u23BF pi -> ~/.agent-reference/src/\u2026/earendil-works/pi/dcd461925db2
-* Read(\u2026/packages/coding-agent/src/core/tools/edit.ts)
-  \u23BF Read 461 lines
-* Bash(agent-reference get effect-docs)
-  \u23BF effect-docs -> ~/.agent-reference/src/\u2026/website/6ee985b191a6/\u2026/docs/v4
-* Read(\u2026/docs/v4/platform/file-system.mdx)
-  \u23BF Read 115 lines`,
+  remotion: `> can [[remotion]] render a video right in the browser? if so wire it up
+* Bash(agent-reference get [[remotion]])
+  ⎿ remotion -> ~/.agent-reference/src/remotion
+* Read(…/remotion/packages/webcodecs/README.md)
+* Update(src/Export.tsx)
+> copy [[codex]]'s shell approval flow into ours
+* Bash(agent-reference get [[codex]])
+  ⎿ codex -> ~/.agent-reference/src/codex
+* Read(…/codex/codex-rs/core/src/exec_policy.rs)
+* Update(src/approval.ts)`,
 
-  pinned: `# your agent runs this, not you
-agent-reference get ai
-npm:ai@7.0.78 -> ~/.agent-reference/src/\u2026/vercel/ai/5b64c3901f7e/packages/ai
+  ai: `> upgrade the chat route to ai v7
+* Bash(agent-reference get ai)
+  ⎿ [[ai@6.0.43]] -> ~/.agent-reference/src/ai@6.0.43/packages/ai
+* Bash(agent-reference get ai@7.0.78)
+  ⎿ [[ai@7.0.78]] -> ~/.agent-reference/src/ai@7.0.78/packages/ai
+* Read(…/ai@7.0.78/packages/ai/CHANGELOG.md)
+* Update(src/routes/chat.ts)`,
 
-# nothing declares electron; the lockfile is the whole answer
-agent-reference get electron
-npm:electron@41.0.2 -> ~/.agent-reference/src/\u2026/electron/electron/22bbbc9fa06d`,
-
-  set: `$ codex "Implement context compaction based on how
-  other coding harnesses do it"
-
-* Bash(agent-reference get harnesses)
-  \u23BF pi -> ~/.agent-reference/src/\u2026/earendil-works/pi/dcd461925db2
-    codex -> ~/.agent-reference/src/\u2026/openai/codex/a4f10b27e83c
-    opencode -> ~/.agent-reference/src/\u2026/anomalyco/opencode/7b0e5c31d4a9
-
-* Read(\u2026/pi/packages/coding-agent/src/core/compaction/compaction.ts)`,
-
-  complex: `# your agent runs this, not you
-agent-reference status
-agent-reference.json (shared)
-  ai         npm \u00B7 ready \u00B7 7.0.78 verified \u00B7 ~/.agent-reference/src/\u2026/vercel/ai/5b64c3901f7e/packages/ai
-             "Read its docs/ and changelog before writing v7"
-  electron   npm \u00B7 declared \u00B7 41.0.2
-             "Pinned: we ship against this build's native module ABI"
-  decisions  folder \u00B7 ready \u00B7 ~/code/acme/web/docs/decisions
-             "Why this project is shaped the way it is; read before calling a design a bug"
-  style      file \u00B7 ready \u00B7 ~/code/acme/web/docs/style-guide.md
-             "How prose in this repo is written"
-
-  harnesses  set \u00B7 2 references
-             "How other agents solve the same problems"
-    pi     git \u00B7 ready \u00B7 ~/.agent-reference/src/\u2026/pi/dcd461925db2
-           "The smallest one: read it first"
-    codex  git \u00B7 declared \u00B7 github:openai/codex#v0.20.0
-           "Pinned: we match this version's tool schema"
-
-package versions read from pnpm-lock.yaml
-
-2 of 6 not fetched yet, which is normal \u00B7 agent-reference get <name>`,
+  set: `> Implement context compaction based on how other [[harnesses]] do it
+* Bash(agent-reference get [[harnesses]])
+  ⎿ [[pi]] -> ~/.agent-reference/src/pi
+    [[codex]] -> ~/.agent-reference/src/codex
+    [[opencode]] -> ~/.agent-reference/src/opencode
+* Read(…/coding-agent/src/core/compaction/compaction.ts)`,
 };
 
-/** The examples section, in the order somebody meets these problems. */
 /**
  * One example, on the site and in the README. Every key here names an entry in
  * one of the maps above, so a snippet renamed in `samples` or a tree dropped
- * from `trees` fails to typecheck rather than rendering an empty panel.
+ * from `trees` fails to typecheck rather than rendering an empty panel. A
+ * `config` is a file the agent wrote, with an optional line under it and the
+ * keys in it that the session or the tree beside it names, which are marked
+ * the same way; a `tree` is a folder layout; a `session` is the agent using
+ * what the panels beside it declare. Not every example has a config: the one
+ * about package versions has no file to show, because none is needed.
  */
 export interface Example {
   title: string;
-  note: string;
-  file: string;
-  sample: keyof typeof samples;
+  session?: keyof typeof terminals;
   tree?: keyof typeof trees;
-  terminal?: keyof typeof terminals;
+  config?: { file: string; sample: keyof typeof samples; note?: string; marks?: string[] };
 }
 
+/**
+ * The examples section, opening on the agent using the tool, then in the
+ * order somebody meets these needs. Titles say what the tool does for the
+ * agent; the panels say the rest, and the one line of prose in the section
+ * sits under the file it is about.
+ */
 export const examples: Example[] = [
   {
-    title: 'Reference other folders on your computer',
-    note: 'By name, and read where they already are, so there is nothing to keep in sync.',
+    title: 'Your agent uses agent-reference',
+    session: 'session',
+    config: {
+      file: 'agent-reference.json',
+      sample: 'shared',
+      marks: ['effect', 'effect-docs', 'pi'],
+      note: 'Committed beside your `package.json`. Your agent writes it and adds to it as it goes.',
+    },
+  },
+  {
+    title: 'Clones repositories on demand',
+    session: 'remotion',
+    config: { file: 'agent-reference.json', sample: 'repos', marks: ['remotion', 'codex'] },
+  },
+  {
+    title: 'Provides references to other folders on your computer',
     tree: 'siblings',
-    file: 'web/agent-reference.local.json',
-    sample: 'siblings',
+    config: {
+      file: 'web/agent-reference.local.json',
+      sample: 'siblings',
+      marks: ['api', 'workers', 'shared'],
+    },
   },
   {
-    title: 'Reference public or private repos, automatically cloned',
-    note: 'From GitHub or any git remote, kept up to date, and fetched the first time your agent asks for it.',
-    file: 'agent-reference.json',
-    sample: 'upstream',
+    title: 'Checks out the full source for exact package versions',
+    session: 'ai',
+    tree: 'checkout',
   },
   {
-    title: 'Check out source for exact npm versions',
-    note: 'Your agent reads the version this project installs, from the repository rather than from build output. No entry is needed for that. Declare one when there is something about a dependency worth remembering.',
-    file: 'agent-reference.json',
-    sample: 'pinned',
-    terminal: 'pinned',
-  },
-  {
-    title: 'Reference a skill from another project',
-    note: 'Let your agent use a skill that lives in another project, without copying it in and letting the two drift.',
-    file: 'agent-reference.local.json',
-    sample: 'skills',
-  },
-  {
-    title: 'Define references for every agent on your computer',
-    note: 'References every agent on this machine can reach, from any folder that has no config of its own.',
+    title: 'Provides references for every agent on your computer',
     tree: 'global',
-    file: '~/agent-reference.local.json',
-    sample: 'global',
+    config: {
+      file: '~/agent-reference.local.json',
+      sample: 'global',
+      marks: ['~/.dotfiles', '~/code/personal', '~/code/work', '~/code/forks'],
+    },
   },
   {
-    title: 'Group references under one name',
-    note: 'A set is a reference that resolves to more than one path. Its key is its name, like any other, so one get takes all of them.',
-    file: 'agent-reference.json',
-    sample: 'together',
-    terminal: 'set',
-  },
-  {
-    title: 'A complex example',
-    note: 'Every kind of source in one map, a set among them, and what your agent sees when it asks.',
-    file: 'agent-reference.json',
-    sample: 'kitchenSink',
-    terminal: 'complex',
+    title: 'Groups references for easy mentioning',
+    session: 'set',
+    config: {
+      file: 'agent-reference.json',
+      sample: 'together',
+      marks: ['harnesses', 'pi', 'codex', 'opencode'],
+    },
   },
 ];
 
@@ -423,35 +378,29 @@ export const examples: Example[] = [
  * Neither config carries a path reference: a path is read where it already is,
  * so it would put a line on the left with nothing to answer it on the right.
  */
-/** The walkthrough section, keyed to the same maps the examples use. */
 export interface HowItWorks {
   heading: string;
   lead: string;
-  configs: Array<{ file: string; sample: keyof typeof samples }>;
+  configs: Array<{ file: string; sample: keyof typeof samples; marks: string[] }>;
   tree: keyof typeof trees;
   cache: string;
 }
 
 export const howItWorks: HowItWorks = {
-  heading: 'Where the source lands',
-  lead: 'Skip this if you like: your agent handles all of it. It is here for anyone who wants to see where the source it reads lands. Two projects, pinning two versions of the same dependency, sharing one store.',
+  heading: 'How it works',
+  lead: 'Skip this if you like: your agent handles all of it. Two projects, pinning two versions of the same dependency, sharing one store.',
   configs: [
-    { file: 'web/agent-reference.json', sample: 'storeWeb' },
-    { file: 'api/agent-reference.json', sample: 'storeApi' },
+    {
+      file: 'web/agent-reference.json',
+      sample: 'storeWeb',
+      marks: ['npm:effect@4.0.0-rc.111', 'github:earendil-works/pi'],
+    },
+    { file: 'api/agent-reference.json', sample: 'storeApi', marks: ['npm:effect@3.19.4'] },
   ],
   tree: 'store',
   cache:
     'All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.',
 };
-
-/**
- * The two states the file is in, in order: what `Write` leaves and what `Update`
- * leaves. The agent writes what it knows, keeps looking, and edits; the panel
- * shows the same file twice rather than a document assembling itself line by
- * line, which is not a thing that happens. When each lands is in styles.css,
- * next to the session's own steps, because the two are tuned against each other.
- */
-export const heroDrafts = ['heroDraft', 'shared'] as const;
 
 /**
  * The pieces of JSON the format section points at. Separate from `samples`
@@ -497,7 +446,7 @@ export const format: {
     { fragment: 'sourceRef', means: 'the same, at a tag, branch, or commit' },
     { fragment: 'sourcePackage', means: 'a package, at an exact version' },
   ],
-  note: 'A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. Its members are keyed by name exactly as the outer map is, so every name your agent can ask for is written down. The description is required on both: a name is what the agent already has, and what it needs is when the thing behind it is worth opening.',
+  note: 'A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. The description is required on both: a name is what the agent already has, and what it needs is when the thing behind it is worth opening.',
 };
 
 /**
@@ -505,44 +454,41 @@ export const format: {
  * a second copy that drifts. `tagline` also names the browser tab and heads the
  * link preview; `description` is the meta description, and the only line of
  * prose a search result or a social card gets, so it says what the thing does
- * rather than what shape it ships in.
+ * rather than what shape it ships in. `lead` is the one sentence the markdown
+ * surfaces set under the tagline; the page itself shows rather than says it.
  */
 export const copy = {
   title: 'agent-reference',
   tagline: 'Give your agents the source',
+  lead: 'A CLI your agent uses to read the real source of your dependencies, at the version you actually have installed, plus any repo or folder you point it at.',
   description:
-    'Give your agents the source. Readable upstream code on disk, at the exact version your project installs.',
+    'Give your agents the source. A CLI your agent uses to read the real source of your dependencies, at the version you have installed, plus any repo or folder you point it at.',
   /**
-   * The two section headings the page states outright rather than taking from
-   * the data under them. They are here so the markdown the site serves and the
+   * The first screen: what an agent does today when it needs a library, and
+   * what it does with the tool. The headings name whose session each is, and
+   * the sessions say the rest.
+   */
+  hero: {
+    before: 'What your agent reads today',
+    after: 'What it reads with agent-reference',
+  },
+  /**
+   * The section headings the page states outright rather than taking from the
+   * data under them. They are here so the markdown the site serves and the
    * README both head those sections the way the page does.
    */
   getStarted: {
     heading: 'Get started',
   },
-  examples: {
-    heading: 'Examples',
-  },
   agent: {
     heading: 'Let your agent set it up',
-    note: 'Instructs your agent to install the skill and set up a config for the folders, repositories, and packages you often reference.',
+    note: 'Installs the skill and writes a config for the folders, repositories, and packages you already reach for.',
   },
   install: {
-    heading: 'Install it yourself',
+    note: 'Or install it yourself with `npm install -g agent-reference`, then ask your agent to set it up.',
   },
-  /**
-   * The one section that shows the thing working: a first run, and then any run
-   * after it. The note under the figure is there because the file on the right
-   * is the only artifact on the page nobody is expected to write.
-   */
-  demo: {
-    heading: 'How it works',
-    configNote:
-      'Your agent maintains this file, adding references as it needs them and cloning anything new on first use.',
-  },
-  thenUse: {
-    heading: 'Now use your agent normally',
-    note: 'From here your agent reads the real source of the libraries you depend on, and checks out the repositories it needs, at the version this project installs.',
+  examples: {
+    heading: 'Examples',
   },
   commands: {
     heading: 'The commands',
@@ -558,10 +504,3 @@ export const quickStart = 'npx agent-reference init';
 
 /** The one sentence a person hands their agent. The site and the README share it. */
 export const setupPrompt = `Set this project up for agent-reference: run \`${quickStart}\` and follow the brief it prints.`;
-
-export const cd = 'cd ~/code/acme/web';
-export const install = 'npm install -g agent-reference';
-export const prompt = 'Help me set up agent-reference';
-
-/** Cycled in the install example, to say that no harness is special. */
-export const agents = ['claude', 'codex', 'opencode', 'pi'];

@@ -75,6 +75,14 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
+      // The text face. Google Fonts rather than a vendored file for now, so a
+      // deploy carries no font binary; the mono is whatever the machine has.
+      { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
+      { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossOrigin: 'anonymous' },
+      {
+        rel: 'stylesheet',
+        href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap',
+      },
       { rel: 'canonical', href: SITE },
       // The same two the Worker advertises in `Link` headers, in the document
       // as well, for an agent that has the HTML in hand and is not going to
@@ -112,11 +120,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 function Header() {
   return (
     <header className="flex items-center justify-between border-b border-line py-4 text-sm">
-      <a href="/" className="text-fg hover:text-accent">
+      <a href="/" className="font-mono whitespace-nowrap text-fg hover:text-accent">
         {TITLE}
       </a>
       <nav className="flex items-center gap-5 text-muted">
-        <a href={`${NPM}/v/${__CLI_VERSION__}`} className="hover:text-accent">
+        {/* The version is the one link a phone has no room for: with it, the
+            name and the number both broke at their hyphens. */}
+        <a href={`${NPM}/v/${__CLI_VERSION__}`} className="hidden hover:text-accent sm:inline">
           v{__CLI_VERSION__}
         </a>
         <a href={REPOSITORY} className="hover:text-accent">

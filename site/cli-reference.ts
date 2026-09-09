@@ -48,31 +48,14 @@ importers:
 /**
  * Run in this order; it reads as somebody finding their way around. The note
  * becomes a shell comment above the command, because the output on its own is
- * too terse to explain what you were asking for.
+ * too terse to explain what you were asking for. Three commands and no more:
+ * `help` already lists every verb and flag, and the other two are the ones an
+ * agent lives in, so anything past them is the reference restating itself.
  */
 export const commands = [
   { argv: ['help'], note: 'every command, from the version you have installed' },
   { argv: ['status'], note: 'what this project declares, and whether it is on disk yet' },
   { argv: ['get', 'brief'], note: 'a name in, a path out. This is the one agents live in' },
-  {
-    argv: ['get', 'brief', '--path'],
-    note: 'the path alone, for a shell variable: BRIEF=$(agent-reference get brief --path)',
-  },
-  {
-    argv: ['versions', 'semver'],
-    note: 'which versions this project installs, and where. Never fetches',
-  },
-  {
-    argv: ['validate'],
-    note: 'check the config, including that no machine path reached the committed file',
-  },
-  {
-    argv: ['schema'],
-    note: 'the JSON Schema for the config, for an editor or an agent writing one',
-    // 300-odd lines of schema says nothing the first dozen do not. The point is
-    // that the command exists and what it prints, not the whole document.
-    lines: 12,
-  },
 ];
 
 /**
@@ -99,19 +82,16 @@ export function renderCliReference() {
     const clean = (text: string) =>
       text.split(project).join('~/code/my-app').split(store).join('~/.agent-reference');
 
-    return commands.map(({ argv, note, lines }) => {
+    return commands.map(({ argv, note }) => {
       const printed = execFileSync(process.execPath, ['--experimental-strip-types', cli, ...argv], {
         cwd: project,
         encoding: 'utf8',
         env: { ...process.env, AGENT_REFERENCE_STORE_DIR: store, NO_COLOR: '1' },
       });
-      const split = printed.trimEnd().split('\n');
-      const out =
-        lines && split.length > lines ? [...split.slice(0, lines), '\u2026'].join('\n') : printed;
       return {
         note,
         command: `agent-reference ${argv.join(' ')}`,
-        transcript: clean(`# ${note}\n$ agent-reference ${argv.join(' ')}\n${out.trimEnd()}`),
+        transcript: clean(`# ${note}\n$ agent-reference ${argv.join(' ')}\n${printed.trimEnd()}`),
       };
     });
   } finally {

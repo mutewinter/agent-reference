@@ -1,58 +1,29 @@
-import { useEffect, useState } from 'react';
-
-import { copy as pageCopy } from '../../code-samples.ts';
-import { CheckIcon, CopyIcon, IconCopy, useCopy } from './copy';
-
-/** Both of these sit inside the Get started section, one level under its h2. */
-function Heading({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-3 text-fg">{children}</h3>;
-}
-
-/** Renders `backticked` spans as inline code, while the clipboard gets the raw text. */
-function WithCode({ text }: { text: string }) {
-  return (
-    <>
-      {text.split('`').map((part, i) =>
-        i % 2 === 1 ? (
-          <code key={i} className="border border-accent/25 bg-accent/10 px-1 text-accent">
-            {part}
-          </code>
-        ) : (
-          part
-        ),
-      )}
-    </>
-  );
-}
+import { CheckIcon, CopyIcon, useCopy } from './copy';
 
 /**
  * Not a panel and not a terminal: the one thing on the page you click. The
- * whole block is the button, so there is no aiming, and it sits on a hard
- * offset shadow that presses in under the cursor. Nothing else here casts a
- * shadow, and a thick left border, the usual way to mark a block like this,
- * has been a trope for years.
- *
- * No caption under it: the figure below shows what the prompt does, which is
- * what a caption would have said. The markdown surfaces keep the sentence,
- * because they are read in one pass rather than looked at.
+ * text is set as the plain text it is, backticks and all, because that is
+ * what the clipboard gets; the button sits in its own cell beside it, so what
+ * it copies is the thing it is next to; and the whole block is the button,
+ * on a hard offset shadow that presses in under the cursor. The pill is the
+ * only thing that changes on a click.
  */
 export function ForYourAgent({ text }: { text: string }) {
   const { copied, copy } = useCopy(text);
 
   return (
-    <div>
-      <Heading>{pageCopy.agent.heading}</Heading>
-      <button
-        type="button"
-        onClick={copy}
-        aria-label={copied ? 'Copied' : 'Copy this prompt'}
-        className="flex w-full cursor-pointer flex-col items-start gap-3 border border-accent/60 bg-accent/10 p-4 text-left shadow-offset transition-all hover:translate-0.5 hover:bg-accent/20 hover:shadow-offset-sm active:translate-1 active:shadow-none sm:flex-row sm:gap-4"
-      >
-        <span className="flex-1 text-sm leading-relaxed text-fg">
-          <WithCode text={text} />
-        </span>
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={copied ? 'Copied' : 'Copy this prompt'}
+      className="flex w-full max-w-2xl cursor-pointer flex-col items-stretch border border-line bg-term text-left shadow-offset transition-all hover:translate-0.5 hover:border-accent/60 hover:shadow-offset-sm active:translate-1 active:shadow-none sm:flex-row"
+    >
+      {/* Mono, because that is what pasted text looks like: the block reads as
+          something to copy before it reads as something to read. */}
+      <span className="flex-1 p-4 font-mono text-sm leading-relaxed text-fg">{text}</span>
+      <span className="flex shrink-0 items-center border-t border-line p-3 sm:border-t-0 sm:border-l">
         <span
-          className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1 text-xs text-bg ${
+          className={`flex items-center gap-1.5 px-2.5 py-1 text-xs text-bg ${
             copied ? 'bg-ok' : 'bg-accent'
           }`}
         >
@@ -62,102 +33,7 @@ export function ForYourAgent({ text }: { text: string }) {
               sit under each other rather than drifting left. */}
           <span className="inline-block w-11 text-center">{copied ? 'Copied' : 'Copy'}</span>
         </span>
-      </button>
-    </div>
-  );
-}
-
-/**
- * Swaps the agent name every few seconds to say that none of them is special.
- * The line reserves two lines of height on every screen: the longest name wraps
- * where the shortest does not, and letting it reflow moved the whole page under
- * it every five seconds.
- * The whole line dips rather than the name typing itself: a name that grows a
- * character at a time reflows everything after it, and reserving a fixed width
- * to stop that left an obvious gap. It dips to a readable dim rather than to
- * nothing, because a line blinking out of existence draws the eye far harder
- * than a line that merely softens, and this is the secondary path.
- */
-function CyclingCommand({ names, prompt }: { names: Array<string>; prompt: string }) {
-  const [index, setIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    const cycle = setInterval(() => {
-      setVisible(false);
-      setTimeout(() => {
-        setIndex((current) => (current + 1) % names.length);
-        setVisible(true);
-      }, 300);
-    }, 5000);
-
-    return () => {
-      clearInterval(cycle);
-    };
-  }, [names]);
-
-  return (
-    <div
-      className={`cycle transition-opacity duration-300 ${visible ? 'opacity-100' : 'opacity-40'}`}
-    >
-      <span className="text-muted select-none">$ </span>
-      <span className="text-accent">{names[index]}</span>
-      {` "${prompt}"`}
-    </div>
-  );
-}
-
-/** Install it, go where the code is, then ask an agent to do the rest. */
-export function ForYou({
-  cd,
-  install,
-  prompt,
-  agents,
-}: {
-  cd: string;
-  install: string;
-  prompt: string;
-  agents: Array<string>;
-}) {
-  return (
-    <div>
-      <Heading>{pageCopy.install.heading}</Heading>
-      <div className="group border border-line bg-term p-4 text-sm">
-        <pre className="code-wrap leading-code">
-          {/* The button sits on the line it copies. In the corner it was
-              ambiguous which of three commands it would take. */}
-          <div className="flex items-center gap-3">
-            <span>
-              <span className="text-muted select-none">$ </span>
-              <span className="text-accent">npm</span>
-              {install.replace(/^npm/u, '')}
-            </span>
-            <IconCopy text={install} reveal />
-          </div>
-          <div>
-            <span className="text-muted select-none">$ </span>
-            <span className="text-accent">cd</span>
-            {cd.replace(/^cd/u, '')}
-          </div>
-          <CyclingCommand names={agents} prompt={prompt} />
-        </pre>
-      </div>
-    </div>
-  );
-}
-
-/** Between the two cards, so nobody reads them as steps one and two. */
-export function Or() {
-  return (
-    <div className="flex items-center justify-center py-2 text-muted md:py-0">
-      <span className="md:hidden">or</span>
-      <span className="hidden md:flex md:h-full md:flex-col md:items-center md:gap-3">
-        <span className="w-px flex-1 bg-line" />
-        or
-        <span className="w-px flex-1 bg-line" />
       </span>
-    </div>
+    </button>
   );
 }
