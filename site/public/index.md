@@ -489,7 +489,7 @@ Commands:
             workspace package installs it, and the lockfile the numbers came out
             of. Reads only; never fetches.
   status    Report every configured reference: source, state, and absolute path.
-            Declared-but-not-fetched is the normal state, not a problem.
+            Declared but not fetched is the normal state.
   clone     Bulk prefetch every configured reference, for CI or a long flight.
   init      Survey this project and print a setup brief for the agent to carry
             out. Reads and prints only; it never writes.
@@ -497,8 +497,8 @@ Commands:
             machine paths that do not belong in the committed file, and the
             local file being tracked by git. Exits non-zero, so CI can gate on
             it.
-  guide     Print the full agent instructions for this version. What goes in the
-            config is here and not in this help.
+  guide     Print the full agent instructions for this version, including the
+            config format, which this help leaves out.
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
             checkouts unused for --days (default 30).

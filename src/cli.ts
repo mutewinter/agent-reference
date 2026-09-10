@@ -337,13 +337,13 @@ tail or sed takes the wrong text. Problems still print, on stderr.`,
   versions: `agent-reference versions <name> [--json]
 
 Report every version of a package this project installs, which workspace package
-installs it, and the lockfile the numbers came out of. Reads only; never fetches,
-and an unknown ecosystem or an absent package is an answer, not an error.`,
+installs it, and the lockfile the numbers came out of. Reads only and never
+fetches; an unknown ecosystem or an absent package is reported as a normal result.`,
   status: `agent-reference status [name...] [--json]
 
 Report every configured reference: where it comes from, its state, and its
-absolute path. Naming a set reports that set. Declared-but-not-fetched is the
-normal state, not a problem.`,
+absolute path. Naming a set reports that set. Declared but not fetched is the
+normal state.`,
   clone: `agent-reference clone [name...] [--json]
 
 Bulk prefetch, for CI or a long flight. With no names it takes everything; with a
@@ -425,7 +425,7 @@ Commands:
             workspace package installs it, and the lockfile the numbers came out
             of. Reads only; never fetches.
   status    Report every configured reference: source, state, and absolute path.
-            Declared-but-not-fetched is the normal state, not a problem.
+            Declared but not fetched is the normal state.
   clone     Bulk prefetch every configured reference, for CI or a long flight.
   init      Survey this project and print a setup brief for the agent to carry
             out. Reads and prints only; it never writes.
@@ -433,8 +433,8 @@ Commands:
             machine paths that do not belong in the committed file, and the
             local file being tracked by git. Exits non-zero, so CI can gate on
             it.
-  guide     Print the full agent instructions for this version. What goes in the
-            config is here and not in this help.
+  guide     Print the full agent instructions for this version, including the
+            config format, which this help leaves out.
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
             checkouts unused for --days (default 30).
