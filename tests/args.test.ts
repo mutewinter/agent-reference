@@ -53,6 +53,15 @@ test('an unknown option names the ones that exist', () => {
   assert.equal(parseArgv(['status', '--non-interactive']).command, 'status');
 });
 
+test('--log is an activity option, and the window is shared with store', () => {
+  assert.equal(parseArgv(['activity', '--log']).log, true);
+  assert.equal(parseArgv(['activity', '--days', '7']).days, 7);
+
+  // Same reason --path is refused elsewhere: a flag accepted and ignored reads as an answer.
+  assert.throws(() => parseArgv(['status', '--log']), /--log is an activity option/);
+  assert.equal(parseArgv(['activity', '--log', '--help']).helpTopic, 'activity');
+});
+
 test('--path is a get option, and is refused where it would be accepted and ignored', () => {
   assert.equal(parseArgv(['get', 'pi', '--path']).path, true);
   assert.deepEqual(parseArgv(['get', 'pi', '--path']).positionals, ['pi']);
