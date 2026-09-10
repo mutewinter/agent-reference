@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import cliReference from 'virtual:cli-reference';
 
@@ -252,15 +252,46 @@ function Setup() {
   );
 }
 
+/**
+ * One transcript. `help` prints every verb and every flag, which is worth
+ * having on the page and is not worth a screen of scrolling on the way to the
+ * next one, so anything that long is clamped until it is asked for.
+ */
+const CLAMP_LINES = 24;
+
+function Transcript({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  const lines = text.split('\n').length;
+  if (lines <= CLAMP_LINES) return <Term text={text} />;
+
+  return (
+    <>
+      <div className={open ? undefined : 'transcript-clamp'}>
+        <Term text={text} />
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(!open);
+        }}
+        aria-expanded={open}
+        className="mt-3 cursor-pointer font-mono text-sm text-muted hover:text-fg"
+      >
+        {open ? 'Show less' : `Show all ${lines} lines`}
+      </button>
+    </>
+  );
+}
+
 /** Transcripts from the real CLI, run at build time so they cannot go stale. */
 function Commands() {
   return (
     <>
-      <p className="max-w-2xl text-muted">{copy.commands.note}</p>
+      <Prose text={copy.commands.note} className="max-w-2xl text-muted" />
       <div className="mt-4 max-w-3xl space-y-4">
         {cliReference.map((entry) => (
           <Panel key={entry.command} tone="term">
-            <Term text={entry.transcript} />
+            <Transcript text={entry.transcript} />
           </Panel>
         ))}
       </div>

@@ -224,6 +224,24 @@ mark[data-ink="3"] {
   margin-top: 0;
 }
 
+/* A transcript long enough to scroll past is kept to a screenful until it is
+   asked for. The fade is the terminal panel's own ground, so the last visible
+   line reads as continuing rather than as the end of the output. */
+.transcript-clamp {
+  position: relative;
+  max-height: 22rem;
+  overflow: hidden;
+}
+
+.transcript-clamp::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 5rem;
+  background: linear-gradient(to top, var(--color-term), transparent);
+}
+
 /* The comparison follows reading order across desktop columns and stacked mobile panes. */
 .comparison {
   display: grid;
