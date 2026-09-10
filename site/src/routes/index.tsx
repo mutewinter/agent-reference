@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import cliReference from 'virtual:cli-reference';
 
 import {
+  FOLD_LINES,
   copy,
   type Example as ExampleData,
   examples,
@@ -312,12 +313,9 @@ function Clamped({
   );
 }
 
-/** `help` prints every verb and every flag; the rest fit on the page as they are. */
-const CLAMP_LINES = 24;
-
 function Transcript({ text }: { text: string }) {
   const lines = text.split('\n').length;
-  if (lines <= CLAMP_LINES) return <Term text={text} />;
+  if (lines <= FOLD_LINES) return <Term text={text} />;
 
   return (
     <Clamped more={`Show all ${lines} lines`} tone="term">

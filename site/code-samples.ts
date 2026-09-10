@@ -548,6 +548,14 @@ export const copy = {
   },
 };
 
+/**
+ * Lines past which a block is folded rather than laid out in full: clamped
+ * behind a button on the page, inside a disclosure in markdown. `help` prints
+ * every verb and every flag and the skill is a whole file; everything else on
+ * either surface comes in under this.
+ */
+export const FOLD_LINES = 24;
+
 /** The setup command included in the prompt a person hands their agent. */
 export const quickStart = 'npx agent-reference init';
 

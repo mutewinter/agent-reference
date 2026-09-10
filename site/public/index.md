@@ -82,6 +82,9 @@ The description is what sits in context between tasks. The rest of it loads when
 
 `.claude/skills/agent-reference/SKILL.md`
 
+<details>
+<summary>Show the whole skill</summary>
+
 ````markdown
 ---
 name: agent-reference
@@ -147,6 +150,8 @@ Say what happened either way. The fix is one line in the user's shell profile, t
 - **Read what `get` prints under the path.** A result can succeed and still not be what was asked for. `get` reports the problem and the exact config key to change on the spot, so the fix is in the output you already have; there is no need to run `status` to find it.
 - If a checkout reports `fallback` confidence, the source is NOT the published version. Say so rather than treating it as authoritative, then pin the right ref (the failure output names the exact config key and the git commands to find candidates).
 ````
+
+</details>
 
 ### 3. Your agent runs the CLI when the moment comes
 
@@ -423,6 +428,9 @@ You will not need these; your agent runs them. Except `activity`, which is how y
 
 #### agent-reference help
 
+<details>
+<summary>Show all 65 lines</summary>
+
 ```text
 # every command, from the version you have installed
 $ agent-reference help
@@ -490,6 +498,8 @@ stands for several, and that get and status take like any other name. Edit the
 JSON directly; run `agent-reference validate` after. The store lives in
 ~/.agent-reference. Set AGENT_REFERENCE_STORE_DIR to move it.
 ```
+
+</details>
 
 #### agent-reference status
 

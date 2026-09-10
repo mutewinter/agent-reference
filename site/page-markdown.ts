@@ -8,6 +8,7 @@ import { blocks as highlighted } from './blocks.ts';
 import { renderCliReference } from './cli-reference.ts';
 import {
   type Example,
+  FOLD_LINES,
   type SetupStep,
   copy,
   examples,
@@ -34,12 +35,27 @@ const fence = (lang: string, text: string) => {
   return `${rail}${lang}\n${text}\n${rail}`;
 };
 
+/**
+ * A block long enough that a reader scrolls past everything after it, put
+ * behind the disclosure GitHub renders for one. The blank lines are load
+ * bearing: markdown inside a `<details>` is only parsed as markdown when they
+ * are there. The page clamps the same blocks behind a button.
+ */
+const folded = (summary: string, body: string) =>
+  ['<details>', `<summary>${summary}</summary>`, '', body, '', '</details>'].join('\n');
+
+/** Whichever of the two a block has earned, by the length both surfaces measure. */
+const foldable = (summary: string, body: string) =>
+  body.split('\n').length > FOLD_LINES ? folded(summary, body) : body;
+
 /** A snippet under the filename it belongs in, the way the site labels its panels. */
-const labeled = (file: string, name: string) => {
+const fenced = (name: string) => {
   const block = highlighted[name];
   if (!block) throw new Error(`nothing highlights a block named '${name}'`);
-  return `\`${file}\`\n\n${fence(block.lang, block.code)}`;
+  return fence(block.lang, block.code);
 };
+
+const labeled = (file: string, name: string) => `\`${file}\`\n\n${fenced(name)}`;
 
 function renderExample({ title, session, tree, config }: Example): string {
   const blocks = [`### ${title}`];
@@ -66,7 +82,11 @@ const transcript = (text: string) =>
 /** The transcripts, one level under the heading that introduces them. */
 function renderCommands(): string {
   return renderCliReference()
-    .map((entry) => `#### ${entry.command}\n\n${fence('text', entry.transcript)}`)
+    .map((entry) => {
+      const lines = entry.transcript.split('\n').length;
+      const block = foldable(`Show all ${lines} lines`, fence('text', entry.transcript));
+      return `#### ${entry.command}\n\n${block}`;
+    })
     .join('\n\n');
 }
 
@@ -77,7 +97,12 @@ function renderCommands(): string {
 function renderStep(step: SetupStep, index: number): string {
   const blocks = [`### ${index + 1}. ${step.title}`, step.note];
   if (step.tree) blocks.push(fence('text', unmarked(trees[step.tree])));
-  if (step.file) blocks.push(labeled(step.file.label, step.file.sample));
+  if (step.file) {
+    blocks.push(
+      `\`${step.file.label}\``,
+      foldable('Show the whole skill', fenced(step.file.sample)),
+    );
+  }
   if (step.session) blocks.push(transcript(terminals[step.session]));
   return blocks.join('\n\n');
 }
