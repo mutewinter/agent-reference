@@ -99,7 +99,7 @@ function footer(report: AuditReport, options: AuditFormatOptions): string {
       : [
           `${report.affected.toLocaleString()} of ${sessionCount(report.sessions)} did at least one of these.`,
           'Every one of them is a session that had no readable source to reach for.',
-          'agent-reference get <name> is what puts it there. See agent-reference.dev',
+          'agent-reference get <name> puts it there. See agent-reference.dev',
         ];
 
   const [first, ...rest] = lines;

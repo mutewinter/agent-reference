@@ -28,7 +28,7 @@ test('an untouched folder is surveyed without a config, a lockfile, or a reposit
   assert.equal(survey.transcriptStores.length, 0);
 
   const output = formatInitBrief(survey, PLAIN);
-  assert.match(output, /init reads and prints\. It writes nothing/);
+  assert.match(output, /init only reads and prints\. You do the writing/);
   assert.match(output, /config +none/);
   assert.match(output, /lockfile +none; path and git references work without one/);
   assert.match(output, /gitignore +not a git repository/);

@@ -314,7 +314,7 @@ function emptyStateHint(report: AgentReferenceStatusReport): string {
   const lines = [
     'No references configured here.',
     '',
-    'agent-reference get <spec> materializes readable source on demand, no config needed:',
+    'agent-reference get <spec> materializes readable source on demand, with no config:',
     '  a dependency name, name@version, owner/repo, a git URL, or a path',
   ];
 

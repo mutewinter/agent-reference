@@ -449,7 +449,7 @@ what your agents did without the source, over every session on this machine
 
 11 of 54 sessions did at least one of these.
 Every one of them is a session that had no readable source to reach for.
-agent-reference get <name> is what puts it there. See agent-reference.dev
+agent-reference get <name> puts it there. See agent-reference.dev
 ```
 
 #### agent-reference help

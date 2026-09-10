@@ -197,7 +197,7 @@ function expectEntryObject(
   if (typeof entry === 'string') {
     fail(
       configPath,
-      `${field} is a bare source string. Every entry is an object now: write { "source": "${entry}", "description": "..." }. The description is what makes the reference worth having.`,
+      `${field} is a bare source string. Every entry is an object now: write { "source": "${entry}", "description": "..." }. The description is the part a later agent reads.`,
     );
   }
   if (Array.isArray(entry)) {
@@ -499,7 +499,7 @@ function requireDescription(value: unknown, configPath: string, field: string): 
   if (value === undefined || value === null) {
     fail(
       configPath,
-      `${field}.description is required. Say when to read this and what it answers, in a sentence; the name alone is what the agent already has.`,
+      `${field}.description is required. Say when to read this and what it answers, in a sentence; the agent already has the name.`,
     );
   }
   const description = expectString(value, configPath, `${field}.description`).trim();

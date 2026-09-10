@@ -10,7 +10,7 @@ export interface InitFormatOptions {
   tilde: boolean;
 }
 
-const OPENING = 'init reads and prints. It writes nothing; you do the writing.';
+const OPENING = 'init only reads and prints. You do the writing.';
 
 /**
  * The brief is a prompt this tool hands to an agent, so only values `init` computed itself
@@ -143,7 +143,7 @@ function skillStep(survey: InitSurvey): string {
   const [machineWide, ...inProject] = survey.skill.candidates;
   const lines = [
     'Install the skill, so a later session in this project finds the tool without being told.',
-    'Nothing below this step matters without it: a config no skill points at is never opened.',
+    'The later steps depend on it: a config no skill points at is never opened.',
     'Ask the user which of these they want, then install it there:',
     `  every project on this machine:  ${machineWide ?? ''}`,
     `  this project only, committed:   ${inProject[0] ?? ''}`,
@@ -172,21 +172,21 @@ function miningStep(survey: InitSurvey): string {
 
   return [
     'Ask the user before this step. It reads their session history, so it is theirs to authorize,',
-    'and they may prefer to just tell you which references matter. With a yes, mine the stores',
+    'and they may prefer to tell you which references matter. With a yes, mine the stores',
     'listed above and only those.',
-    'Count and rank in the shell: what you need out of a session is a tally, not its text.',
+    'Count and rank in the shell rather than reading transcripts into context.',
     'Look at what the user wrote rather than what the agent replied, for absolute and ~/ paths, cd',
     'targets outside this project, owner/repo mentions, and git URLs.',
     'Rank by how many distinct sessions name a target, not by how often it appears within any one.',
     'Rank a target up when a session shows the agent guessing at where it lives, or reaching it in',
-    'more than one attempt. An ambiguous name is exactly what a declared reference resolves.',
+    'more than one attempt. Declaring it as a reference removes that ambiguity.',
   ].join('\n');
 }
 
 function proposeStep(): string {
   return [
-    'Propose 5 to 10, no more. This is an index an agent scans, not an inventory; a long list costs',
-    'every later session tokens and gets skimmed instead of read.',
+    'Propose 5 to 10. Every later session scans this list, so a long one costs tokens and gets',
+    'skimmed instead of read.',
     'One session naming a target is not a pattern. Leave singletons out unless the user asks for one.',
     'Give each one a description saying when it is worth opening, phrased as a trigger condition',
     'rather than a summary of what it holds.',
@@ -194,8 +194,8 @@ function proposeStep(): string {
     "because it came out of the user's own session history. Ask before promoting any of it to the",
     'committed agent-reference.json.',
     'Do not propose paths inside this project unless the mining shows the user pointing agents at',
-    'that subtree again and again. An in-repo path earns a reference when the description carries',
-    'the value, not the path.',
+    'that subtree again and again. An in-repo path is worth declaring only when its description',
+    'adds something the path does not.',
   ].join('\n');
 }
 
@@ -223,9 +223,8 @@ function showStep(): string {
   return [
     'Run: agent-reference status',
     'Quote that output verbatim in your reply, not a summary of it and not a claim that it ran.',
-    'The user may never see a tool result, and this is the point of the exercise: they see',
-    'exactly what their agent will see from here on. Then ask which entries belong in the',
-    'shared file.',
+    'The user may never see a tool result, and the point of this step is that they see exactly',
+    'what their agent will see from here on. Then ask which entries belong in the shared file.',
   ].join('\n');
 }
 
@@ -254,9 +253,9 @@ function instructionStep(survey: InitSurvey): string {
     `Add one sentence to ${unwritten.join(', ')}: this project declares references in`,
     'agent-reference.json and agent-reference.local.json; agent-reference status lists them, and',
     'agent-reference get <name> checks one out and prints its path.',
-    'One sentence, not a section. It is what finds the tool in a session where the skill never loads,',
-    'which is why it names the verb and not only the index: an agent that knows the references exist',
-    'and not how to open one reads node_modules instead.',
+    'Keep it to one sentence. It finds the tool in a session where the skill never loads, and it',
+    'names the verb as well as the index because an agent that knows the references exist but not',
+    'how to open one reads node_modules instead.',
   ];
 
   for (const link of survey.instructionFiles.filter((file) => file.linkTarget)) {
