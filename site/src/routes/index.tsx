@@ -39,6 +39,26 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
+/**
+ * How the first screen plays. A tool call is read at a glance, so the pace is
+ * the reader's rather than a typist's: the sequence is over before anyone
+ * decides to scroll past it. Four calls on the left and three on the right,
+ * one after another, is what these have to add up against.
+ */
+const REVEAL = {
+  /** Between one tool call and the next. */
+  step: 620,
+  /** A call lands before what it got back. */
+  result: 200,
+  /** Between the words of the heading that opens a pane, and before them. */
+  word: 90,
+  heading: 400,
+  /** Between one pane finishing and the next starting. */
+  pane: 200,
+  /** After the last result, before the aside under it. */
+  tail: 800,
+};
+
 /** One comparison, joined horizontally on desktop and vertically on mobile. */
 function BeforeAfter() {
   const ref = useRef<HTMLDivElement>(null);
@@ -56,15 +76,17 @@ function BeforeAfter() {
           const start = Math.max(now, nextReadAt);
           const heading =
             pane.parentElement?.querySelectorAll<HTMLSpanElement>('[data-heading-word]');
-          const headingDuration = heading?.length ? (heading.length - 1) * 140 + 600 : 0;
+          const headingDuration = heading?.length
+            ? (heading.length - 1) * REVEAL.word + REVEAL.heading
+            : 0;
           pane.parentElement?.style.setProperty('--heading-lead', `${start - now}ms`);
           const readsStart = start + headingDuration;
           pane.style.setProperty('--sequence-lead', `${readsStart - now}ms`);
           pane.parentElement?.style.setProperty(
             '--sequence-end',
-            `${readsStart - now + (pane.children.length - 1) * 1150 + 1250}ms`,
+            `${readsStart - now + (pane.children.length - 1) * REVEAL.step + REVEAL.tail}ms`,
           );
-          nextReadAt = readsStart + pane.children.length * 1150 + 300;
+          nextReadAt = readsStart + pane.children.length * REVEAL.step + REVEAL.pane;
           pane.dataset.reveal = 'playing';
           observer.unobserve(pane);
         }
@@ -75,11 +97,11 @@ function BeforeAfter() {
       pane.parentElement
         ?.querySelectorAll<HTMLSpanElement>('[data-heading-word]')
         .forEach((word, index) => {
-          word.style.setProperty('--word-delay', `${index * 140}ms`);
+          word.style.setProperty('--word-delay', `${index * REVEAL.word}ms`);
         });
       const steps = pane.querySelectorAll<HTMLDivElement>('.comparison-step');
       steps.forEach((step, index) => {
-        step.style.setProperty('--read-delay', `${index * 1150}ms`);
+        step.style.setProperty('--read-delay', `${index * REVEAL.step}ms`);
       });
       pane.dataset.reveal = 'waiting';
       observer.observe(pane);
@@ -234,7 +256,9 @@ function Setup() {
                   ) : null}
                   {step.file ? (
                     <Panel label={step.file.label} copy={source(step.file.sample)}>
-                      <Highlighted name={step.file.sample} />
+                      <Clamped more="Show the whole skill">
+                        <Highlighted name={step.file.sample} />
+                      </Clamped>
                     </Panel>
                   ) : null}
                   {step.session ? (
@@ -253,21 +277,26 @@ function Setup() {
 }
 
 /**
- * One transcript. `help` prints every verb and every flag, which is worth
- * having on the page and is not worth a screen of scrolling on the way to the
- * next one, so anything that long is clamped until it is asked for.
+ * A block worth having on the page and not worth a screen of scrolling on the
+ * way past it: kept to a screenful behind a fade in the panel's own ground,
+ * with a button saying what is under it. A scroller inside the page would do
+ * the same job on a desktop and trap a thumb on a phone.
  */
-const CLAMP_LINES = 24;
-
-function Transcript({ text }: { text: string }) {
+function Clamped({
+  more,
+  tone = 'panel',
+  children,
+}: {
+  more: string;
+  tone?: 'panel' | 'term';
+  children: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false);
-  const lines = text.split('\n').length;
-  if (lines <= CLAMP_LINES) return <Term text={text} />;
 
   return (
     <>
-      <div className={open ? undefined : 'transcript-clamp'}>
-        <Term text={text} />
+      <div className={open ? undefined : `clamped ${tone === 'term' ? 'clamped-term' : ''}`}>
+        {children}
       </div>
       <button
         type="button"
@@ -277,9 +306,23 @@ function Transcript({ text }: { text: string }) {
         aria-expanded={open}
         className="mt-3 cursor-pointer font-mono text-sm text-muted hover:text-fg"
       >
-        {open ? 'Show less' : `Show all ${lines} lines`}
+        {open ? 'Show less' : more}
       </button>
     </>
+  );
+}
+
+/** `help` prints every verb and every flag; the rest fit on the page as they are. */
+const CLAMP_LINES = 24;
+
+function Transcript({ text }: { text: string }) {
+  const lines = text.split('\n').length;
+  if (lines <= CLAMP_LINES) return <Term text={text} />;
+
+  return (
+    <Clamped more={`Show all ${lines} lines`} tone="term">
+      <Term text={text} />
+    </Clamped>
   );
 }
 

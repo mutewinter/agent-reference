@@ -9,7 +9,7 @@ import type { ThemeRegistrationRaw } from 'shiki';
 import { defineConfig } from 'vite';
 
 import { renderCliReference } from './cli-reference.ts';
-import { samples } from './code-samples.ts';
+import { blocks } from './blocks.ts';
 
 // The site states the version of the CLI it documents, read from the package
 // at the repository root rather than restated here, so the two cannot disagree.
@@ -44,7 +44,6 @@ function highlightedSnippets() {
     },
     async load(loaded: string) {
       if (loaded !== resolved) return;
-      const blocks: Record<string, { lang: string; code: string }> = { ...samples };
       const highlighter = await createHighlighter({
         themes: [THEME],
         langs: [...new Set(Object.values(blocks).map((block) => block.lang))],

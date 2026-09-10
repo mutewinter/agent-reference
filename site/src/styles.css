@@ -224,21 +224,25 @@ mark[data-ink="3"] {
   margin-top: 0;
 }
 
-/* A transcript long enough to scroll past is kept to a screenful until it is
-   asked for. The fade is the terminal panel's own ground, so the last visible
-   line reads as continuing rather than as the end of the output. */
-.transcript-clamp {
+/* A block long enough to scroll past is kept to a screenful until it is asked
+   for. The fade is the panel's own ground, so the last visible line reads as
+   continuing rather than as the end of the file. */
+.clamped {
   position: relative;
   max-height: 22rem;
   overflow: hidden;
 }
 
-.transcript-clamp::after {
+.clamped::after {
   content: "";
   position: absolute;
   inset-inline: 0;
   bottom: 0;
   height: 5rem;
+  background: linear-gradient(to top, var(--color-panel), transparent);
+}
+
+.clamped-term::after {
   background: linear-gradient(to top, var(--color-term), transparent);
 }
 
@@ -298,7 +302,7 @@ mark[data-ink="3"] {
   }
 
   .comparison-after:has(.comparison-reads[data-reveal="playing"]) [data-heading-word] {
-    animation: aside-arrive 500ms both;
+    animation: aside-arrive 360ms both;
     animation-delay: calc(var(--heading-lead) + var(--word-delay));
   }
 
@@ -307,20 +311,20 @@ mark[data-ink="3"] {
   }
 
   .comparison-reads[data-reveal="playing"] + .comparison-aside {
-    animation: aside-arrive 700ms var(--sequence-end) both;
+    animation: aside-arrive 500ms var(--sequence-end) both;
   }
   .comparison-reads[data-reveal="waiting"] .comparison-step {
     opacity: 0;
   }
 
   .comparison-reads[data-reveal="playing"] .comparison-step {
-    animation: source-arrive 600ms both;
+    animation: source-arrive 420ms both;
     animation-delay: calc(var(--sequence-lead) + var(--read-delay));
   }
 
   .comparison-reads[data-reveal="playing"] .code-wrap > div:not(.call) {
-    animation: source-arrive 600ms both;
-    animation-delay: calc(var(--sequence-lead) + var(--read-delay) + 0.35s);
+    animation: source-arrive 420ms both;
+    animation-delay: calc(var(--sequence-lead) + var(--read-delay) + 0.2s);
   }
 }
 

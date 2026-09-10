@@ -110,33 +110,6 @@ export const samples = {
 }`,
   },
 
-  /**
-   * The installed skill, cut to what a reader needs to believe it: the
-   * description that decides whether the skill fires, the one verb, and the
-   * rule that catches the case nobody announces. Every line is the shipped
-   * `skills/agent-reference/SKILL.md`, elided with `…` rather than reworded.
-   */
-  skill: {
-    lang: 'markdown',
-    code: `---
-name: agent-reference
-description: Readable upstream source on demand by name, via the
-  agent-reference CLI. Use when a task needs a library's real source
-  rather than a memory of it…
----
-
-One verb does the work: \`agent-reference get <spec>\` materializes a
-reference and prints its path. Run it from the project root at the
-moment you need the source, not in advance.
-
-## Ask for the name before you read a published build
-
-Anything under \`node_modules/\`, any \`dist/\` bundle, and any \`.d.ts\` is
-the published build. Before reading one to answer a question about
-that dependency, run \`agent-reference get <name>\` and read the
-repository instead…`,
-  },
-
   // Two projects in the same checkout tree, pinning two versions of one
   // dependency. A version belongs in the value and never in the key, so one
   // config cannot name two of them; two projects on a machine can, which is
@@ -169,6 +142,13 @@ repository instead…`,
 }`,
   },
 };
+
+/**
+ * The key the build-time highlighter files the shipped skill under. It is read
+ * from `skills/agent-reference/SKILL.md` by `blocks.ts` rather than copied
+ * here, so the page cannot show a version of the skill nobody has installed.
+ */
+export const SKILL_SAMPLE = 'skill';
 
 /**
  * Folder layouts. `[[name]]` marks an entry the panel beside it declares, so
@@ -380,7 +360,7 @@ export interface SetupStep {
   title: string;
   note: string;
   tree?: keyof typeof trees;
-  file?: { label: string; sample: keyof typeof samples };
+  file?: { label: string; sample: string };
   session?: keyof typeof terminals;
   marks?: string[];
 }
@@ -390,15 +370,15 @@ export const setup: { heading: string; lead: string; steps: SetupStep[] } = {
   lead: 'Two pieces: a CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it travels in a plugin or a team skills repo the way any other skill does.',
   steps: [
     {
-      title: 'A skill lands in your agent’s skills folder',
+      title: 'A SKILL.md goes in your agent’s skills folder',
       note: 'Machine-wide or in this project. Your agent asks which before it writes anything.',
       tree: 'skill',
       marks: ['SKILL.md'],
     },
     {
       title: 'The skill says when to reach for the tool',
-      note: 'It is what sits in context between tasks, so it is short on purpose.',
-      file: { label: '.claude/skills/agent-reference/SKILL.md', sample: 'skill' },
+      note: 'The description is what sits in context between tasks. The rest of it loads when the skill fires.',
+      file: { label: '.claude/skills/agent-reference/SKILL.md', sample: SKILL_SAMPLE },
     },
     {
       title: 'Your agent runs the CLI when the moment comes',

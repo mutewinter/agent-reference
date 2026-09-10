@@ -4,6 +4,7 @@
 // asked for `text/markdown` instead of HTML. Everything comes from
 // code-samples.ts or from running the CLI, so no surface can say something the
 // page does not.
+import { blocks as highlighted } from './blocks.ts';
 import { renderCliReference } from './cli-reference.ts';
 import {
   type Example,
@@ -11,7 +12,6 @@ import {
   copy,
   examples,
   howItWorks,
-  samples,
   setup,
   setupPrompt,
   terminals,
@@ -23,12 +23,23 @@ export const SITE = 'https://agent-reference.dev';
 export const REPOSITORY = 'https://github.com/mutewinter/agent-reference';
 export const NPM = 'https://www.npmjs.com/package/agent-reference';
 
-/** A fenced block. No sample contains a fence, so three backticks are enough. */
-const fence = (lang: string, text: string) => '```' + lang + '\n' + text + '\n```';
+/**
+ * A fenced block, railed with one more backtick than the longest run inside it.
+ * The shipped skill is itself markdown with fenced examples in it, so a block
+ * that assumed three would end halfway through the file it is showing.
+ */
+const fence = (lang: string, text: string) => {
+  const longest = Math.max(0, ...[...text.matchAll(/`+/gu)].map((run) => run[0].length));
+  const rail = '`'.repeat(Math.max(3, longest + 1));
+  return `${rail}${lang}\n${text}\n${rail}`;
+};
 
 /** A snippet under the filename it belongs in, the way the site labels its panels. */
-const labeled = (file: string, name: keyof typeof samples) =>
-  `\`${file}\`\n\n${fence(samples[name].lang, samples[name].code)}`;
+const labeled = (file: string, name: string) => {
+  const block = highlighted[name];
+  if (!block) throw new Error(`nothing highlights a block named '${name}'`);
+  return `\`${file}\`\n\n${fence(block.lang, block.code)}`;
+};
 
 function renderExample({ title, session, tree, config }: Example): string {
   const blocks = [`### ${title}`];
@@ -51,27 +62,6 @@ const unmarked = (text: string) => text.replaceAll(/\[\[([^\]]+)\]\]/gu, '$1');
  */
 const transcript = (text: string) =>
   fence('text', unmarked(text.replaceAll(/^(\s+(?:\u23BF )?)[!+] /gmu, '$1')));
-
-/** What a result marker becomes in column one of a diff fence. */
-const DIFF_MARK: Record<string, string> = { '!': '-', '+': '+' };
-
-/**
- * The first screen, one block a side, because a session is read as a session
- * and three fences with labels between them is a file listing. The tone the
- * site paints a result line is the one thing a fence can carry on its own, so
- * a marker moves to column one and the block is tagged `diff`: what the agent
- * got back is red where it went wrong and green where it went right, out of a
- * grammar every renderer already has. The columns still line up, since `- ⎿ `
- * and `+   ` are as wide as the `  ⎿ ` and the four spaces they replace.
- */
-const heroTranscript = (text: string) =>
-  fence(
-    'diff',
-    unmarked(text).replaceAll(
-      /^\s(\s*(?:⎿ )?)([!+]) /gmu,
-      (_match, indent: string, mark: string) => `${DIFF_MARK[mark]}${indent}`,
-    ),
-  );
 
 /** The transcripts, one level under the heading that introduces them. */
 function renderCommands(): string {
@@ -115,10 +105,9 @@ export function renderRegions(): Record<string, string> {
     lead: copy.lead,
     hero: [
       `### ${copy.hero.before}`,
-      heroTranscript(terminals.today),
+      transcript(terminals.today),
       `### ${copy.hero.after}`,
-      heroTranscript(terminals.after),
-      `*[${copy.hero.aside}](${copy.hero.asideUrl})*`,
+      transcript(terminals.after),
     ].join('\n\n'),
     agent: [
       `### ${copy.agent.heading}`,
