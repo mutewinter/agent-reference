@@ -393,7 +393,7 @@ Committed beside your `package.json`. Your agent writes it and adds to it as it 
 ## The commands
 
 <!-- generated:commands -->
-You will not need these. Your agent runs them. They are here anyway.
+You will not need these; your agent runs them. Except `activity`, which is how you check that it is reaching for them at all.
 
 #### agent-reference help
 
@@ -491,5 +491,27 @@ package versions read from pnpm-lock.yaml
 # a name in, a path out. This is the one agents live in
 $ agent-reference get brief
 brief -> ~/code/my-app/notes/brief.md
+```
+
+#### agent-reference activity
+
+```text
+# whether your agents are reaching for it, and for what
+$ agent-reference activity
+3 runs in the last 1 day · last run just now
+
+commands
+  get     1  just now
+  help    1  just now
+  status  1  just now
+
+references
+  brief  1  path  just now
+
+projects
+  ~/code/my-app  3  just now
+
+~/.agent-reference/log/usage.jsonl · this machine only, never sent anywhere
+agent-reference activity --log shows the runs themselves
 ```
 <!-- /generated -->

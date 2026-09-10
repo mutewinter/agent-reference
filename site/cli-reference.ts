@@ -48,14 +48,19 @@ importers:
 /**
  * Run in this order; it reads as somebody finding their way around. The note
  * becomes a shell comment above the command, because the output on its own is
- * too terse to explain what you were asking for. Three commands and no more:
- * `help` already lists every verb and flag, and the other two are the ones an
- * agent lives in, so anything past them is the reference restating itself.
+ * too terse to explain what you were asking for. Four commands and no more:
+ * `help` already lists every verb and flag, and the rest are the ones anybody
+ * opens, so anything past them is the reference restating itself.
+ *
+ * `activity` runs last because it reports on the runs above it. What it prints
+ * here is the record those three left in this fixture's own store, which is
+ * also the shortest way to show what the command is for.
  */
 export const commands = [
   { argv: ['help'], note: 'every command, from the version you have installed' },
   { argv: ['status'], note: 'what this project declares, and whether it is on disk yet' },
   { argv: ['get', 'brief'], note: 'a name in, a path out. This is the one agents live in' },
+  { argv: ['activity'], note: 'whether your agents are reaching for it, and for what' },
 ];
 
 /**

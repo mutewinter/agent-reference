@@ -561,7 +561,10 @@ export const copy = {
   },
   commands: {
     heading: 'The commands',
-    note: 'You will not need these. Your agent runs them. They are here anyway.',
+    // `activity` earns the exception because it is the only one whose reader is
+    // the human: it answers whether any of this is being used, out of a log the
+    // runs themselves wrote.
+    note: 'You will not need these; your agent runs them. Except `activity`, which is how you check that it is reaching for them at all.',
   },
 };
 
