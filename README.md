@@ -414,7 +414,30 @@ Committed beside your `package.json`. Your agent writes it and adds to it as it 
 ## The commands
 
 <!-- generated:commands -->
-You will not need these; your agent runs them. Except `activity`, which is how you check that it is reaching for them at all.
+You will not need most of these; your agent runs them. The two you run yourself are `audit`, before any of it, and `activity`, after.
+
+#### agent-reference audit
+
+```text
+# what your agents did before they had any of this. The one you run yourself
+$ agent-reference audit
+what your agents did without the source, over every session on this machine
+  claude-code  42 sessions  ~/.claude/projects
+  codex        12 sessions  ~/.codex/sessions
+
+  guessed an API and had it rejected         2  4%
+    ⎿ error TS2305: 'zod' has no exported member 'strictObject'
+  went to the web for documentation          5  9%
+    ⎿ WebFetch(https://effect.website/docs/platform/file-system)
+  read a published build                     3  6%
+    ⎿ Read(~/code/my-app/node_modules/effect/dist/FileSystem.js)
+  cloned a repository into a temp directory  1  2%
+    ⎿ Bash(git clone --depth 1 https://github.com/remotion-dev/remotion.git /t…)
+
+11 of 54 sessions did at least one of these.
+Every one of them is a session that had no readable source to reach for.
+agent-reference get <name> is what puts it there. See agent-reference.dev
+```
 
 #### agent-reference help
 
@@ -530,9 +553,10 @@ brief -> ~/code/my-app/notes/brief.md
 ```text
 # whether your agents are reaching for it, and for what
 $ agent-reference activity
-3 runs in the last 1 day · last run just now
+4 runs in the last 1 day · last run just now
 
 commands
+  audit   1  just now
   get     1  just now
   help    1  just now
   status  1  just now
@@ -541,7 +565,7 @@ references
   brief  1  path  just now
 
 projects
-  ~/code/my-app  3  just now
+  ~/code/my-app  4  just now
 
 ~/.agent-reference/log/usage.jsonl · this machine only, never sent anywhere
 agent-reference activity --log shows the runs themselves

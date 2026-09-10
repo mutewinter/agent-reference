@@ -4,7 +4,7 @@
 // describe a command the tool no longer has. Nothing here touches the network
 // or the real store, so a deploy cannot hang on a clone.
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,17 +46,97 @@ importers:
 };
 
 /**
+ * A home directory of agent transcripts, invented, because `audit` reports the
+ * machine it runs on and this one is a laptop or a build runner: the committed
+ * output would otherwise be somebody's real history, or nothing at all. The
+ * four sessions that carry a finding quote the same four failures the first
+ * screen opens on, since a reader who scrolled past that screen should
+ * recognize the lines when they turn up again down here.
+ */
+const call = (name: string, input: Record<string, unknown>) =>
+  `${JSON.stringify({
+    type: 'assistant',
+    message: { role: 'assistant', content: [{ type: 'tool_use', name, input }] },
+  })}\n`;
+
+const output = (text: string) =>
+  `${JSON.stringify({
+    type: 'user',
+    message: { role: 'user', content: [{ type: 'tool_result', content: text }] },
+  })}\n`;
+
+const shell = (command: string) =>
+  `${JSON.stringify({
+    type: 'response_item',
+    payload: { type: 'function_call', name: 'shell', arguments: JSON.stringify({ command }) },
+  })}\n`;
+
+/**
+ * The sessions with something in them, oldest first, so the last of each kind
+ * is the one quoted. `copies` is what makes a share read like one: a history
+ * where every failure happened exactly once is not a history anybody has.
+ */
+const transcripts: Array<{ directory: string; name: string; copies: number; body: string }> = [
+  {
+    directory: '.claude/projects/my-app',
+    name: 'clone',
+    copies: 1,
+    body: call('Bash', {
+      command: 'git clone --depth 1 https://github.com/remotion-dev/remotion.git /tmp/r',
+    }),
+  },
+  {
+    directory: '.codex/sessions/2026/09',
+    name: 'rollout-build',
+    copies: 1,
+    body: shell("sed -n '1,80p' node_modules/zod/dist/index.js"),
+  },
+  {
+    directory: '.claude/projects/my-app',
+    name: 'guess',
+    copies: 2,
+    body:
+      call('Edit', { file_path: '~/code/my-app/src/schema.ts' }) +
+      output(`error TS2305: 'zod' has no exported member 'strictObject'`),
+  },
+  {
+    directory: '.claude/projects/my-app',
+    name: 'bundle',
+    copies: 2,
+    body: call('Read', { file_path: '~/code/my-app/node_modules/effect/dist/FileSystem.js' }),
+  },
+  {
+    directory: '.claude/projects/my-app',
+    name: 'docs',
+    copies: 5,
+    body: call('WebFetch', { url: 'https://effect.website/docs/platform/file-system' }),
+  },
+];
+
+/** Enough quiet sessions around them that the shares read like a real history. */
+const QUIET = { '.claude/projects/my-app': 32, '.codex/sessions/2026/09': 11 };
+
+/**
  * Run in this order; it reads as somebody finding their way around. The note
  * becomes a shell comment above the command, because the output on its own is
  * too terse to explain what you were asking for. Four commands and no more:
  * `help` already lists every verb and flag, and the rest are the ones anybody
  * opens, so anything past them is the reference restating itself.
  *
+ * `audit` runs first because it is the one a person runs before any of the
+ * rest, and it is the only one pointed at a home directory rather than at the
+ * project: what it reports is the machine, so the machine here is invented.
+ *
  * `activity` runs last because it reports on the runs above it. What it prints
- * here is the record those three left in this fixture's own store, which is
- * also the shortest way to show what the command is for.
+ * here is the record those left in this fixture's own store, which is also the
+ * shortest way to show what the command is for.
  */
 export const commands = [
+  {
+    argv: ['audit'],
+    note: 'what your agents did before they had any of this. The one you run yourself',
+    home: true,
+  },
   { argv: ['help'], note: 'every command, from the version you have installed' },
   { argv: ['status'], note: 'what this project declares, and whether it is on disk yet' },
   { argv: ['get', 'brief'], note: 'a name in, a path out. This is the one agents live in' },
@@ -94,6 +174,7 @@ export function renderCliReference() {
   const real = realpathSync(root);
   const project = join(real, 'my-app');
   const store = join(real, 'store');
+  const home = join(real, 'home');
 
   try {
     for (const [name, contents] of Object.entries(fixture)) {
@@ -102,15 +183,32 @@ export function renderCliReference() {
       writeFileSync(file, contents);
     }
 
+    writeTranscripts(home);
+
     const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
     const clean = (text: string) =>
-      text.split(project).join('~/code/my-app').split(store).join('~/.agent-reference');
+      text
+        .split(project)
+        .join('~/code/my-app')
+        .split(store)
+        .join('~/.agent-reference')
+        .split(home)
+        .join('~');
 
-    return commands.map(({ argv, note }) => {
+    return commands.map((command) => {
+      const { argv, note } = command;
       const printed = execFileSync(process.execPath, ['--experimental-strip-types', cli, ...argv], {
         cwd: project,
         encoding: 'utf8',
-        env: { ...anonymous(), AGENT_REFERENCE_STORE_DIR: store, NO_COLOR: '1' },
+        env: {
+          ...anonymous(),
+          AGENT_REFERENCE_STORE_DIR: store,
+          NO_COLOR: '1',
+          // Only the command that reads a home directory gets one, and it gets
+          // the invented one. USERPROFILE alongside HOME, since that is what
+          // Node answers with on Windows and this runs there too.
+          ...('home' in command && command.home ? { HOME: home, USERPROFILE: home } : {}),
+        },
       });
       return {
         note,
@@ -120,5 +218,34 @@ export function renderCliReference() {
     });
   } finally {
     rmSync(real, { recursive: true, force: true });
+  }
+}
+
+/**
+ * The invented history, laid down oldest first. `audit` quotes the most recent
+ * session that shows a finding, so the ones meant to be quoted are stamped
+ * newest, in the order the report prints them.
+ */
+function writeTranscripts(home: string): void {
+  const start = Date.UTC(2026, 0, 1) / 1000;
+
+  for (const [directory, count] of Object.entries(QUIET)) {
+    for (let index = 0; index < count; index += 1) {
+      const file = join(home, directory, `session-${index}.jsonl`);
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, call('Read', { file_path: '~/code/my-app/src/main.ts' }));
+      utimesSync(file, start, start);
+    }
+  }
+
+  let stamp = start + 3600;
+  for (const entry of transcripts) {
+    for (let copy = 0; copy < entry.copies; copy += 1) {
+      const file = join(home, entry.directory, `${entry.name}-${copy}.jsonl`);
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, entry.body);
+      utimesSync(file, stamp, stamp);
+      stamp += 60;
+    }
   }
 }

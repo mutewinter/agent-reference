@@ -453,13 +453,33 @@ function sentence(body: string, at: number): string {
   // A transcript writes its newlines escaped, so a boundary is two characters
   // there and one here, and the slice has to skip whichever it found.
   const escaped = before.lastIndexOf('\\n');
-  const literal = Math.max(before.lastIndexOf('\n'), before.lastIndexOf('"'));
+  const literal = Math.max(before.lastIndexOf('\n'), quoteAt(before));
   const start = escaped > literal ? escaped + 2 : literal + 1;
-  const breaks = [after.indexOf('\\n'), after.indexOf('\n'), after.indexOf('"')].filter(
+  const breaks = [after.indexOf('\\n'), after.indexOf('\n'), quoteAt(after, 'forward')].filter(
     (index) => index >= 0,
   );
   const end = breaks.length > 0 ? Math.min(...breaks) : after.length;
   return `${before.slice(start)}${after.slice(0, end)}`;
+}
+
+/**
+ * The nearest `"` that actually ends a string, which is to say one the transcript
+ * did not escape. A compiler naming a module quotes it, and that quote arrives
+ * here as `\\"`; treating it as the end of the line cuts the error in half and
+ * takes the word `error` off the front of it.
+ */
+function quoteAt(text: string, direction: 'back' | 'forward' = 'back'): number {
+  if (direction === 'back') {
+    for (let index = text.length - 1; index >= 0; index -= 1) {
+      if (text[index] === '"' && text[index - 1] !== '\\') return index;
+    }
+    return -1;
+  }
+
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '"' && text[index - 1] !== '\\') return index;
+  }
+  return -1;
 }
 
 /** JSON escapes, undone far enough to read. Nothing here is parsed as JSON. */

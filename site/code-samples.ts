@@ -558,10 +558,10 @@ export const copy = {
   },
   commands: {
     heading: 'The commands',
-    // `activity` earns the exception because it is the only one whose reader is
-    // the human: it answers whether any of this is being used, out of a log the
-    // runs themselves wrote.
-    note: 'You will not need these; your agent runs them. Except `activity`, which is how you check that it is reaching for them at all.',
+    // Two of them earn the exception, and they are the pair a person actually
+    // types: one before any of this is installed and one after, both answering
+    // a question about the machine rather than about the project.
+    note: 'You will not need most of these; your agent runs them. The two you run yourself are `audit`, before any of it, and `activity`, after.',
   },
 };
 
