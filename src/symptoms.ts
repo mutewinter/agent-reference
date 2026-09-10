@@ -2,6 +2,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
+import { sanitizeRelayedLine } from './text-utils.ts';
+
 /**
  * What the agents on this machine did when they had no source, counted off the
  * transcripts they already wrote. This is the question the tool's whole pitch
@@ -147,6 +149,68 @@ const scanners = new Map<string, RegExp>(
   ]),
 );
 
+/**
+ * One line out of the reader's own history, under the count it belongs to. A
+ * number invites an argument and a line the reader recognizes ends one, and it
+ * is also the only way to see a match that should not have counted: nothing
+ * here can tell a session that read a bundle from one that wrote a page about
+ * reading bundles, and the line says which it was.
+ */
+export interface SymptomEvidence {
+  /** What the agent did, in as few characters as still name it. */
+  text: string;
+  /** Which store it came out of. */
+  agent: string;
+  /** When that session was last written, which is how the newest one wins. */
+  at: number;
+}
+
+/** What a match looks like once it is worth printing. */
+interface Extractor {
+  /** The field the detail lives in, tried in order. */
+  fields?: RegExp[];
+  /** Failing that, the match itself, widened to the thing it sits in. */
+  sentence?: boolean;
+}
+
+const EXTRACTORS: Record<SymptomId, Extractor> = {
+  guessed: { sentence: true },
+  web: { fields: [/"url":\s*"([^"]{4,200})"/u, /"query":\s*"([^"]{2,200})"/u] },
+  build: {
+    fields: [
+      /"file_path":\s*"([^"]+)"/u,
+      new RegExp(
+        String.raw`((?:[\w@./+-]*)?(?:node_modules|/dist/)[^"'\s\\]{0,200}\.(?:js|mjs|cjs|d\.ts))`,
+        'u',
+      ),
+    ],
+  },
+  // The quote has to carry the temp directory, the way the count did: a bare
+  // `git clone` on its own is as likely to be a sentence about one.
+  clone: { fields: [/(git clone[^"'\n\\]{0,160}(?:\/tmp\/|\/var\/folders\/)[^\s"'\\]{0,40})/u] },
+};
+
+/**
+ * A quote that is markup rather than a session. Nothing here can tell a session
+ * that read a bundle from one that wrote a page about reading bundles, and the
+ * second kind reads as garbage under a count, so it is passed over in favour of
+ * the next match. The count still stands: something in that session said it.
+ */
+const MARKUP = /[<>]|&#\d|&[a-z]{2,8};/u;
+
+/**
+ * A quote that is a pattern rather than a thing that happened. A session spent
+ * writing a matcher for these failures contains every phrase they are made of,
+ * and this repository's own history is full of them.
+ */
+const PATTERN_SYNTAX = /\[\^|\{\d+,|\\\\[dswn]|\(\?:/u;
+
+/** Real output from a compiler or a runtime says which thing, and says it with a colon. */
+const REAL_ERROR = /error|Error|cannot|Cannot|:/u;
+
+/** The harness's own name for the tool, so the line reads the way that harness prints it. */
+const TOOL_NAME = /"(?:name|tool)":\s*"([A-Za-z_][\w-]{0,40})"/u;
+
 export interface HarnessSymptoms {
   agent: string;
   path: string;
@@ -168,6 +232,8 @@ export interface SymptomsReport {
   sessions: number;
   counts: Record<SymptomId, number>;
   affected: number;
+  /** The most recent line that counted, one per symptom. */
+  evidence: Partial<Record<SymptomId, SymptomEvidence>>;
 }
 
 export interface SymptomsOptions {
@@ -179,6 +245,18 @@ export interface SymptomsOptions {
 
 const empty = (): Record<SymptomId, number> => ({ guessed: 0, web: 0, build: 0, clone: 0 });
 
+/** How far around a match the event it belongs to is looked for. */
+const EVENT_WINDOW = 600;
+
+/** One line in a terminal, minus the indent the report prints it under. */
+const MAX_QUOTE = 68;
+
+/** A session file and when it was last written, which is what ranks the quotes. */
+interface Session {
+  file: string;
+  at: number;
+}
+
 export async function getSymptomsReport(options: SymptomsOptions = {}): Promise<SymptomsReport> {
   const home = options.home ?? os.homedir();
   const days = options.days ?? null;
@@ -187,6 +265,7 @@ export async function getSymptomsReport(options: SymptomsOptions = {}): Promise<
 
   const harnesses: HarnessSymptoms[] = [];
   const missing: string[] = [];
+  const evidence: Partial<Record<SymptomId, SymptomEvidence>> = {};
   const total = empty();
   let sessions = 0;
   let affected = 0;
@@ -199,7 +278,7 @@ export async function getSymptomsReport(options: SymptomsOptions = {}): Promise<
     }
 
     const files = await sessionFiles(root, harness.extension, after);
-    const found = await scan(files, harness, concurrency);
+    const found = await scan(files, harness, concurrency, evidence);
 
     const counts = empty();
     let hit = 0;
@@ -225,7 +304,7 @@ export async function getSymptomsReport(options: SymptomsOptions = {}): Promise<
     affected += hit;
   }
 
-  return { home, days, harnesses, missing, sessions, counts: total, affected };
+  return { home, days, harnesses, missing, sessions, counts: total, affected, evidence };
 }
 
 /**
@@ -235,9 +314,10 @@ export async function getSymptomsReport(options: SymptomsOptions = {}): Promise<
  * for most sessions never happens and for the worst ones happens early.
  */
 async function scan(
-  files: string[],
+  files: Session[],
   harness: Harness,
   concurrency: number,
+  evidence: Partial<Record<SymptomId, SymptomEvidence>>,
 ): Promise<Map<string, Set<SymptomId>>> {
   const found = new Map<string, Set<SymptomId>>();
   const scanner = scanners.get(harness.agent);
@@ -255,8 +335,8 @@ async function scan(
 
   for (let index = 0; index < files.length; index += concurrency) {
     await Promise.all(
-      files.slice(index, index + concurrency).map(async (file) => {
-        const buffer = await read(file);
+      files.slice(index, index + concurrency).map(async (session) => {
+        const buffer = await read(session.file);
         if (buffer === null) return;
 
         const text = buffer.toString('latin1');
@@ -264,23 +344,102 @@ async function scan(
         // match inside, so those are folded onto one first. They are small
         // enough that the fold costs nothing worth counting.
         const body = harness.flatten ? text.replaceAll(/\s+/gu, ' ') : text;
-        const key = harness.sessionKey ? (harness.sessionKey.exec(body)?.[1] ?? file) : file;
+        const key = harness.sessionKey
+          ? (harness.sessionKey.exec(body)?.[1] ?? session.file)
+          : session.file;
         const seen = record(key);
+        const quoted = new Set<SymptomId>();
 
         // Shared and reset rather than rebuilt: the loop below never awaits, so
         // nothing else can be part way through this expression while it runs.
         scanner.lastIndex = 0;
         for (let match = scanner.exec(body); match !== null; match = scanner.exec(body)) {
           for (const symptom of SYMPTOMS) {
-            if (match.groups?.[symptom.id] !== undefined) seen.add(symptom.id);
+            if (match.groups?.[symptom.id] === undefined) continue;
+            seen.add(symptom.id);
+            // The newest session that can produce a readable line wins, and a
+            // match that quotes as markup does not end the search inside this
+            // one: the next match may be the session actually doing the thing.
+            if (quoted.has(symptom.id) || (evidence[symptom.id]?.at ?? 0) >= session.at) continue;
+            const line = quote(symptom.id, body, match.index);
+            if (line === null) continue;
+            evidence[symptom.id] = { text: line, agent: harness.agent, at: session.at };
+            quoted.add(symptom.id);
           }
-          if (seen.size === SYMPTOMS.length) break;
+          if (seen.size === SYMPTOMS.length && quoted.size === SYMPTOMS.length) break;
         }
       }),
     );
   }
 
   return found;
+}
+
+/**
+ * The one line printed under a count. What an agent actually did is in the
+ * event around the match rather than in the match itself, so the window is
+ * widened to that event and the detail read out of the field it belongs in.
+ * The result is sanitized before anything prints it: this is text the machine
+ * read from somewhere else, and it is about to be relayed.
+ */
+function quote(id: SymptomId, body: string, at: number): string | null {
+  const window = body.slice(Math.max(0, at - EVENT_WINDOW), at + EVENT_WINDOW);
+  const extractor = EXTRACTORS[id];
+
+  for (const field of extractor.fields ?? []) {
+    const value = field.exec(window)?.[1];
+    if (!value) continue;
+    const detail = shorten(unescape(value));
+    if (MARKUP.test(detail) || PATTERN_SYNTAX.test(detail)) return null;
+    const tool = TOOL_NAME.exec(window)?.[1];
+    return tool ? `${tool}(${detail})` : detail;
+  }
+
+  if (!extractor.sentence) return null;
+  const line = shorten(unescape(sentence(body, at)), MAX_QUOTE);
+  if (line === '' || MARKUP.test(line) || PATTERN_SYNTAX.test(line)) return null;
+  return REAL_ERROR.test(line) ? line : null;
+}
+
+/** The match, widened to the line it sits on, in a format that escapes its newlines. */
+function sentence(body: string, at: number): string {
+  const window = body.slice(Math.max(0, at - EVENT_WINDOW), at + EVENT_WINDOW);
+  const middle = Math.min(at, EVENT_WINDOW);
+  const before = window.slice(0, middle);
+  const after = window.slice(middle);
+  // A transcript writes its newlines escaped, so a boundary is two characters
+  // there and one here, and the slice has to skip whichever it found.
+  const escaped = before.lastIndexOf('\\n');
+  const literal = Math.max(before.lastIndexOf('\n'), before.lastIndexOf('"'));
+  const start = escaped > literal ? escaped + 2 : literal + 1;
+  const breaks = [after.indexOf('\\n'), after.indexOf('\n'), after.indexOf('"')].filter(
+    (index) => index >= 0,
+  );
+  const end = breaks.length > 0 ? Math.min(...breaks) : after.length;
+  return `${before.slice(start)}${after.slice(0, end)}`;
+}
+
+/** JSON escapes, undone far enough to read. Nothing here is parsed as JSON. */
+const unescape = (value: string) =>
+  value
+    .replaceAll(String.raw`\"`, '"')
+    .replaceAll(String.raw`\\`, '\\')
+    .replaceAll(String.raw`\/`, '/');
+
+/**
+ * Long enough to recognize, short enough for one line. A path is cut from the
+ * front, since the end of it is the part that names anything.
+ */
+function shorten(value: string, limit = MAX_QUOTE): string {
+  // Sessions are read as latin-1, so anything the harness wrote outside ASCII
+  // arrives here as mojibake. It is dropped rather than printed: none of it is
+  // part of what the agent did, and all of it looks like a bug in this.
+  const clean = sanitizeRelayedLine(value.replaceAll(/[^\u0020-\u007e]/gu, '')).trim();
+  if (clean.length <= limit) return clean;
+  // A path is cut from the front, since the end of it is the part that names
+  // anything. A sentence is cut from the end, since the front of that is.
+  const isPath = !clean.includes(' ') && clean.includes('/');
+  return isPath ? `…${clean.slice(clean.length - limit + 1)}` : `${clean.slice(0, limit - 1)}…`;
 }
 
 async function read(file: string): Promise<Buffer | null> {
@@ -291,9 +450,13 @@ async function read(file: string): Promise<Buffer | null> {
   }
 }
 
-/** Every session under a store, filtered by age before anything is opened. */
-async function sessionFiles(root: string, extension: string, after: number): Promise<string[]> {
-  const files: string[] = [];
+/**
+ * Every session under a store, with when it was last written, filtered by age
+ * before anything is opened and newest first: the line quoted under a count
+ * should be the most recent one, which is the one a reader still remembers.
+ */
+async function sessionFiles(root: string, extension: string, after: number): Promise<Session[]> {
+  const files: Session[] = [];
 
   async function walk(dir: string, depth: number): Promise<void> {
     if (depth === 0) return;
@@ -305,16 +468,15 @@ async function sessionFiles(root: string, extension: string, after: number): Pro
         continue;
       }
       if (!child.name.endsWith(extension)) continue;
-      if (after > 0) {
-        const stat = await fs.stat(target).catch(() => null);
-        if (!stat || stat.mtimeMs < after) continue;
-      }
-      files.push(target);
+      const stat = await fs.stat(target).catch(() => null);
+      if (!stat) continue;
+      if (after > 0 && stat.mtimeMs < after) continue;
+      files.push({ file: target, at: stat.mtimeMs });
     }
   }
 
   await walk(root, 6);
-  return files;
+  return files.toSorted((left, right) => right.at - left.at);
 }
 
 const exists = (target: string) =>

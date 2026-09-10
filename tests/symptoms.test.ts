@@ -100,6 +100,36 @@ test('every symptom is counted once per session, whichever store it came from', 
   assert.equal(report.affected, 4);
 });
 
+test('each count carries the newest line it came out of', async (t) => {
+  const home = await makeHome({
+    '.claude/projects/app/older.jsonl': claudeCall('Read', {
+      file_path: '/code/app/node_modules/left-pad/dist/index.js',
+    }),
+    '.claude/projects/app/newer.jsonl': claudeCall('Read', {
+      file_path: '/code/app/node_modules/zod/dist/index.d.ts',
+    }),
+    // A session that wrote a page about the failure, rather than one that had
+    // it. The count stands; the line under it comes from somewhere readable.
+    '.claude/projects/app/markup.jsonl': claudeResult(
+      'the site says <code>error TS2305: has no exported member</code> here',
+    ),
+  });
+  t.after(() => fs.rm(home, { recursive: true, force: true }));
+
+  const older = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+  await fs.utimes(path.join(home, '.claude/projects/app/older.jsonl'), older, older);
+
+  const report = await getSymptomsReport({ home });
+
+  assert.equal(
+    report.evidence.build?.text,
+    'Read(/code/app/node_modules/zod/dist/index.d.ts)',
+    'the newest session is the one quoted, named the way the harness named the tool',
+  );
+  assert.equal(report.counts.guessed, 1, 'the markup session still counts');
+  assert.equal(report.evidence.guessed, undefined, 'and is not what gets quoted');
+});
+
 test('a path an agent only talked about is not a path it opened', async (t) => {
   const home = await makeHome({
     '.claude/projects/app/talk.jsonl':

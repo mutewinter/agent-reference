@@ -54,18 +54,26 @@ function stores(report: SymptomsReport, options: SymptomsFormatOptions): string 
  * missing row, since the reader is checking whether this happens to them.
  */
 function counts(report: SymptomsReport, options: SymptomsFormatOptions): string {
-  const rows = SYMPTOMS.map((symptom) => [
-    symptom.title,
-    `${report.counts[symptom.id]}`,
-    share(report.counts[symptom.id], report.sessions),
-  ]);
-  const title = Math.max(...rows.map((row) => (row[0] ?? '').length));
-  const count = Math.max(...rows.map((row) => (row[1] ?? '').length));
+  const rows = SYMPTOMS.map((symptom) => ({
+    id: symptom.id,
+    title: symptom.title,
+    sessions: `${report.counts[symptom.id]}`,
+    percent: share(report.counts[symptom.id], report.sessions),
+  }));
+  const title = Math.max(...rows.map((row) => row.title.length));
+  const count = Math.max(...rows.map((row) => row.sessions.length));
 
-  const lines = rows.map(([label, sessions, percent]) => {
+  const lines = rows.flatMap((row) => {
     const painted =
-      sessions === '0' ? (sessions ?? '') : paint(sessions ?? '', 'yellow', options.color);
-    return `  ${(label ?? '').padEnd(title)}  ${' '.repeat(count - (sessions ?? '').length)}${painted}  ${paint(percent ?? '', 'dim', options.color)}`;
+      row.sessions === '0' ? row.sessions : paint(row.sessions, 'yellow', options.color);
+    const line = `  ${row.title.padEnd(title)}  ${' '.repeat(count - row.sessions.length)}${painted}  ${paint(row.percent, 'dim', options.color)}`;
+
+    // The line the count came out of, under it, the way the harness that wrote
+    // it prints. Absent only when a symptom never turned up, which is the one
+    // case with nothing to show.
+    const evidence = report.evidence[row.id];
+    if (!evidence) return [line];
+    return [line, paint(`    ⎿ ${displayPath(evidence.text, options)}`, 'dim', options.color)];
   });
 
   return `${lines.join('\n')}\n`;
