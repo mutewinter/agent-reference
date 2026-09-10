@@ -44,6 +44,10 @@ const mark = `data:image/svg+xml;base64,${Buffer.from(favicon).toString('base64'
 const esc = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
 
 // A thumbnail-sized comparison uses the site's headings, palette, and typefaces.
+// One library on both sides, and the same one the first screen opens on: an
+// export remembered wrong and rejected by the compiler, against the export that
+// exists, quoted from the package the page says it read. Two panels of one line
+// each have no room to be joined by anything but the name in them.
 const card = `<div style="
   width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between;
   background:${c.bg};color:${c.fg};font-family:'Inter';padding:44px 56px
@@ -64,11 +68,12 @@ const card = `<div style="
   <div style="display:flex;height:270px;border:1px solid ${c.line}">
     <div style="display:flex;flex-direction:column;flex:1;padding:28px;background:${c.term}">
       <div style="font-family:'Oswald';font-size:32px;color:${c.muted};margin-bottom:26px">${esc(copy.hero.before)}</div>
-      <div style="font-family:'JetBrains Mono';font-size:20px;line-height:1.8;color:${c.bad}">import*as t from&quot;./Array.js&quot;;…<br/>…r=t=&gt;e.fail(new n({…<br/>&lt;div class=&quot;prose&quot;&gt;…</div>
+      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.muted}">const rows = useVirtual({</div>
+      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.bad}">error TS2305: no exported<br/>member &#39;useVirtual&#39;</div>
     </div>
     <div style="display:flex;flex-direction:column;flex:1;padding:28px;background:${c.panel};border-left:1px solid ${c.line}">
       <div style="font-family:'Oswald';font-size:32px;margin-bottom:26px">${esc(copy.hero.after)}</div>
-      <div style="font-family:'JetBrains Mono';font-size:18px;line-height:1.8;color:${c.ok}">/** Read the contents of a file. */<br/>readonly readFileString: (<br/>&nbsp;&nbsp;path: string, encoding?: string<br/>) =&gt; Effect.Effect&lt;string, PlatformError&gt;</div>
+      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.ok}">export function useVirtualizer&lt;<br/>  TScrollElement extends Element,<br/>  TItemElement extends Element,</div>
     </div>
   </div>
 </div>`;
