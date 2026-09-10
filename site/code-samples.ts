@@ -516,6 +516,12 @@ export const copy = {
   hero: {
     before: 'Your agent, without the source',
     after: 'Your agent, with the source',
+    // What the two pictures of that screen say, for a reader who gets the alt
+    // text instead: a screen reader, a terminal, or a renderer with images off.
+    beforeAlt:
+      'An agent writing useVirtual from memory, the compiler rejecting it, then reading a minified bundle out of node_modules and fetching a docs site that answers in markup.',
+    afterAlt:
+      "An agent running agent-reference get effect, then reading that version's own README and the source of FileSystem.ts, comments and all.",
     aside: 'Any questions?',
     asideUrl: 'https://www.youtube.com/watch?v=F0kCYP_iPtg',
   },

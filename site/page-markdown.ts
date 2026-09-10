@@ -118,6 +118,31 @@ function renderStore(): string {
 }
 
 /**
+ * The first screen as the two images `site/hero.ts` draws of it. Markdown can
+ * fence a transcript but it cannot color one, and what the fence loses is the
+ * red on what an agent got back, which is the whole argument of that screen.
+ * The URLs are absolute because npm renders this file with no repository to
+ * resolve against, and the alt text carries what the picture says for anyone
+ * the picture does not reach.
+ */
+const heroImages = () =>
+  [
+    `### ${copy.hero.before}`,
+    `![${copy.hero.beforeAlt}](${SITE}/hero-without.png)`,
+    `### ${copy.hero.after}`,
+    `![${copy.hero.afterAlt}](${SITE}/hero-with.png)`,
+  ].join('\n\n');
+
+/** The same screen as text, for the surface an agent reads. */
+const heroText = () =>
+  [
+    `### ${copy.hero.before}`,
+    transcript(terminals.today),
+    `### ${copy.hero.after}`,
+    transcript(terminals.after),
+  ].join('\n\n');
+
+/**
  * Marker id to the markdown it stands for, in the order the page puts them. A
  * function rather than a constant because rendering the commands runs the CLI
  * in a temp directory, and both callers here are scripts that should pay that
@@ -128,12 +153,7 @@ export function renderRegions(): Record<string, string> {
     // Bold, so a lone sentence under the title reads as the tagline it is.
     tagline: `**${copy.tagline}**`,
     lead: copy.lead,
-    hero: [
-      `### ${copy.hero.before}`,
-      transcript(terminals.today),
-      `### ${copy.hero.after}`,
-      transcript(terminals.after),
-    ].join('\n\n'),
+    hero: heroImages(),
     agent: [
       `### ${copy.agent.heading}`,
       `${copy.getStarted.summaryLabel}: ${copy.getStarted.lead}`,
@@ -168,7 +188,7 @@ export function renderHomeMarkdown(): string {
       `# ${copy.title}`,
       regions.tagline,
       regions.lead,
-      regions.hero,
+      heroText(),
       `## ${copy.getStarted.heading}`,
       regions.agent,
       `## ${setup.heading}`,

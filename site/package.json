@@ -16,6 +16,7 @@
     "preview": "pnpm run build && vite preview",
     "deploy": "pnpm run build && wrangler deploy",
     "og": "node og.ts",
+    "hero": "node hero.ts",
     "generate-routes": "tsr generate",
     "cf-typegen": "wrangler types"
   },
