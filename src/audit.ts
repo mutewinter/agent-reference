@@ -200,7 +200,7 @@ const EXTRACTORS: Record<FindingId, Extractor> = {
 /**
  * A quote that is markup rather than a session. Nothing here can tell a session
  * that read a bundle from one that wrote a page about reading bundles, and the
- * second kind reads as garbage under a count, so it is passed over in favour of
+ * second kind reads as garbage under a count, so it is passed over in favor of
  * the next match. The count still stands: something in that session said it.
  */
 const MARKUP = /[<>]|&#\d|&[a-z]{2,8};/u;

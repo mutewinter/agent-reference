@@ -23,6 +23,8 @@ The boundaries it holds, each enforced in [`src/git.ts`](src/git.ts):
 - **Relayed text is stripped of control characters.** Registry errors, git's stderr, and config descriptions all reach a terminal and an agent's context, where control bytes reposition a cursor and can shape text like instructions.
 - **`init` interpolates nothing it read.** The brief it prints is a prompt handed to an agent, so only values `init` computed itself go into it; a checked-in file cannot write instructions to a future agent in this tool's voice.
 
+Two commands read history rather than source. `audit` opens the session transcripts your harnesses already wrote, under `~/.claude/projects`, `~/.codex/sessions`, and opencode's storage directory, counts four patterns in each, and drops them: nothing is written, nothing is cached, and what survives the walk is four numbers per store and one quoted line under each count. Those quotes are somebody else's text on its way to a terminal and an agent's context, so they are stripped of control characters like every other relayed string here. `activity` reads only the log this tool wrote about its own runs, at `<store>/log/usage.jsonl`. Neither one sends anything anywhere, and `AGENT_REFERENCE_NO_LOG=1` stops the recording that `activity` reads.
+
 Materialized source is not sandboxed. A checkout is upstream's files on your disk, and reading them is the point; nothing here executes them, and neither should anything downstream without deciding to.
 
 Credentials are the ambient ones. `agent-reference` clones with your own git configuration and never stores, prompts for, or transmits a credential.
