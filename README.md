@@ -1,6 +1,6 @@
 # agent-reference
 
-[![npm](https://img.shields.io/npm/v/agent-reference?color=ffb964&label=npm)](https://www.npmjs.com/package/agent-reference) [![ci](https://img.shields.io/github/actions/workflow/status/mutewinter/agent-reference/ci.yml?branch=main&label=ci)](https://github.com/mutewinter/agent-reference/actions/workflows/ci.yml) [![license](https://img.shields.io/npm/l/agent-reference?color=555)](LICENSE)
+[![npm](https://img.shields.io/npm/v/agent-reference?style=flat-square&logo=npm&logoColor=ffb964&label=npm&labelColor=101010&color=ffb964)](https://www.npmjs.com/package/agent-reference) [![ci](https://img.shields.io/github/actions/workflow/status/mutewinter/agent-reference/ci.yml?branch=main&style=flat-square&logo=githubactions&logoColor=e8e8d3&label=ci&labelColor=101010)](https://github.com/mutewinter/agent-reference/actions/workflows/ci.yml) [![node](https://img.shields.io/node/v/agent-reference?style=flat-square&logo=nodedotjs&logoColor=99ad6a&label=node&labelColor=101010&color=99ad6a)](https://www.npmjs.com/package/agent-reference) [![license](https://img.shields.io/npm/l/agent-reference?style=flat-square&label=license&labelColor=101010&color=a09a8e)](LICENSE)
 
 <!-- generated:tagline -->
 **Give your agents the source**
