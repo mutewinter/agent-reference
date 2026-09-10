@@ -1,6 +1,6 @@
 # References map followups
 
-Status: bugs 1 through 7 fixed, the eval harness fixed, three decisions taken. What is left is fixture work and one decision record, marked per item below. Everything here came out of reviewing [the one-references-map change](../../decisions/2026-08-25-one-references-map.md) and running all four eval suites against it. The repo is green as found: 149/149 tests, lint, types, and format all pass, so none of this is caught by an existing gate.
+Status: bugs 1 through 7 fixed, the eval harness fixed, the `history` fixture rebuilt, duplicate keys refused, three decisions taken. What is left is one fixture, one coverage gap, and one decision record, marked per item below. Everything here came out of reviewing [the one-references-map change](../../decisions/2026-08-25-one-references-map.md) and running all four eval suites against it. The repo was green as found, so none of this was caught by an existing gate.
 
 The change itself holds up. An agent handed only the printed brief, the served guide, and the schema wrote a correct one-map config with six references of mixed kinds on the first try. What follows is the residue: patch producers that were not migrated with the rest, one invariant that is enforced in the parser and dropped in the merge, and four eval fixtures that no longer measure what they claim to.
 
@@ -173,13 +173,14 @@ Fixed, with the review's numbering.
 - **Description-substring selection is gone.** It ran in `status` and `clone` and not in `get`, which would have asked a registry for a package by that word. This reverses the default taken when the question was raised and not answered.
 - **The `file:` message** no longer presents a bare path as the same thing spelled differently. It says the two differ: one reads the checkout where it lives, the other clones a snapshot that goes stale.
 - **The eval harness.** All four suites parse from the first brace forward, so a line ahead of the JSON can no longer null the transcript and fail six checks for free. `resolve`'s grader reads both config files, and its mirror-tags check matches a path held in a shell variable. `resolve` and `history` write `cacheDir` to the gitignored file, so neither hands the agent a config its own `validate` rejects.
+- **The `history` fixture** now reaches upstream through an absolute `file://` URL in the gitignored config, so the reference clones into the run's store and the three graded checks about the store measure something again. A `file://` URL takes git's ordinary transport, so the mirror is a `blob:none` partial clone like a `github:` reference rather than the full local copy a bare path produces. That file was also being committed by the fixture's own `git init`, which meant `validate` errored from turn one; the world writes a `.gitignore` now, the way `resolve` and `adopt` already did.
+- **Duplicate JSON keys.** `JSON.parse` collapsed them before the parser saw the object, so an entry appended to a map that already held it dropped the earlier one and `validate` still said ok. The jsonc walk collects each object's keys and names the ones declared twice, by dotted path and line. Off for lockfiles, on for the config.
 
 ## Still open
 
-- **The `history` fixture** measures nothing about the store while its reference is a live path. It needs an absolute `file://` spec in the local config, which is the decision below.
-- **The `adopt` fixture**: the published bundle is a stub for everything, so the shim signal the suite grades is unreachable for a thorough run, and `UIProvider` has no file to land in.
+- **The `adopt` fixture**: the published bundle is a stub for everything, so the shim signal the suite grades is unreachable for a thorough run, and `UIProvider` has no file to land in. Its `AGENTS.md` also names an `agent-reference.json` the world never writes, which contradicts the suite's own claim that nothing committed in the project points at the tool.
 - **No eval declares a set.** The largest new surface, unexercised end to end.
 - **The ecosystem-prefix key.** A package reference keyed by its bare name has no room for `npm:requests` beside `pypi:requests`. Worth a decision record before a second ecosystem ships.
-- **The smaller ones** in the review's own list: trailing-slash normalization, duplicate JSON keys, and `splitPositionals` treating any selector with a slash as a project path. Duplicate JSON keys matter more now: a set's members are a second map they can collapse in.
+- **The smaller ones** in the review's own list: trailing-slash normalization, so `github:a/b` and `github:a/b/` are two references and two clones, and `splitPositionals` treating any selector with a slash as a project path.
 
 [One shape for a reference](../../decisions/2026-08-26-one-shape-for-a-reference.md) closed two of these by removing what made them possible. An empty member `name` cannot be written, because the key is the name; and a description can no longer be absent, so there is no precedence to decide between two declarations of one.
