@@ -61,8 +61,12 @@ const page = (transcript: string, ground: string) => `<!doctype html>
        rather than stepping in and out with their longest line. */
     box-sizing: border-box; width: 1320px;
     font-family: 'JetBrains Mono', monospace; font-size: 26px; line-height: 1.75;
-    color: ${c.fg}; white-space: pre;
+    color: ${c.fg}; white-space: pre-wrap;
   }
+  /* A wrapped result hangs under the text it continues rather than under the
+     elbow, which is four columns wide and would otherwise read as a new line
+     of output. */
+  .result { padding-left: 4ch; text-indent: -4ch; }
   .call { margin-top: 12px; }
   .call:first-child { margin-top: 0; }
 </style></head>

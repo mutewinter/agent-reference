@@ -262,11 +262,15 @@ mark[data-ink="3"] {
   background: var(--color-term);
 }
 
-/* Opaque output is an excerpt; readable source keeps every line and wraps. */
+/* Opaque output is one enormous line, which is the whole complaint about it.
+   The pane keeps three of it and drops the rest: enough to read as the wall it
+   is, bounded so it cannot push the source beside it down the page. */
 .comparison-before .code-wrap > div:has(.text-bad) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 
 .comparison-after {

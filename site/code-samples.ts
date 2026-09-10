@@ -244,9 +244,13 @@ export const trees = {
  * line on the right is real, the README and `src/FileSystem.ts` of the effect
  * package at that tag, quoted verbatim. The bundle line on the left is the
  * pattern rather than the package: Effect's own published build keeps its
- * comments, and the row stands for the many that do not. A result line marked
- * `! ` went wrong and `+ ` went right; the markers are read off before the
- * line is painted. `[[name]]` anywhere in a transcript marks a name
+ * comments, and the row stands for the many that do not. Each of those two is
+ * one line, because that is what a minified bundle and a fetched page are: the
+ * elisions that used to chop them into column-width pieces were the narrow
+ * pane of one surface written into the source of all three, and an image of
+ * that reads as text cut for no reason. Every surface cuts them its own way
+ * now, and none of them cuts the data. A result line marked `! ` went wrong
+ * and `+ ` went right; the markers are read off before the line is painted. `[[name]]` anywhere in a transcript marks a name
  * the config or the tree beside it declares, so the eye can join the two.
  *
  * Paths are the readable form, not the literal one. The store keys a checkout
@@ -262,14 +266,9 @@ export const terminals = {
 * Bash(pnpm tsc --noEmit)
   ⎿ ! error TS2305: no exported member 'useVirtual'
 * Read(node_modules/effect/dist/FileSystem.js)
-  ⎿ ! import*as t from"./Array.js";import*as e from…
-    ! …r=t=>e.fail(new n({module:"FileSystem",method…
-    ! …class extends r{readFile(t){return e.suspend(…
+  ⎿ ! import*as t from"./Array.js";import*as e from"./Effect.js";import*as n from"./internal/fileSystem.js";var r=t=>e.fail(new n({module:"FileSystem",method:t})),o=class extends r{readFile(t){return e.suspend(()=>this.readFileString(t,"utf-8"))}…
 * WebFetch(effect.website/docs/platform/file-system)
-  ⎿ ! <!doctype html><html lang="en" class="dark">…
-    ! …<nav class="sidebar"><a href="/docs/getting…
-    ! …<div class="prose"><h1>FileSystem</h1><p>The…
-    ! …<script id="__NEXT_DATA__" type="applicat…`,
+  ⎿ ! <!doctype html><html lang="en" class="dark"><head><meta charset="utf-8"><title>FileSystem | Effect</title></head><body><nav class="sidebar"><a href="/docs/getting-started">Getting Started</a></nav><div class="prose"><h1>FileSystem</h1><p>The…`,
 
   after: `* Bash(agent-reference get effect)
   ⎿ effect@4.0.0-rc.111 -> ~/.agent-reference/src/effect@4.0.0-rc.111
