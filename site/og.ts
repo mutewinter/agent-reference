@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { render } from 'takumi-js';
 import { googleFonts } from 'takumi-js/helpers';
 
-import { copy, quickStart } from './code-samples.ts';
+import { copy } from './code-samples.ts';
 
 const PUBLIC = new URL('./public/', import.meta.url);
 
@@ -43,60 +43,42 @@ const mark = `data:image/svg+xml;base64,${Buffer.from(favicon).toString('base64'
 /** No snippet contains either, but the text comes from a file other people edit. */
 const esc = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
 
-const span = (color: string, text: string) => `<span style="color:${color}">${esc(text)}</span>`;
-
-const RUNNERS = new Set(['npx', 'pnpx', 'bunx', 'dlx']);
-
-/**
- * The quick start, painted the way `Term` paints a shell line on the page: the
- * prompt and the runner sit back, so the emphasis lands on the tool being run
- * rather than on the thing running it, the way reading it aloud would.
- */
-function command(text: string) {
-  const words = text.split(' ');
-  const at = RUNNERS.has(words[0]) ? 1 : 0;
-  return [
-    span(c.muted, '$ '),
-    at > 0 ? span(c.muted, `${words[0]} `) : '',
-    span(c.accent, words[at]),
-    span(
-      c.fg,
-      words
-        .slice(at + 1)
-        .map((word) => ` ${word}`)
-        .join(''),
-    ),
-  ].join('');
-}
-
-// The one thing on the card a person has to act on, and the only place it
-// appears with nothing to copy it, so it is the whole of the card's second
-// beat: what the tool is for, then the line you type to get it.
+// A thumbnail-sized comparison uses the site's headings, palette, and typefaces.
 const card = `<div style="
   width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between;
-  background:${c.bg};color:${c.fg};font-family:'Geist Mono';padding:56px 64px
+  background:${c.bg};color:${c.fg};font-family:'Inter';padding:44px 56px
 ">
   <div style="
-    display:flex;align-items:center;font-size:30px;
+    display:flex;align-items:center;justify-content:space-between;font-size:24px;font-family:'JetBrains Mono';
     padding-bottom:20px;border-bottom:1px solid ${c.line}
   ">
+    <div style="display:flex;align-items:center">
     <img src="${mark}" width="38" height="38" style="margin-right:16px" />
-    <span>${copy.title}</span>
+    <span>${esc(copy.title)}</span>
+    </div>
+    <span style="font-size:18px;color:${c.muted}">agent-reference.dev</span>
   </div>
 
-  <div style="display:flex;font-size:92px;line-height:1.12;max-width:950px">${copy.tagline}</div>
+  <div style="display:flex;font-size:64px;font-weight:500;line-height:1.15">${esc(copy.tagline)}</div>
 
-  <div style="
-    display:flex;align-self:flex-start;padding:24px 32px;
-    background:${c.term};border:1px solid ${c.line};font-size:34px
-  ">${command(quickStart)}</div>
+  <div style="display:flex;height:270px;border:1px solid ${c.line}">
+    <div style="display:flex;flex-direction:column;flex:1;padding:28px;background:${c.term}">
+      <div style="font-family:'Oswald';font-size:32px;color:${c.muted};margin-bottom:26px">${esc(copy.hero.before)}</div>
+      <div style="font-family:'JetBrains Mono';font-size:20px;line-height:1.8;color:${c.bad}">import*as t from&quot;./Array.js&quot;;…<br/>…r=t=&gt;e.fail(new n({…<br/>&lt;div class=&quot;prose&quot;&gt;…</div>
+    </div>
+    <div style="display:flex;flex-direction:column;flex:1;padding:28px;background:${c.panel};border-left:1px solid ${c.line}">
+      <div style="font-family:'Oswald';font-size:32px;margin-bottom:26px">${esc(copy.hero.after)}</div>
+      <div style="font-family:'JetBrains Mono';font-size:18px;line-height:1.8;color:${c.ok}">/** Read the contents of a file. */<br/>readonly readFileString: (<br/>&nbsp;&nbsp;path: string, encoding?: string<br/>) =&gt; Effect.Effect&lt;string, PlatformError&gt;</div>
+    </div>
+  </div>
 </div>`;
 
-// The page asks for SF Mono and settles for whatever the reader's machine has,
-// which is a choice a renderer with no machine to ask cannot make. Geist Mono is
-// the nearest thing that can be fetched, and it is fetched here rather than
-// vendored because this runs on somebody's laptop, never in CI.
-const fonts = await googleFonts([{ name: 'Geist Mono', weight: 400 }]);
+const fonts = await googleFonts([
+  { name: 'Inter', weight: 400 },
+  { name: 'Inter', weight: 500 },
+  { name: 'JetBrains Mono', weight: 400 },
+  { name: 'Oswald', weight: 400 },
+]);
 
 writeFileSync(new URL('og.png', PUBLIC), await render(card, { width: 1200, height: 630, fonts }));
 

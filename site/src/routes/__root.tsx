@@ -1,6 +1,6 @@
 import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router';
 
-import { copy, quickStart } from '../../code-samples.ts';
+import { copy } from '../../code-samples.ts';
 import appCss from '../styles.css?url';
 
 const { title: TITLE, tagline: TAGLINE, description: DESCRIPTION } = copy;
@@ -21,7 +21,7 @@ const HEADLINE = `${TITLE} \u00B7 ${TAGLINE}`;
  * against.
  */
 const CARD = `${SITE}/og.png`;
-const CARD_ALT = `${TAGLINE}. Under it, the one command that sets a project up: ${quickStart}.`;
+const CARD_ALT = `${TAGLINE}. ${copy.hero.before}: bundled code and markup. ${copy.hero.after}: readable source.`;
 
 export const Route = createRootRoute({
   head: () => ({
@@ -143,13 +143,21 @@ function Header() {
  * The header's two links for a reader who got to the bottom rather than back to
  * the top, and the talk this was launched in, which only the page carries: the
  * deck renders client-side, so it has nothing to hand a reader that does not run
- * scripts. Over them a line that is only half a joke: the config, the skill, and
- * most of this page were written by the thing they are for.
+ * scripts. The credit links to the human behind the project.
  */
 function Footer() {
   return (
-    <footer className="mt-20 flex items-center justify-between gap-5 border-t border-line py-4 text-sm text-muted">
-      <span>Made by agents, for agents</span>
+    <footer className="mt-20 flex flex-col items-start gap-3 border-t border-line py-4 text-sm text-muted sm:flex-row sm:items-center sm:justify-between">
+      <span>
+        Made by{' '}
+        <a
+          href="https://x.com/mutewinter"
+          className="underline decoration-line underline-offset-4 hover:text-accent"
+        >
+          a human
+        </a>{' '}
+        with agents for agents
+      </span>
       <nav className="flex items-center gap-5">
         <a href={REPOSITORY} className="hover:text-accent">
           github
