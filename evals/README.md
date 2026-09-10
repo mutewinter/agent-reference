@@ -114,7 +114,7 @@ node evals/adopt/run.mjs                 # default: sonnet, one turn, no hints
 node evals/adopt/grade.mjs               # grade the newest run
 ```
 
-Every other suite measures what an agent does once it has engaged. This one measures whether it engages, on the most ordinary task there is: build something with a library the project already installs. Nothing in the prompt names the tool, the docs, or a version, and nothing committed in the project names the library as something to go read, because a dependency needs no config entry. The skill's own trigger text is the only thing that can put an agent in the repository, which makes it the thing under test.
+Every other suite measures what an agent does once it has engaged. This one measures whether it engages, on the most ordinary task there is: build something with a library the project already installs. Nothing in the prompt names the tool, the docs, or a version; nothing committed in the project names the library as something to go read, because a dependency needs no config entry; and nothing committed names this tool either, including the `AGENTS.md`. The skill's own trigger text is the only thing that can put an agent in the repository, which makes it the thing under test.
 
 ### The world
 
@@ -123,6 +123,10 @@ A checkout flow built on the `acme-ui` design system, which installs at 4.2.0. T
 The library's 3.x line had a single flat `<Combobox options={...} />`. 4.0 replaced it with four primitives, made `filter` required, and put the combobox behind a `UIProvider` that nothing else in the app needs yet. It also kept the flat export working so 3.x code would still compile, and that export is now a shim: it renders an uncontrolled input, ignores `options`, and never filters.
 
 That shim is the trap, and it is what makes the suite discriminate. What the package publishes is one minified bundle plus a README pointing at a docs site, so the installed package names both the flat export and the primitives and says nothing about which one is current. An agent working from memory writes the 3.x call, greps the bundle, finds the name it expected, and is wrong with nothing on disk to contradict it. Only the repository carries the migration guide.
+
+The bundle's asymmetry is the fixture's, and it has to stay: the four primitives really work, holding a query, filtering against it and selecting on click, while `exports.Combobox` alone is inert. Stub them all and a run that reads the bundle closely is right to call the whole install broken, which is a reasonable conclusion that can never reach the thing the suite grades.
+
+`src/App.tsx` is the root the checkout hangs off. It exists so the provider has somewhere correct to go: graded from the files a run changed, a project with only a form in it can be passed only by putting an app-wide provider inside that form.
 
 `world.mjs` exports `EXPECTED`, split into what `node_modules` answers and what only the repository answers, so the fixture and the grader cannot drift apart. It also refuses to build a world where any of those facts is stated in the project tree, the published bundle and its README included. Identifiers are allowed to appear there, because a bundle names its exports; sentences about them are not.
 

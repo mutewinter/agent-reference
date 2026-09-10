@@ -148,8 +148,9 @@ export async function startRegistry(upstreamPath) {
 /**
  * The project: a checkout flow that already builds forms out of acme-ui, with the library
  * installed the way npm leaves it and no reference declared for it. Nothing committed here
- * names acme-ui as something to go read, which is the point: a dependency needs no entry, so
- * only the skill's own trigger can put an agent in the repository.
+ * names acme-ui as something to go read, and nothing names this tool either, which is the
+ * point: a dependency needs no entry, so only the skill's own trigger can put an agent in
+ * the repository.
  */
 async function buildProject(projectRoot) {
   await writeFiles(projectRoot, {
@@ -167,6 +168,7 @@ async function buildProject(projectRoot) {
     'package-lock.json': LOCKFILE,
     '.gitignore': 'node_modules\nagent-reference.local.json\n',
     'AGENTS.md': AGENTS_MD,
+    'src/App.tsx': APP,
     'src/ShippingForm.tsx': SHIPPING_FORM,
     'src/countries.ts': COUNTRIES,
     'node_modules/acme-ui/package.json': `${JSON.stringify(
@@ -227,12 +229,41 @@ async function listFiles(root) {
   return found;
 }
 
+/**
+ * Names no tool, which is what makes the skill's own trigger the thing under test. It used
+ * to point at an `agent-reference.json` this world never writes, so it both planted the tool
+ * in context and named a file that was not there.
+ */
 const AGENTS_MD = `# checkout-flow
 
 The storefront's checkout, built on the acme-ui design system.
 
-This project declares references in agent-reference.json and agent-reference.local.json, and
-agent-reference status lists them.
+\`src/App.tsx\` is the root and owns the checkout's state. A section component takes \`value\`
+and \`onChange\` and holds none of its own, so anything the whole checkout needs is set up in
+the root rather than inside a section.
+`;
+
+/** The root the checkout hangs off, and the only place an app-wide provider belongs. */
+const APP = `import { useState } from 'react';
+import { Stack } from 'acme-ui';
+
+import { ShippingForm } from './ShippingForm.tsx';
+
+const EMPTY = { name: '', street: '', city: '', postalCode: '', country: 'US' };
+
+export function App() {
+  const [shipping, setShipping] = useState(EMPTY);
+
+  return (
+    <Stack gap="lg">
+      <h1>Checkout</h1>
+      <ShippingForm value={shipping} onChange={setShipping} />
+      <button type="button" disabled={!shipping.name}>
+        Continue to payment
+      </button>
+    </Stack>
+  );
+}
 `;
 
 /** The form the task extends. Nothing here needs a provider, so the app does not have one. */
@@ -331,8 +362,14 @@ const LOCKFILE = `${JSON.stringify(
 /**
  * What the package publishes: one minified file. Every public name is in it, including the
  * flat Combobox, so grepping the installed package confirms a guess it cannot correct.
+ *
+ * The v4 primitives are the real thing, deliberately: they hold a query, filter against it,
+ * and select on click, so an agent that reads the bundle closely finds a working library and
+ * no reason to distrust it. Only `exports.Combobox` is inert, which is what makes it the
+ * trap. A bundle that stubbed everything would read as a broken install, and the run would
+ * be right to say so instead of characterizing that one export.
  */
-const PUBLISHED_BUNDLE = `"use strict";var e=require("react");function t(e,t){return e}function n(e){return e}exports.Stack=function(t){return e.createElement("div",{className:"ui-stack ui-gap-"+(t.gap||"md")},t.children)};exports.Field=function(t){return e.createElement("label",{className:"ui-field"},e.createElement("span",null,t.label),t.children)};exports.Input=function(t){return e.createElement("input",{className:"ui-input",value:t.value,onChange:function(e){return t.onChange&&t.onChange(e.target.value)}})};exports.Select=function(t){return e.createElement("select",{className:"ui-select",value:t.value,onChange:function(e){return t.onChange&&t.onChange(e.target.value)}},t.children)};exports.UIProvider=function(t){return e.createElement(o.Provider,{value:{filter:t.filter||n}},t.children)};var o=e.createContext(null);exports.ComboboxRoot=function(t){var r=e.useContext(o);if(!r)throw new Error("acme-ui: 3f2a");return e.createElement("div",{className:"ui-combobox","data-value":t.value},t.children)};exports.ComboboxInput=function(t){return e.createElement("input",{className:"ui-combobox-input",placeholder:t.placeholder})};exports.ComboboxList=function(t){return e.createElement("ul",{className:"ui-combobox-list"},t.children)};exports.ComboboxOption=function(t){return e.createElement("li",{className:"ui-combobox-option","data-value":t.value},t.children)};exports.Combobox=function(t){return e.createElement("input",{className:"ui-input",placeholder:t.placeholder})};exports.matchSorter=t;exports.startsWith=t;
+const PUBLISHED_BUNDLE = `"use strict";var e=require("react");function u(t){return t==null?"":String(t)}function m(t,n,i){var a=u(n).toLowerCase();if(!a)return t;return t.filter(function(c){return u(i(c)).toLowerCase().indexOf(a)>-1}).sort(function(c,f){return u(i(c)).toLowerCase().indexOf(a)-u(i(f)).toLowerCase().indexOf(a)})}function s(t,n,i){var a=u(n).toLowerCase();if(!a)return t;return t.filter(function(c){return u(i(c)).toLowerCase().slice(0,a.length)===a})}var o=e.createContext(null);var r=e.createContext(null);exports.Stack=function(t){return e.createElement("div",{className:"ui-stack ui-gap-"+(t.gap||"md")},t.children)};exports.Field=function(t){return e.createElement("label",{className:"ui-field"},e.createElement("span",null,t.label),t.children)};exports.Input=function(t){return e.createElement("input",{className:"ui-input",value:t.value,onChange:function(e){return t.onChange&&t.onChange(e.target.value)}})};exports.Select=function(t){return e.createElement("select",{className:"ui-select",value:t.value,onChange:function(e){return t.onChange&&t.onChange(e.target.value)}},t.children)};exports.UIProvider=function(t){return e.createElement(o.Provider,{value:{filter:t.filter||m}},t.children)};exports.ComboboxRoot=function(t){var c=e.useContext(o);if(!c)throw new Error("acme-ui: 3f2a");var q=e.useState("");return e.createElement(r.Provider,{value:{value:t.value,onValueChange:t.onValueChange,filter:t.filter,query:q[0],setQuery:q[1],open:t.open}},e.createElement("div",{className:"ui-combobox","data-value":t.value},t.children))};exports.ComboboxInput=function(t){var c=e.useContext(r);return e.createElement("input",{className:"ui-combobox-input",placeholder:t.placeholder,value:c?c.query:"",onChange:function(n){c&&c.setQuery(n.target.value)}})};exports.ComboboxList=function(t){var c=e.useContext(r);var l=e.Children.toArray(t.children);var f=c&&c.filter?c.filter(l,c.query,function(n){return u(n.props&&n.props.children)}):l;return e.createElement("ul",{className:"ui-combobox-list"},f)};exports.ComboboxOption=function(t){var c=e.useContext(r);return e.createElement("li",{className:"ui-combobox-option","data-value":t.value,onClick:function(){c&&c.onValueChange&&c.onValueChange(t.value)}},t.children)};exports.Combobox=function(t){return e.createElement("input",{className:"ui-input",placeholder:t.placeholder})};exports.matchSorter=m;exports.startsWith=s;
 `;
 
 const PUBLISHED_README = `# acme-ui
