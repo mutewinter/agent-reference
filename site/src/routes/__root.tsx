@@ -21,7 +21,7 @@ const HEADLINE = `${TITLE} \u00B7 ${TAGLINE}`;
  * against.
  */
 const CARD = `${SITE}/og.png`;
-const CARD_ALT = `${TAGLINE}. ${copy.hero.before}: an API guessed from memory and the compiler rejecting it. ${copy.hero.after}: the export that exists, quoted from the package.`;
+const CARD_ALT = `${TAGLINE}. ${copy.hero.before}: the markup a docs site hands a fetch. ${copy.hero.after}: the package's own README.`;
 
 export const Route = createRootRoute({
   head: () => ({

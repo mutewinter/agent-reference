@@ -44,10 +44,11 @@ const mark = `data:image/svg+xml;base64,${Buffer.from(favicon).toString('base64'
 const esc = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
 
 // A thumbnail-sized comparison uses the site's headings, palette, and typefaces.
-// One library on both sides, and the same one the first screen opens on: an
-// export remembered wrong and rejected by the compiler, against the export that
-// exists, quoted from the package the page says it read. Two panels of one line
-// each have no room to be joined by anything but the name in them.
+// The pairing is chosen for texture rather than for argument: at the size a
+// link preview is actually read, markup against prose is two different shapes
+// before it is two different meanings, and nothing has to be read for the point
+// to land. The page can lead with the guessed API because it has a reader's
+// attention for longer than a quarter of a second; this does not.
 const card = `<div style="
   width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between;
   background:${c.bg};color:${c.fg};font-family:'Inter';padding:44px 56px
@@ -68,12 +69,11 @@ const card = `<div style="
   <div style="display:flex;height:270px;border:1px solid ${c.line}">
     <div style="display:flex;flex-direction:column;flex:1;padding:28px;background:${c.term}">
       <div style="font-family:'Oswald';font-size:32px;color:${c.muted};margin-bottom:26px">${esc(copy.hero.before)}</div>
-      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.muted}">const rows = useVirtual({</div>
-      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.bad}">error TS2305: no exported<br/>member &#39;useVirtual&#39;</div>
+      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.bad}">&lt;!doctype html&gt;&lt;html lang=&quot;en&quot; class=…<br/>…&lt;nav class=&quot;sidebar&quot;&gt;&lt;a href=&quot;/docs/…<br/>…&lt;script id=&quot;__NEXT_DATA__&quot; type=&quot;app…</div>
     </div>
     <div style="display:flex;flex-direction:column;flex:1;padding:28px;background:${c.panel};border-left:1px solid ${c.line}">
       <div style="font-family:'Oswald';font-size:32px;margin-bottom:26px">${esc(copy.hero.after)}</div>
-      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.ok}">export function useVirtualizer&lt;<br/>  TScrollElement extends Element,<br/>  TItemElement extends Element,</div>
+      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.ok}"># effect<br/>Effect is a library for building<br/>robust, maintainable, type-safe…<br/>## Installation</div>
     </div>
   </div>
 </div>`;
