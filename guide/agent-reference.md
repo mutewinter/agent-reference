@@ -1,6 +1,6 @@
 # agent-reference guide
 
-The instructions the skill on disk is too short to carry, printed by the installed CLI so they always describe the version running on this machine.
+The instructions the skill on disk is too short to carry. The installed CLI prints them, so they describe the version running on this machine.
 
 ## Reading what a project declares
 
@@ -10,11 +10,11 @@ The instructions the skill on disk is too short to carry, printed by the install
 
 ## When to use this instead of node_modules
 
-`node_modules` holds only what a package published, usually build output. `get` checks out the package's repository at the exact shipped commit, which is the only way to read the full `README`, `docs/`, examples, tests, CI workflows, the changelog and its migration guides, git history, and the source behind `dist/`. That list is why a checkout answers ordinary API questions too, not just archaeology: the published build carries the code and almost none of the prose, and a docs site describes whatever version is current rather than the one this project installs. The path it prints is a git worktree, so the repository's history is already there: `git -C <path> log`, `show <tag>:<file>`, `blame`, and diffs between releases all run against the whole repository rather than the one commit checked out. Mirrors are cloned without file contents, so commit metadata and `--name-only` are free and offline, while `-p`, `--stat`, `blame`, and `-S` fetch what they need the first time they run.
+`node_modules` holds only what a package published, usually build output. `get` checks out the package's repository at the exact shipped commit, which is the only way to read the full `README`, `docs/`, examples, tests, CI workflows, the changelog and its migration guides, git history, and the source behind `dist/`. A checkout answers ordinary API questions too, since the published build carries the code and almost none of the prose, and a docs site describes the current release rather than the version this project installs. The path it prints is a git worktree, so the repository's history is already there: `git -C <path> log`, `show <tag>:<file>`, `blame`, and diffs between releases all run against the whole repository rather than the one commit checked out. Mirrors are cloned without file contents, so commit metadata and `--name-only` are free and offline, while `-p`, `--stat`, `blame`, and `-S` fetch what they need the first time they run.
 
 ## Holding the path in a variable
 
-`get --path` prints the resolved paths alone, one per line, and nothing else. It is what to use whenever the path is going into a shell variable or a loop rather than onto the screen:
+`get --path` prints the resolved paths alone, one per line, and nothing else. Use it whenever the path is going into a shell variable or a loop:
 
 ```sh
 EL=$(agent-reference get electron --path)
@@ -48,7 +48,7 @@ Both files hold a single `references` object, from the name an agent asks for to
 }
 ```
 
-Every value is an object, and it holds either `source` or `references`: the first is a reference, the second is a set. Both carry a `description`, which is required. What kind of reference it is follows from the source rather than from a declaration, the same way `status` reports `file` or `folder` from what it finds on disk:
+Every value is an object, and it holds either `source` or `references`: the first is a reference, the second is a set. Both carry a `description`, which is required. The kind of reference follows from the shape of the source rather than from a declared type, the same way `status` reports `file` or `folder` from what it finds on disk:
 
 | source shape | reads as | example |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ Every value is an object, and it holds either `source` or `references`: the firs
 | a git URL, `git@`, `ssh:`, `https://…git`, `file://` | any git remote | `"https://git.acme.dev/ui.git"` |
 | `npm:name@version`, `name@version` | a package at an exact version | `"npm:zod@3.22.0"` |
 
-A path source has to start with `./`, `../`, `~/` or `/`. `docs/decisions` is a valid `owner/repo` shorthand, so the prefix is what tells the two apart; `validate` warns when a shorthand names a folder that is also in this project.
+A path source has to start with `./`, `../`, `~/` or `/`. `docs/decisions` is a valid `owner/repo` shorthand, so only the prefix tells the two apart; `validate` warns when a shorthand names a folder that is also in this project.
 
 The other keys are optional and say how to reach the source:
 
@@ -78,14 +78,14 @@ The other keys are optional and say how to reach the source:
 }
 ```
 
-- `ref` pins the checkout. On a package source it overrides version resolution, which is what a repository whose tags do not match its published versions needs. On a path source it is refused: a checkout read where it lives has no other ref.
+- `ref` pins the checkout. On a package source it overrides version resolution, for a repository whose tags do not match its published versions. A path source refuses it, since a checkout read where it lives has no other ref.
 - `repository` overrides what the registry reported. Package sources only, since a repository source already names its own remote.
 - `directory` names the subtree worth reading in a monorepo. The reference resolves to that subtree while `status` still reports the checkout root. Several subtrees of one repository are several entries with distinct names; they share one clone, and each gets its own `ref` and description. A `directory` that is not in the checkout is an error naming the path to fix, because upstream reorganizations are the usual cause and a silent fall back to the root would hand you the wrong scope.
-- `description` is required, and it is the whole value of a reference to a future agent. Say what the source is, in terms that stay true: what a reader finds inside it, and whose it is. Keep it short, and say what the name does not already carry. Two things beyond the content earn their place: why a pin exists, and user policy ("never name this folder in committed code"). It is not an instruction to the reader and not a status report on the project, because both go stale while the source does not: `"OpenAI's coding agent, written in Rust"` outlives `"read it before writing v7"`, and an agent judges a durable description against the task in front of it rather than against a trigger someone guessed at in advance.
+- `description` is required; it is what a future agent reads to decide whether to open the source. Say what the source is, in terms that stay true: what a reader finds inside it, and whose it is. Keep it short, and skip what the name already says. Two things beyond the content belong there: why a pin exists, and user policy ("never name this folder in committed code"). Instructions to the reader and status reports on the project go stale while the source does not, so `"OpenAI's coding agent, written in Rust"` outlives `"read it before writing v7"`, and an agent judges a durable description against the task in front of it.
 
 ## Sets are references that resolve to several paths
 
-A set has a name and members, and the name works everywhere a reference's name works. `get harnesses` materializes all of them, `status harnesses` reports the group. There is no separate flag and no separate namespace.
+A set has a name and members, and the name works everywhere a reference's name works, with no separate flag or namespace: `get harnesses` materializes all of them, and `status harnesses` reports the group.
 
 ```jsonc
 {
@@ -114,7 +114,7 @@ A set has a name and members, and the name works everywhere a reference's name w
 
 A set's `description` is the heading `status` prints under its name. Its members are a map keyed by name, exactly as the outer one is, so a member is written the same way a top-level entry is and every name `get` accepts is somewhere in the file. Members may be any kind, so one set can hold a package, a repository and a folder together. A set holds references, never other sets. When the user says "add this to the documentation sources", find the set whose name or description matches and add the member to its map.
 
-Names are one namespace: a set may not take a reference's name, and two entries pointing somewhere different may not share one. The parser refuses both rather than leaving an ambiguity for every later lookup to rediscover. The same source listed in two sets is repetition, not a conflict, and becomes one reference belonging to both.
+Names are one namespace: a set may not take a reference's name, and two entries pointing somewhere different may not share one. The parser refuses both rather than leaving an ambiguity for every later lookup to rediscover. The same source listed in two sets is allowed, and becomes one reference belonging to both.
 
 ## Adding references ("add this as a reference: ...")
 
