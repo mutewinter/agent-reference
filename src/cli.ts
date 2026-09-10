@@ -11,8 +11,8 @@ import {
   type ActivityReference,
 } from './activity.ts';
 import { formatActivityLog, formatActivityReport } from './activity-format.ts';
-import { getSymptomsReport } from './symptoms.ts';
-import { formatSymptomsReport } from './symptoms-format.ts';
+import { getAuditReport } from './audit.ts';
+import { auditProgress, formatAuditReport } from './audit-format.ts';
 import { parseArgv, type CliOptions } from './args.ts';
 import {
   formatCloneResult,
@@ -249,10 +249,16 @@ async function run(options: CliOptions, performed: RunRecord): Promise<void> {
       write(options, report, (result) => formatStoreReport(result, format));
       return;
     }
-    case 'symptoms': {
-      const report = await getSymptomsReport({ days: options.days });
+    case 'audit': {
+      // Several gigabytes of history take several seconds, and only a terminal
+      // has anywhere to say so: a progress line written into a pipe is garbage
+      // in whatever the pipe was for.
+      const drawing = humanOutput && process.stdout.isTTY;
+      const progress = drawing ? auditProgress((text) => process.stdout.write(text)) : undefined;
+      const report = await getAuditReport({ days: options.days, progress: progress?.update });
+      progress?.clear();
       write(options, report, (result) =>
-        formatSymptomsReport(result, {
+        formatAuditReport(result, {
           color: humanOutput && !process.env.NO_COLOR,
           tilde: humanOutput,
         }),
@@ -365,7 +371,7 @@ Print the JSON Schema for agent-reference.json.`,
 Show what the store holds and how big it is. --prune deletes checkouts unused for
 --days (default 30) and any repository left with none; everything pruned is
 refetched on the next get.`,
-  symptoms: `agent-reference symptoms [--days <n>] [--json]
+  audit: `agent-reference audit [--days <n>] [--json]
 
 Count what the agents on this machine did when they had no source to read,
 out of the transcripts they already wrote: an API guessed and rejected, a docs
@@ -407,7 +413,7 @@ Usage:
   agent-reference schema
   agent-reference store [--prune] [--days <n>]
   agent-reference activity [--log] [--days <n>] [--json]
-  agent-reference symptoms [--days <n>] [--json]
+  agent-reference audit [--days <n>] [--json]
 
 Commands:
   get       Materialize one reference and print its path. A spec is a configured
@@ -435,7 +441,7 @@ Commands:
   activity  How often this machine runs agent-reference and what it reaches for,
             counted from a log the runs themselves write. Local: nothing is sent
             anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the recording.
-  symptoms  How often the agents on this machine worked without source, counted
+  audit     How often the agents on this machine worked without source, counted
             off their own transcripts: an API guessed and rejected, the web
             asked for docs, a published build opened, a repository cloned to
             /tmp. Reads only, and nothing leaves the machine.
@@ -449,7 +455,7 @@ Options:
   --log           For activity: the runs themselves, not the summary.
   --prune         For store: delete stale checkouts.
   --days <n>      For store --prune: age threshold in days. Default 30. For
-                  activity and symptoms: the window to count, in days. Default
+                  activity and audit: the window to count, in days. Default
                   all of it.
 
 References are declared in agent-reference.json (committed, shareable) and

@@ -16,17 +16,17 @@ import { sanitizeRelayedLine } from './text-utils.ts';
  */
 
 /** One thing an agent does when it cannot read the source. */
-export type SymptomId = 'guessed' | 'web' | 'build' | 'clone';
+export type FindingId = 'guessed' | 'web' | 'build' | 'clone';
 
-export interface Symptom {
-  id: SymptomId;
+export interface Finding {
+  id: FindingId;
   /** What happened, in the past tense a report is read in. */
   title: string;
   /** What the count is actually matching, for anyone who wants to argue with it. */
   evidence: string;
 }
 
-export const SYMPTOMS: Symptom[] = [
+export const FINDINGS: Finding[] = [
   {
     id: 'guessed',
     title: 'guessed an API and had it rejected',
@@ -50,7 +50,7 @@ export const SYMPTOMS: Symptom[] = [
 ];
 
 /**
- * A store of sessions, and how to read the symptoms out of one. Every pattern
+ * A store of sessions, and how to read the findings out of one. Every pattern
  * here is written to hold its match inside a single event: each format writes
  * one per line, so `[^\n]*` is the fence. They are compiled into one alternation
  * per store rather than run one at a time, because a session is scanned once
@@ -77,7 +77,7 @@ interface Harness {
   sessionKey?: RegExp;
   /** Fold whitespace before matching, for a store that pretty-prints its JSON. */
   flatten?: boolean;
-  patterns: Record<SymptomId, string[]>;
+  patterns: Record<FindingId, string[]>;
 }
 
 /** Errors that only a compiler or a runtime says, and only about a name that is not there. */
@@ -148,7 +148,7 @@ const scanners = new Map<string, RegExp>(
   HARNESSES.map((harness) => [
     harness.agent,
     new RegExp(
-      SYMPTOMS.map((symptom) => `(?<${symptom.id}>${harness.patterns[symptom.id].join('|')})`).join(
+      FINDINGS.map((finding) => `(?<${finding.id}>${harness.patterns[finding.id].join('|')})`).join(
         '|',
       ),
       'gu',
@@ -163,7 +163,7 @@ const scanners = new Map<string, RegExp>(
  * here can tell a session that read a bundle from one that wrote a page about
  * reading bundles, and the line says which it was.
  */
-export interface SymptomEvidence {
+export interface Evidence {
   /** What the agent did, in as few characters as still name it. */
   text: string;
   /** Which store it came out of. */
@@ -180,7 +180,7 @@ interface Extractor {
   sentence?: boolean;
 }
 
-const EXTRACTORS: Record<SymptomId, Extractor> = {
+const EXTRACTORS: Record<FindingId, Extractor> = {
   guessed: { sentence: true },
   web: { fields: [/"url":\s*"([^"]{4,200})"/u, /"query":\s*"([^"]{2,200})"/u] },
   build: {
@@ -218,33 +218,39 @@ const REAL_ERROR = /error|Error|cannot|Cannot|:/u;
 /** The harness's own name for the tool, so the line reads the way that harness prints it. */
 const TOOL_NAME = /"(?:name|tool)":\s*"([A-Za-z_][\w-]{0,40})"/u;
 
-export interface HarnessSymptoms {
+export interface HarnessFindings {
   agent: string;
   path: string;
   sessions: number;
   /** Sessions in which each symptom turned up at least once. */
-  counts: Record<SymptomId, number>;
+  counts: Record<FindingId, number>;
   /** Sessions with at least one of them. */
   affected: number;
 }
 
-export interface SymptomsReport {
+export interface AuditReport {
   /** Where the stores were looked for, so an empty report can be argued with. */
   home: string;
   /** The window in days, or null for everything on disk. */
   days: number | null;
-  harnesses: HarnessSymptoms[];
+  harnesses: HarnessFindings[];
   /** Every store that could have been read but was not there. */
   missing: string[];
   sessions: number;
-  counts: Record<SymptomId, number>;
+  counts: Record<FindingId, number>;
   affected: number;
   /** The most recent line that counted, one per symptom. */
-  evidence: Partial<Record<SymptomId, SymptomEvidence>>;
+  evidence: Partial<Record<FindingId, Evidence>>;
 }
 
-export interface SymptomsOptions {
+export interface AuditOptions {
   home?: string;
+  /**
+   * Called once the stores have been walked and then as sessions are read, for
+   * a caller with somewhere to draw. Reading a few gigabytes takes seconds and
+   * a command that prints nothing for that long reads as one that hung.
+   */
+  progress?: (done: number, total: number) => void;
   /** Only for the variable a store may be moved by. Tests pass their own. */
   env?: NodeJS.ProcessEnv;
   days?: number | null;
@@ -252,7 +258,7 @@ export interface SymptomsOptions {
   concurrency?: number;
 }
 
-const empty = (): Record<SymptomId, number> => ({ guessed: 0, web: 0, build: 0, clone: 0 });
+const empty = (): Record<FindingId, number> => ({ guessed: 0, web: 0, build: 0, clone: 0 });
 
 /**
  * Where a store is, which is under home unless the store reads a variable that
@@ -280,37 +286,49 @@ interface Session {
   at: number;
 }
 
-export async function getSymptomsReport(options: SymptomsOptions = {}): Promise<SymptomsReport> {
+export async function getAuditReport(options: AuditOptions = {}): Promise<AuditReport> {
   const home = options.home ?? os.homedir();
   const days = options.days ?? null;
   const after = days === null ? 0 : Date.now() - days * 24 * 60 * 60 * 1000;
   const concurrency = options.concurrency ?? 32;
 
-  const harnesses: HarnessSymptoms[] = [];
+  const harnesses: HarnessFindings[] = [];
   const missing: string[] = [];
-  const evidence: Partial<Record<SymptomId, SymptomEvidence>> = {};
-  const total = empty();
+  const evidence: Partial<Record<FindingId, Evidence>> = {};
+  const tally = empty();
   let sessions = 0;
   let affected = 0;
 
+  // Walked first, all of them, so the progress below counts against a total
+  // rather than against whatever has been discovered so far.
+  const stores: Array<{ harness: Harness; root: string; files: Session[] }> = [];
   for (const harness of HARNESSES) {
     const root = storeRoot(harness, home, options.env ?? process.env);
     if (!(await exists(root))) {
       missing.push(root);
       continue;
     }
+    stores.push({ harness, root, files: await sessionFiles(root, harness.extension, after) });
+  }
 
-    const files = await sessionFiles(root, harness.extension, after);
-    const found = await scan(files, harness, concurrency, evidence);
+  const total = stores.reduce((sum, store) => sum + store.files.length, 0);
+  let read = 0;
+  options.progress?.(0, total);
+
+  for (const { harness, root, files } of stores) {
+    const found = await scan(files, harness, concurrency, evidence, (done) => {
+      options.progress?.(read + done, total);
+    });
+    read += files.length;
 
     const counts = empty();
     let hit = 0;
     for (const session of found.values()) {
       let any = false;
-      for (const symptom of SYMPTOMS) {
-        if (!session.has(symptom.id)) continue;
-        counts[symptom.id] += 1;
-        total[symptom.id] += 1;
+      for (const finding of FINDINGS) {
+        if (!session.has(finding.id)) continue;
+        counts[finding.id] += 1;
+        tally[finding.id] += 1;
         any = true;
       }
       if (any) hit += 1;
@@ -327,7 +345,7 @@ export async function getSymptomsReport(options: SymptomsOptions = {}): Promise<
     affected += hit;
   }
 
-  return { home, days, harnesses, missing, sessions, counts: total, affected, evidence };
+  return { home, days, harnesses, missing, sessions, counts: tally, affected, evidence };
 }
 
 /**
@@ -340,9 +358,10 @@ async function scan(
   files: Session[],
   harness: Harness,
   concurrency: number,
-  evidence: Partial<Record<SymptomId, SymptomEvidence>>,
-): Promise<Map<string, Set<SymptomId>>> {
-  const found = new Map<string, Set<SymptomId>>();
+  evidence: Partial<Record<FindingId, Evidence>>,
+  progress: (done: number) => void,
+): Promise<Map<string, Set<FindingId>>> {
+  const found = new Map<string, Set<FindingId>>();
   const scanner = scanners.get(harness.agent);
   if (!scanner) return found;
 
@@ -351,7 +370,7 @@ async function scan(
   const record = (key: string) => {
     const existing = found.get(key);
     if (existing) return existing;
-    const fresh = new Set<SymptomId>();
+    const fresh = new Set<FindingId>();
     found.set(key, fresh);
     return fresh;
   };
@@ -371,28 +390,29 @@ async function scan(
           ? (harness.sessionKey.exec(body)?.[1] ?? session.file)
           : session.file;
         const seen = record(key);
-        const quoted = new Set<SymptomId>();
+        const quoted = new Set<FindingId>();
 
         // Shared and reset rather than rebuilt: the loop below never awaits, so
         // nothing else can be part way through this expression while it runs.
         scanner.lastIndex = 0;
         for (let match = scanner.exec(body); match !== null; match = scanner.exec(body)) {
-          for (const symptom of SYMPTOMS) {
-            if (match.groups?.[symptom.id] === undefined) continue;
-            seen.add(symptom.id);
+          for (const finding of FINDINGS) {
+            if (match.groups?.[finding.id] === undefined) continue;
+            seen.add(finding.id);
             // The newest session that can produce a readable line wins, and a
             // match that quotes as markup does not end the search inside this
             // one: the next match may be the session actually doing the thing.
-            if (quoted.has(symptom.id) || (evidence[symptom.id]?.at ?? 0) >= session.at) continue;
-            const line = quote(symptom.id, body, match.index);
+            if (quoted.has(finding.id) || (evidence[finding.id]?.at ?? 0) >= session.at) continue;
+            const line = quote(finding.id, body, match.index);
             if (line === null) continue;
-            evidence[symptom.id] = { text: line, agent: harness.agent, at: session.at };
-            quoted.add(symptom.id);
+            evidence[finding.id] = { text: line, agent: harness.agent, at: session.at };
+            quoted.add(finding.id);
           }
-          if (seen.size === SYMPTOMS.length && quoted.size === SYMPTOMS.length) break;
+          if (seen.size === FINDINGS.length && quoted.size === FINDINGS.length) break;
         }
       }),
     );
+    progress(Math.min(index + concurrency, files.length));
   }
 
   return found;
@@ -405,7 +425,7 @@ async function scan(
  * The result is sanitized before anything prints it: this is text the machine
  * read from somewhere else, and it is about to be relayed.
  */
-function quote(id: SymptomId, body: string, at: number): string | null {
+function quote(id: FindingId, body: string, at: number): string | null {
   const window = body.slice(Math.max(0, at - EVENT_WINDOW), at + EVENT_WINDOW);
   const extractor = EXTRACTORS[id];
 

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-import { getSymptomsReport } from '../src/symptoms.ts';
+import { getAuditReport } from '../src/audit.ts';
 
 /**
  * Every fixture here is a home directory with transcripts in it, so nothing
@@ -81,7 +81,7 @@ test('every symptom is counted once per session, whichever store it came from', 
   });
   t.after(() => fs.rm(home, { recursive: true, force: true }));
 
-  const report = await getSymptomsReport({ home });
+  const report = await getAuditReport({ home });
 
   const claude = report.harnesses.find((entry) => entry.agent === 'claude-code');
   assert.equal(claude?.sessions, 3);
@@ -119,7 +119,7 @@ test('each count carries the newest line it came out of', async (t) => {
   const older = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
   await fs.utimes(path.join(home, '.claude/projects/app/older.jsonl'), older, older);
 
-  const report = await getSymptomsReport({ home });
+  const report = await getAuditReport({ home });
 
   assert.equal(
     report.evidence.build?.text,
@@ -143,7 +143,7 @@ test('a path an agent only talked about is not a path it opened', async (t) => {
   });
   t.after(() => fs.rm(home, { recursive: true, force: true }));
 
-  const report = await getSymptomsReport({ home });
+  const report = await getAuditReport({ home });
   assert.equal(report.counts.build, 0);
   assert.equal(report.affected, 0);
 });
@@ -158,10 +158,10 @@ test('a window drops the sessions outside it', async (t) => {
   const old = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
   await fs.utimes(path.join(home, '.claude/projects/app/old.jsonl'), old, old);
 
-  const all = await getSymptomsReport({ home });
+  const all = await getAuditReport({ home });
   assert.equal(all.sessions, 2);
 
-  const recent = await getSymptomsReport({ home, days: 30 });
+  const recent = await getAuditReport({ home, days: 30 });
   assert.equal(recent.sessions, 1);
   assert.equal(recent.counts.web, 1);
 });
@@ -176,7 +176,7 @@ test('a store that reads a variable is looked for where the variable says', asyn
   });
   t.after(() => fs.rm(home, { recursive: true, force: true }));
 
-  const report = await getSymptomsReport({
+  const report = await getAuditReport({
     home,
     env: { XDG_DATA_HOME: path.join(home, 'elsewhere') },
   });
@@ -197,7 +197,7 @@ test('a windows path is a path', async (t) => {
   });
   t.after(() => fs.rm(home, { recursive: true, force: true }));
 
-  const report = await getSymptomsReport({ home });
+  const report = await getAuditReport({ home });
   assert.equal(report.counts.build, 1, 'node_modules is named the same on either separator');
   assert.equal(report.counts.clone, 1, 'and the temp directory is not always /tmp');
 });
@@ -206,7 +206,7 @@ test('a machine with no transcripts says where it looked', async (t) => {
   const home = await makeHome({ 'notes.md': 'no agents here\n' });
   t.after(() => fs.rm(home, { recursive: true, force: true }));
 
-  const report = await getSymptomsReport({ home });
+  const report = await getAuditReport({ home });
   assert.deepEqual(report.harnesses, []);
   assert.equal(report.missing.length, 3, 'every store it knows about is named');
   assert.ok(report.missing.every((target) => target.startsWith(home)));

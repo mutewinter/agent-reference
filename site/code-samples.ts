@@ -545,7 +545,7 @@ export const copy = {
    * seen that happen to me". The line about the machine is not a disclaimer:
    * it is the first question anybody asks of a tool that reads their sessions.
    */
-  symptoms: {
+  audit: {
     heading: 'Not sure your agents need it?',
     note: 'Counts what they did without source, out of the transcripts your harness already wrote. Nothing is sent anywhere.',
   },
@@ -580,4 +580,4 @@ export const quickStart = 'npx agent-reference init';
 export const setupPrompt = `Set this project up for agent-reference: run \`${quickStart}\` and follow the brief it prints.`;
 
 /** The one command a person runs themselves, and the only one on the page. */
-export const symptomsCommand = 'npx agent-reference symptoms';
+export const auditCommand = 'npx agent-reference audit';

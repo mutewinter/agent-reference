@@ -38,7 +38,7 @@ Run `npm install -g agent-reference`, then `agent-reference init` in your projec
 ### Not sure your agents need it?
 
 ```text
-npx agent-reference symptoms
+npx agent-reference audit
 ```
 
 Counts what they did without source, out of the transcripts your harness already wrote. Nothing is sent anywhere.
@@ -441,7 +441,7 @@ Usage:
   agent-reference schema
   agent-reference store [--prune] [--days <n>]
   agent-reference activity [--log] [--days <n>] [--json]
-  agent-reference symptoms [--days <n>] [--json]
+  agent-reference audit [--days <n>] [--json]
 
 Commands:
   get       Materialize one reference and print its path. A spec is a configured
@@ -469,7 +469,7 @@ Commands:
   activity  How often this machine runs agent-reference and what it reaches for,
             counted from a log the runs themselves write. Local: nothing is sent
             anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the recording.
-  symptoms  How often the agents on this machine worked without source, counted
+  audit     How often the agents on this machine worked without source, counted
             off their own transcripts: an API guessed and rejected, the web
             asked for docs, a published build opened, a repository cloned to
             /tmp. Reads only, and nothing leaves the machine.
@@ -483,7 +483,7 @@ Options:
   --log           For activity: the runs themselves, not the summary.
   --prune         For store: delete stale checkouts.
   --days <n>      For store --prune: age threshold in days. Default 30. For
-                  activity and symptoms: the window to count, in days. Default
+                  activity and audit: the window to count, in days. Default
                   all of it.
 
 References are declared in agent-reference.json (committed, shareable) and

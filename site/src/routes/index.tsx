@@ -11,7 +11,7 @@ import {
   howItWorks,
   setup,
   setupPrompt,
-  symptomsCommand,
+  auditCommand,
   terminals,
   trees,
 } from '../../code-samples.ts';
@@ -372,11 +372,11 @@ function Home() {
         <div className="mt-6">
           <ForYourAgent text={setupPrompt} />
           <div className="mt-8 text-left">
-            <p className="text-sm font-medium text-fg">{copy.symptoms.heading}</p>
+            <p className="text-sm font-medium text-fg">{copy.audit.heading}</p>
             <div className="mt-2">
-              <CopyCommand text={symptomsCommand} label="command" />
+              <CopyCommand text={auditCommand} label="command" />
             </div>
-            <Prose text={copy.symptoms.note} className="mt-2 text-sm text-muted" />
+            <Prose text={copy.audit.note} className="mt-2 text-sm text-muted" />
           </div>
           <div className="mt-7 text-sm text-muted">
             <p className="font-medium">{copy.install.heading}</p>
