@@ -166,6 +166,42 @@ test('a window drops the sessions outside it', async (t) => {
   assert.equal(recent.counts.web, 1);
 });
 
+test('a store that reads a variable is looked for where the variable says', async (t) => {
+  const home = await makeHome({
+    'elsewhere/opencode/storage/part/msg_1/prt_1.json': JSON.stringify({
+      sessionID: 'ses_1',
+      type: 'tool',
+      tool: 'webfetch',
+    }),
+  });
+  t.after(() => fs.rm(home, { recursive: true, force: true }));
+
+  const report = await getSymptomsReport({
+    home,
+    env: { XDG_DATA_HOME: path.join(home, 'elsewhere') },
+  });
+  const opencode = report.harnesses.find((entry) => entry.agent === 'opencode');
+  assert.equal(opencode?.sessions, 1);
+  assert.equal(opencode?.counts.web, 1);
+});
+
+test('a windows path is a path', async (t) => {
+  const home = await makeHome({
+    '.claude/projects/app/win.jsonl':
+      claudeCall('Read', {
+        file_path: String.raw`C:\\Users\\dev\\app\\node_modules\\zod\\dist\\index.js`,
+      }) +
+      claudeCall('Bash', {
+        command: String.raw`git clone --depth 1 https://github.com/x/y C:\\Users\\dev\\AppData\\Local\\Temp\\y`,
+      }),
+  });
+  t.after(() => fs.rm(home, { recursive: true, force: true }));
+
+  const report = await getSymptomsReport({ home });
+  assert.equal(report.counts.build, 1, 'node_modules is named the same on either separator');
+  assert.equal(report.counts.clone, 1, 'and the temp directory is not always /tmp');
+});
+
 test('a machine with no transcripts says where it looked', async (t) => {
   const home = await makeHome({ 'notes.md': 'no agents here\n' });
   t.after(() => fs.rm(home, { recursive: true, force: true }));

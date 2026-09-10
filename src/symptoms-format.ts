@@ -66,7 +66,10 @@ function counts(report: SymptomsReport, options: SymptomsFormatOptions): string 
   const lines = rows.flatMap((row) => {
     const painted =
       row.sessions === '0' ? row.sessions : paint(row.sessions, 'yellow', options.color);
-    const line = `  ${row.title.padEnd(title)}  ${' '.repeat(count - row.sessions.length)}${painted}  ${paint(row.percent, 'dim', options.color)}`;
+    // Trimmed, because a symptom that never turned up has no percentage beside
+    // it and the columns would otherwise leave the gutter it would have used.
+    const line =
+      `  ${row.title.padEnd(title)}  ${' '.repeat(count - row.sessions.length)}${painted}  ${paint(row.percent, 'dim', options.color)}`.trimEnd();
 
     // The line the count came out of, under it, the way the harness that wrote
     // it prints. Absent only when a symptom never turned up, which is the one

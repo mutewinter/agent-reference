@@ -62,6 +62,12 @@ interface Harness {
   agent: string;
   /** Relative to home, so a test can point home somewhere else. */
   segments: string[];
+  /**
+   * The variable this store honors ahead of home, when it honors one. Read from
+   * the environment rather than assumed, since the default below is only where
+   * the store lands when nothing has moved it.
+   */
+  dataHome?: string;
   /** Session files, by extension. */
   extension: string;
   /**
@@ -83,10 +89,10 @@ const GUESSED = [
 ];
 
 /** A clone that lands somewhere nothing will look for it again. */
-const CLONE = [String.raw`git clone[^\n]{0,200}(?:/tmp/|/var/folders/|\$TMPDIR)`];
+const CLONE = [String.raw`git clone[^\n]{0,200}(?:/tmp/|/var/folders/|\$TMPDIR|[\\/]Temp[\\/])`];
 
 /** A published build, by the extensions a build has and a repository does not. */
-const BUILD_FILE = String.raw`(?:node_modules|/dist/)[^"\n]{0,200}\.(?:js|mjs|cjs|d\.ts)`;
+const BUILD_FILE = String.raw`(?:node_modules|[\\/]dist[\\/])[^"\n]{0,200}\.(?:js|mjs|cjs|d\.ts)`;
 
 /** What a shell tool ran, which is where the other two stores hide a file path. */
 const SHELL_BUILD = String.raw`"(?:function_call|custom_tool_call)"[^\n]{0,400}${BUILD_FILE}`;
@@ -121,6 +127,7 @@ const HARNESSES: Harness[] = [
   {
     agent: 'opencode',
     segments: ['.local', 'share', 'opencode', 'storage', 'part'],
+    dataHome: 'XDG_DATA_HOME',
     extension: '.json',
     sessionKey: /"sessionID":\s*"([^"]+)"/u,
     flatten: true,
@@ -238,12 +245,28 @@ export interface SymptomsReport {
 
 export interface SymptomsOptions {
   home?: string;
+  /** Only for the variable a store may be moved by. Tests pass their own. */
+  env?: NodeJS.ProcessEnv;
   days?: number | null;
   /** Sessions read at once. High enough to keep the disk busy, low enough to bound memory. */
   concurrency?: number;
 }
 
 const empty = (): Record<SymptomId, number> => ({ guessed: 0, web: 0, build: 0, clone: 0 });
+
+/**
+ * Where a store is, which is under home unless the store reads a variable that
+ * says otherwise. The segments are joined rather than written as a path, so the
+ * separator is the one this machine uses: two of these stores are in the same
+ * place on Windows, under a home directory that is spelled differently.
+ */
+function storeRoot(harness: Harness, home: string, env: NodeJS.ProcessEnv): string {
+  const moved = harness.dataHome ? env[harness.dataHome] : undefined;
+  if (!moved) return path.join(home, ...harness.segments);
+  // The variable replaces the part of the path it stands for, which is the
+  // `.local/share` in front of the store's own directories.
+  return path.join(moved, ...harness.segments.slice(2));
+}
 
 /** How far around a match the event it belongs to is looked for. */
 const EVENT_WINDOW = 600;
@@ -271,7 +294,7 @@ export async function getSymptomsReport(options: SymptomsOptions = {}): Promise<
   let affected = 0;
 
   for (const harness of HARNESSES) {
-    const root = path.join(home, ...harness.segments);
+    const root = storeRoot(harness, home, options.env ?? process.env);
     if (!(await exists(root))) {
       missing.push(root);
       continue;
