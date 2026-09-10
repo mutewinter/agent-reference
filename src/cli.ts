@@ -11,6 +11,8 @@ import {
   type ActivityReference,
 } from './activity.ts';
 import { formatActivityLog, formatActivityReport } from './activity-format.ts';
+import { getSymptomsReport } from './symptoms.ts';
+import { formatSymptomsReport } from './symptoms-format.ts';
 import { parseArgv, type CliOptions } from './args.ts';
 import {
   formatCloneResult,
@@ -247,6 +249,16 @@ async function run(options: CliOptions, performed: RunRecord): Promise<void> {
       write(options, report, (result) => formatStoreReport(result, format));
       return;
     }
+    case 'symptoms': {
+      const report = await getSymptomsReport({ days: options.days });
+      write(options, report, (result) =>
+        formatSymptomsReport(result, {
+          color: humanOutput && !process.env.NO_COLOR,
+          tilde: humanOutput,
+        }),
+      );
+      return;
+    }
     case 'activity': {
       const report = await getActivityReport({ days: options.days });
       const activityFormat = {
@@ -353,6 +365,16 @@ Print the JSON Schema for agent-reference.json.`,
 Show what the store holds and how big it is. --prune deletes checkouts unused for
 --days (default 30) and any repository left with none; everything pruned is
 refetched on the next get.`,
+  symptoms: `agent-reference symptoms [--days <n>] [--json]
+
+Count what the agents on this machine did when they had no source to read,
+out of the transcripts they already wrote: an API guessed and rejected, a docs
+site fetched, a published build opened under node_modules, a repository cloned
+into a temp directory. Reads Claude Code, Codex and opencode histories.
+
+Nothing is written and nothing leaves the machine. Files are read, counted and
+dropped, and what comes back is four numbers per store. --days limits the window
+to sessions touched in that many days; the default is everything on disk.`,
   activity: `agent-reference activity [--log] [--days <n>] [--json]
 
 How much this machine uses agent-reference, what it reaches for, and when it last
@@ -385,6 +407,7 @@ Usage:
   agent-reference schema
   agent-reference store [--prune] [--days <n>]
   agent-reference activity [--log] [--days <n>] [--json]
+  agent-reference symptoms [--days <n>] [--json]
 
 Commands:
   get       Materialize one reference and print its path. A spec is a configured
@@ -412,6 +435,10 @@ Commands:
   activity  How often this machine runs agent-reference and what it reaches for,
             counted from a log the runs themselves write. Local: nothing is sent
             anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the recording.
+  symptoms  How often the agents on this machine worked without source, counted
+            off their own transcripts: an API guessed and rejected, the web
+            asked for docs, a published build opened, a repository cloned to
+            /tmp. Reads only, and nothing leaves the machine.
 
   <command> --help explains one command on its own.
 
@@ -422,7 +449,8 @@ Options:
   --log           For activity: the runs themselves, not the summary.
   --prune         For store: delete stale checkouts.
   --days <n>      For store --prune: age threshold in days. Default 30. For
-                  activity: the window to count, in days. Default all of it.
+                  activity and symptoms: the window to count, in days. Default
+                  all of it.
 
 References are declared in agent-reference.json (committed, shareable) and
 agent-reference.local.json (gitignored, machine paths and private references),

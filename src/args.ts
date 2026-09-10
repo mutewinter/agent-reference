@@ -9,6 +9,7 @@ export type CliCommand =
   | 'schema'
   | 'store'
   | 'activity'
+  | 'symptoms'
   | 'help'
   | 'version';
 
@@ -41,6 +42,7 @@ export const CLI_COMMANDS: readonly string[] = [
   'schema',
   'store',
   'activity',
+  'symptoms',
   'help',
   'version',
 ];

@@ -411,7 +411,7 @@ You will not need these; your agent runs them. Except `activity`, which is how y
 #### agent-reference help
 
 <details>
-<summary>Show all 65 lines</summary>
+<summary>Show all 71 lines</summary>
 
 ```text
 # every command, from the version you have installed
@@ -433,6 +433,7 @@ Usage:
   agent-reference schema
   agent-reference store [--prune] [--days <n>]
   agent-reference activity [--log] [--days <n>] [--json]
+  agent-reference symptoms [--days <n>] [--json]
 
 Commands:
   get       Materialize one reference and print its path. A spec is a configured
@@ -460,6 +461,10 @@ Commands:
   activity  How often this machine runs agent-reference and what it reaches for,
             counted from a log the runs themselves write. Local: nothing is sent
             anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the recording.
+  symptoms  How often the agents on this machine worked without source, counted
+            off their own transcripts: an API guessed and rejected, the web
+            asked for docs, a published build opened, a repository cloned to
+            /tmp. Reads only, and nothing leaves the machine.
 
   <command> --help explains one command on its own.
 
@@ -470,7 +475,8 @@ Options:
   --log           For activity: the runs themselves, not the summary.
   --prune         For store: delete stale checkouts.
   --days <n>      For store --prune: age threshold in days. Default 30. For
-                  activity: the window to count, in days. Default all of it.
+                  activity and symptoms: the window to count, in days. Default
+                  all of it.
 
 References are declared in agent-reference.json (committed, shareable) and
 agent-reference.local.json (gitignored, machine paths and private references),
