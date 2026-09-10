@@ -60,6 +60,14 @@ Set this project up for agent-reference: run `npx agent-reference init` and foll
 
 Run `npm install -g agent-reference`, then `agent-reference init` in your project and follow the printed setup brief.
 
+### Not sure your agents need it?
+
+```text
+npx agent-reference symptoms
+```
+
+Counts what they did without source, out of the transcripts your harness already wrote. Nothing is sent anywhere.
+
 ## What setup installs
 
 Two pieces: a CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it travels in a plugin or a team skills repo the way any other skill does.

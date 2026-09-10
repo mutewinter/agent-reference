@@ -24,3 +24,28 @@ export function ForYourAgent({ text }: { text: string }) {
     </div>
   );
 }
+
+/**
+ * The second thing to do, for a reader who does not believe the first screen
+ * happens to them. Quieter than the prompt above it in every way that matters:
+ * one line, the page's own line color rather than the accent, and a copy action
+ * that sits inside the box instead of under it.
+ */
+export function CopyCommand({ text, label }: { text: string; label: string }) {
+  const { copied, copy } = useCopy(text);
+
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      aria-label={copied ? `${label} copied` : `Copy ${label}`}
+      className="flex w-full cursor-pointer items-center justify-between gap-4 border border-line bg-term px-4 py-3 text-left transition-colors hover:border-accent/40"
+    >
+      <code className="font-mono text-sm text-fg">{text}</code>
+      <span className="flex items-center gap-2 text-sm text-muted" aria-live="polite">
+        {copied ? <CheckIcon /> : <CopyIcon />}
+        {copied ? 'Copied' : 'Copy'}
+      </span>
+    </button>
+  );
+}

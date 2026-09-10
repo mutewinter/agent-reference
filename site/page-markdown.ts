@@ -15,6 +15,7 @@ import {
   howItWorks,
   setup,
   setupPrompt,
+  symptomsCommand,
   terminals,
   trees,
 } from './code-samples.ts';
@@ -159,6 +160,9 @@ export function renderRegions(): Record<string, string> {
       `${copy.getStarted.summaryLabel}: ${copy.getStarted.lead}`,
       fence('text', setupPrompt),
       copy.install.note,
+      `### ${copy.symptoms.heading}`,
+      fence('text', symptomsCommand),
+      copy.symptoms.note,
     ].join('\n\n'),
     setup: [setup.lead, ...setup.steps.map((step, index) => renderStep(step, index))].join('\n\n'),
     examples: examples.map((example) => renderExample(example)).join('\n\n'),

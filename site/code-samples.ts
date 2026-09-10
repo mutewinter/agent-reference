@@ -538,6 +538,17 @@ export const copy = {
   agent: {
     heading: 'Let your agent set it up',
   },
+  /**
+   * The second thing to do, for the reader who is not convinced there is a
+   * problem. It counts the four failures the first screen shows, out of that
+   * reader's own history, which is the only evidence that beats "I have never
+   * seen that happen to me". The line about the machine is not a disclaimer:
+   * it is the first question anybody asks of a tool that reads their sessions.
+   */
+  symptoms: {
+    heading: 'Not sure your agents need it?',
+    note: 'Counts what they did without source, out of the transcripts your harness already wrote. Nothing is sent anywhere.',
+  },
   install: {
     heading: 'Prefer to install it yourself?',
     note: 'Run `npm install -g agent-reference`, then `agent-reference init` in your project and follow the printed setup brief.',
@@ -567,3 +578,6 @@ export const quickStart = 'npx agent-reference init';
 
 /** The one sentence a person hands their agent. The site and the README share it. */
 export const setupPrompt = `Set this project up for agent-reference: run \`${quickStart}\` and follow the brief it prints.`;
+
+/** The one command a person runs themselves, and the only one on the page. */
+export const symptomsCommand = 'npx agent-reference symptoms';

@@ -11,6 +11,7 @@ import {
   howItWorks,
   setup,
   setupPrompt,
+  symptomsCommand,
   terminals,
   trees,
 } from '../../code-samples.ts';
@@ -24,7 +25,7 @@ import {
   Tree,
   source,
 } from '../components/panels';
-import { ForYourAgent } from '../components/start';
+import { CopyCommand, ForYourAgent } from '../components/start';
 
 export const Route = createFileRoute('/')({ component: Home });
 
@@ -370,6 +371,13 @@ function Home() {
         </p>
         <div className="mt-6">
           <ForYourAgent text={setupPrompt} />
+          <div className="mt-8 text-left">
+            <p className="text-sm font-medium text-fg">{copy.symptoms.heading}</p>
+            <div className="mt-2">
+              <CopyCommand text={symptomsCommand} label="command" />
+            </div>
+            <Prose text={copy.symptoms.note} className="mt-2 text-sm text-muted" />
+          </div>
           <div className="mt-7 text-sm text-muted">
             <p className="font-medium">{copy.install.heading}</p>
             <Prose text={copy.install.note} className="mt-1" />
