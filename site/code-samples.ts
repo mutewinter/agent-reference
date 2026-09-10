@@ -110,6 +110,33 @@ export const samples = {
 }`,
   },
 
+  /**
+   * The installed skill, cut to what a reader needs to believe it: the
+   * description that decides whether the skill fires, the one verb, and the
+   * rule that catches the case nobody announces. Every line is the shipped
+   * `skills/agent-reference/SKILL.md`, elided with `…` rather than reworded.
+   */
+  skill: {
+    lang: 'markdown',
+    code: `---
+name: agent-reference
+description: Readable upstream source on demand by name, via the
+  agent-reference CLI. Use when a task needs a library's real source
+  rather than a memory of it…
+---
+
+One verb does the work: \`agent-reference get <spec>\` materializes a
+reference and prints its path. Run it from the project root at the
+moment you need the source, not in advance.
+
+## Ask for the name before you read a published build
+
+Anything under \`node_modules/\`, any \`dist/\` bundle, and any \`.d.ts\` is
+the published build. Before reading one to answer a question about
+that dependency, run \`agent-reference get <name>\` and read the
+repository instead…`,
+  },
+
   // Two projects in the same checkout tree, pinning two versions of one
   // dependency. A version belongs in the value and never in the key, so one
   // config cannot name two of them; two projects on a machine can, which is
@@ -154,6 +181,17 @@ export const trees = {
 ├── [[api/]]
 ├── [[workers/]]
 └── [[shared/]]`,
+
+  /**
+   * Where setup leaves the skill. The project copy is the one worth drawing,
+   * because it sits beside the config it points at; the machine-wide copy is a
+   * line of prose instead, since a second tree of one directory says nothing.
+   */
+  skill: `~/code/acme/web/
+├── .claude/skills/agent-reference/
+│   └── [[SKILL.md]]
+├── agent-reference.json
+└── package.json`,
 
   global: `~/
 ├── agent-reference.local.json
@@ -275,6 +313,22 @@ export const terminals = {
     +   }
     + ) => Effect.Effect<File, PlatformError, Scope>`,
 
+  /**
+   * The first screen's failure, run again with the skill installed: the same
+   * ask, the source read at the version the registry resolves, and the export
+   * that actually exists written into the same file. `index.tsx` is where
+   * `useVirtualizer` is declared in that package, so the path is the one the
+   * agent would open.
+   */
+  virtual: `> add a virtualized list here
+* Skill(agent-reference)
+* Bash(agent-reference get @tanstack/react-virtual)
+  ⎿ @tanstack/react-virtual@3.14.11 -> ~/.agent-reference/src/react-virtual@3.14.11
+* Read(…/react-virtual@3.14.11/packages/react-virtual/src/index.tsx)
+  ⎿ export function useVirtualizer<
+* Update(src/List.tsx)
+  ⎿ + const rows = useVirtualizer({`,
+
   session: `> Implement an edit tool like [[pi]]'s, using [[Effect]] v4
 * Bash(agent-reference get [[effect]])
   ⎿ effect -> ~/.agent-reference/src/effect@4.0.0-rc.111
@@ -312,6 +366,46 @@ export const terminals = {
     [[codex]] -> ~/.agent-reference/src/codex
     [[opencode]] -> ~/.agent-reference/src/opencode
 * Read(…/coding-agent/src/core/compaction/compaction.ts)`,
+};
+
+/**
+ * What the prompt in Get started leaves behind, in the order it happens. The
+ * question this answers is the one a reader has right after deciding to paste
+ * it: what lands on my machine, and how does the agent know it is there. Three
+ * steps, because the chain is three long and stops being interesting after the
+ * agent runs the command. The last one is the first screen's failure run
+ * again, so the page closes the loop it opened rather than asserting it did.
+ */
+export interface SetupStep {
+  title: string;
+  note: string;
+  tree?: keyof typeof trees;
+  file?: { label: string; sample: keyof typeof samples };
+  session?: keyof typeof terminals;
+  marks?: string[];
+}
+
+export const setup: { heading: string; lead: string; steps: SetupStep[] } = {
+  heading: 'What setup installs',
+  lead: 'Two pieces: a CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it travels in a plugin or a team skills repo the way any other skill does.',
+  steps: [
+    {
+      title: 'A skill lands in your agent’s skills folder',
+      note: 'Machine-wide or in this project. Your agent asks which before it writes anything.',
+      tree: 'skill',
+      marks: ['SKILL.md'],
+    },
+    {
+      title: 'The skill says when to reach for the tool',
+      note: 'It is what sits in context between tasks, so it is short on purpose.',
+      file: { label: '.claude/skills/agent-reference/SKILL.md', sample: 'skill' },
+    },
+    {
+      title: 'Your agent runs the CLI when the moment comes',
+      note: 'The task the first screen got wrong, with the source in hand.',
+      session: 'virtual',
+    },
+  ],
 };
 
 /**
@@ -421,53 +515,6 @@ export const howItWorks: HowItWorks = {
 };
 
 /**
- * The pieces of JSON the format section points at. Separate from `samples`
- * because none of them is a config: they are the shapes a value or a source may
- * take, and running them through the parser the way a sample is run would ask
- * a fragment to be a whole file.
- */
-export const fragments = {
-  valueReference: { lang: 'jsonc', code: '{ "source": "…", "description": "…" }' },
-  valueSet: { lang: 'jsonc', code: '{ "description": "…", "references": { … } }' },
-  sourcePath: { lang: 'jsonc', code: '"./docs/decisions"' },
-  sourceRepo: { lang: 'jsonc', code: '"github:openai/codex"' },
-  sourceRef: { lang: 'jsonc', code: '"openai/codex#v0.20.0"' },
-  sourcePackage: { lang: 'jsonc', code: '"npm:zod@3.22.0"' },
-} as const;
-
-/**
- * The whole format, which is short enough to put on the page now that a value is
- * one shape. The first table is what a value may be, the second what a source
- * may be.
- */
-export interface FormatRow {
-  fragment: keyof typeof fragments;
-  means: string;
-}
-
-export const format: {
-  heading: string;
-  lead: string;
-  values: FormatRow[];
-  sources: FormatRow[];
-  note: string;
-} = {
-  heading: 'The format',
-  lead: 'One `references` map, from the name your agent asks for to where that source comes from. Every value is an object holding either `source` or `references`: the first is a reference, the second is a set. That is the only rule.',
-  values: [
-    { fragment: 'valueReference', means: 'a reference: one name, one source' },
-    { fragment: 'valueSet', means: 'a set: one name, several references' },
-  ],
-  sources: [
-    { fragment: 'sourcePath', means: 'a folder or a file, read where it lives' },
-    { fragment: 'sourceRepo', means: 'a repository, at its default branch' },
-    { fragment: 'sourceRef', means: 'the same, at a tag, branch, or commit' },
-    { fragment: 'sourcePackage', means: 'a package, at an exact version' },
-  ],
-  note: 'A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. The description is required on both: a name is what the agent already has, and what it needs is when the thing behind it is worth opening.',
-};
-
-/**
  * The page's own words, shared so the README says them too rather than keeping
  * a second copy that drifts. `tagline` also names the browser tab and heads the
  * link preview; `description` is the meta description, and the only line of
@@ -504,7 +551,6 @@ export const copy = {
   },
   agent: {
     heading: 'Let your agent set it up',
-    followThrough: 'Your agent keeps track of references and fetches the source when it needs it.',
   },
   install: {
     heading: 'Prefer to install it yourself?',

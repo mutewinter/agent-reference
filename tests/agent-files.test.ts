@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { LINK_HEADER, NOT_FOUND_MARKDOWN } from '../site/agent-responses.ts';
-import { copy, howItWorks } from '../site/code-samples.ts';
+import { copy, howItWorks, setup } from '../site/code-samples.ts';
 import { LINKS, SITE, renderLlmsTxt } from '../site/page-markdown.ts';
 import { renderAgentFiles } from '../scripts/sync-agent-files.ts';
 
@@ -56,8 +56,10 @@ test('index.md carries the page sections, in the page order', () => {
   const headings = [...prose.matchAll(/^## (.+)$/gm)].map((match) => match[1]);
   assert.deepEqual(headings, [
     copy.getStarted.heading,
-    copy.examples.heading,
+    setup.heading,
     howItWorks.heading,
+    copy.examples.heading,
+    copy.commands.heading,
     'More',
   ]);
   assert.match(served('index.md'), /^# agent-reference\n/, 'and one H1 with the name');

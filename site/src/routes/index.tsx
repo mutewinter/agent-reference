@@ -7,9 +7,8 @@ import {
   copy,
   type Example as ExampleData,
   examples,
-  format,
-  type FormatRow,
   howItWorks,
+  setup,
   setupPrompt,
   terminals,
   trees,
@@ -207,47 +206,57 @@ function Store() {
   );
 }
 
-/** What the config is for, for a reader who has seen six of them by now. */
-function Format() {
+/**
+ * The chain the prompt above sets off, one step a row: where the skill lands,
+ * what it says, and the agent acting on it. The step's words sit left of the
+ * thing they describe, and the numeral carries the sequence so the titles do
+ * not have to say "then".
+ */
+function Setup() {
   return (
     <>
-      <h3 className="mt-14 text-lg font-medium text-fg">{format.heading}</h3>
-      <Prose text={format.lead} className="mt-1 max-w-3xl text-muted" />
-      <div className="mt-4 grid gap-5 lg:grid-cols-2">
-        <Panel label="a value may be">
-          <Rows rows={format.values} />
-        </Panel>
-        <Panel label="a source may be">
-          <Rows rows={format.sources} />
-        </Panel>
-      </div>
-      <Prose text={format.note} className="mt-4 max-w-3xl text-muted" />
+      <Prose text={setup.lead} className="max-w-3xl text-muted" />
+      <ol className="mt-10 space-y-10">
+        {setup.steps.map((step, index) => (
+          <li key={step.title}>
+            <ReferenceScope names={step.marks ?? []}>
+              <div className="grid gap-4 lg:grid-cols-3 lg:gap-8">
+                <div>
+                  <span className="font-mono text-sm text-accent">{index + 1}</span>
+                  <h3 className="mt-1 text-lg font-medium text-fg">{step.title}</h3>
+                  <Prose text={step.note} className="mt-2 text-sm text-muted" />
+                </div>
+                <div className="min-w-0 lg:col-span-2">
+                  {step.tree ? (
+                    <Panel>
+                      <Tree text={trees[step.tree]} />
+                    </Panel>
+                  ) : null}
+                  {step.file ? (
+                    <Panel label={step.file.label} copy={source(step.file.sample)}>
+                      <Highlighted name={step.file.sample} />
+                    </Panel>
+                  ) : null}
+                  {step.session ? (
+                    <Panel tone="term">
+                      <Session text={terminals[step.session]} />
+                    </Panel>
+                  ) : null}
+                </div>
+              </div>
+            </ReferenceScope>
+          </li>
+        ))}
+      </ol>
     </>
   );
 }
 
-/** Two columns of code against prose, highlighted the way every other block is. */
-function Rows({ rows }: { rows: FormatRow[] }) {
-  return (
-    <dl className="grid items-baseline gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
-      {rows.map((row) => (
-        <div key={row.fragment} className="contents">
-          <dt>
-            <Highlighted name={row.fragment} />
-          </dt>
-          <dd className="text-muted">{row.means}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-/** Three transcripts from the real CLI, run at build time so they cannot go stale. */
+/** Transcripts from the real CLI, run at build time so they cannot go stale. */
 function Commands() {
   return (
     <>
-      <h3 className="mt-14 text-lg font-medium text-fg">{copy.commands.heading}</h3>
-      <p className="mt-1 max-w-2xl text-muted">{copy.commands.note}</p>
+      <p className="max-w-2xl text-muted">{copy.commands.note}</p>
       <div className="mt-4 max-w-3xl space-y-4">
         {cliReference.map((entry) => (
           <Panel key={entry.command} tone="term">
@@ -261,9 +270,10 @@ function Commands() {
 
 /**
  * The page reads in the order a first visit asks its questions: what is this
- * and why would I want it, how do I get it, what does the agent keep and reach
- * for once it has it, and only then how it works underneath. The README and
- * /index.md follow the same order out of the same data.
+ * and why would I want it, how do I get it, what does that leave on my
+ * machine, how does it work underneath, what does it look like in use, and
+ * the commands last, for the reader who wants them. The README and /index.md
+ * follow the same order out of the same data.
  */
 function Home() {
   return (
@@ -288,7 +298,6 @@ function Home() {
         </p>
         <div className="mt-6">
           <ForYourAgent text={setupPrompt} />
-          <p className="mx-auto mt-4 max-w-xl text-sm text-muted">{copy.agent.followThrough}</p>
           <div className="mt-7 text-sm text-muted">
             <p className="font-medium">{copy.install.heading}</p>
             <Prose text={copy.install.note} className="mt-1" />
@@ -296,15 +305,21 @@ function Home() {
         </div>
       </section>
 
+      <Section label={setup.heading}>
+        <Setup />
+      </Section>
+
+      <Section label={howItWorks.heading}>
+        <Store />
+      </Section>
+
       <Section label={copy.examples.heading}>
         {examples.map((example) => (
           <Example key={example.title} {...example} />
         ))}
       </Section>
 
-      <Section label={howItWorks.heading}>
-        <Store />
-        <Format />
+      <Section label={copy.commands.heading}>
         <Commands />
       </Section>
     </>

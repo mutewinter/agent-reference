@@ -71,9 +71,118 @@ TL;DR: Give your agent this prompt; it’ll handle the rest.
 Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
 ```
 
-Your agent keeps track of references and fetches the source when it needs it.
-
 Run `npm install -g agent-reference`, then `agent-reference init` in your project and follow the printed setup brief.
+<!-- /generated -->
+
+## What setup installs
+
+<!-- generated:setup -->
+Two pieces: a CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it travels in a plugin or a team skills repo the way any other skill does.
+
+### 1. A skill lands in your agent’s skills folder
+
+Machine-wide or in this project. Your agent asks which before it writes anything.
+
+```text
+~/code/acme/web/
+├── .claude/skills/agent-reference/
+│   └── SKILL.md
+├── agent-reference.json
+└── package.json
+```
+
+### 2. The skill says when to reach for the tool
+
+It is what sits in context between tasks, so it is short on purpose.
+
+`.claude/skills/agent-reference/SKILL.md`
+
+```markdown
+---
+name: agent-reference
+description: Readable upstream source on demand by name, via the
+  agent-reference CLI. Use when a task needs a library's real source
+  rather than a memory of it…
+---
+
+One verb does the work: `agent-reference get <spec>` materializes a
+reference and prints its path. Run it from the project root at the
+moment you need the source, not in advance.
+
+## Ask for the name before you read a published build
+
+Anything under `node_modules/`, any `dist/` bundle, and any `.d.ts` is
+the published build. Before reading one to answer a question about
+that dependency, run `agent-reference get <name>` and read the
+repository instead…
+```
+
+### 3. Your agent runs the CLI when the moment comes
+
+The task the first screen got wrong, with the source in hand.
+
+```text
+> add a virtualized list here
+* Skill(agent-reference)
+* Bash(agent-reference get @tanstack/react-virtual)
+  ⎿ @tanstack/react-virtual@3.14.11 -> ~/.agent-reference/src/react-virtual@3.14.11
+* Read(…/react-virtual@3.14.11/packages/react-virtual/src/index.tsx)
+  ⎿ export function useVirtualizer<
+* Update(src/List.tsx)
+  ⎿ const rows = useVirtualizer({
+```
+<!-- /generated -->
+
+## How it works
+
+<!-- generated:store -->
+Skip this if you like: your agent handles all of it. Two projects, pinning two versions of the same dependency, sharing one store.
+
+`web/agent-reference.json`
+
+```jsonc
+{
+  "references": {
+    "effect": {
+      "source": "npm:effect@4.0.0-rc.111",
+      "description": "v4's own examples; the ones online are v3"
+    },
+    "pi": {
+      "source": "github:earendil-works/pi",
+      "description": "A small terminal coding agent, in TypeScript"
+    }
+  }
+}
+```
+
+`api/agent-reference.json`
+
+```jsonc
+{
+  "references": {
+    "effect": {
+      "source": "npm:effect@3.19.4",
+      "description": "v3, which this service is built on"
+    }
+  }
+}
+```
+
+```text
+~/.agent-reference/
+├── git/ # one clone per repo
+│   ├── Effect-TS/effect.git
+│   └── earendil-works/pi.git
+├── src/ # a worktree per version
+│   ├── Effect-TS/effect/[[6ba41e59c827]]/ # 4.0.0-rc.111
+│   ├── Effect-TS/effect/[[c41d80f2b3e5]]/ # 3.19.4
+│   └── earendil-works/pi/[[dcd461925db2]]/ # tip of main
+└── state/ # one file per project
+    ├── web-a3f81c0426.json
+    └── api-5c02e7d1b8.json
+```
+
+All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.
 <!-- /generated -->
 
 ## Examples
@@ -281,82 +390,9 @@ Committed beside your `package.json`. Your agent writes it and adds to it as it 
 }
 ```
 <!-- /generated -->
-
-## How it works
-
-<!-- generated:store -->
-Skip this if you like: your agent handles all of it. Two projects, pinning two versions of the same dependency, sharing one store.
-
-`web/agent-reference.json`
-
-```jsonc
-{
-  "references": {
-    "effect": {
-      "source": "npm:effect@4.0.0-rc.111",
-      "description": "v4's own examples; the ones online are v3"
-    },
-    "pi": {
-      "source": "github:earendil-works/pi",
-      "description": "A small terminal coding agent, in TypeScript"
-    }
-  }
-}
-```
-
-`api/agent-reference.json`
-
-```jsonc
-{
-  "references": {
-    "effect": {
-      "source": "npm:effect@3.19.4",
-      "description": "v3, which this service is built on"
-    }
-  }
-}
-```
-
-```text
-~/.agent-reference/
-├── git/ # one clone per repo
-│   ├── Effect-TS/effect.git
-│   └── earendil-works/pi.git
-├── src/ # a worktree per version
-│   ├── Effect-TS/effect/[[6ba41e59c827]]/ # 4.0.0-rc.111
-│   ├── Effect-TS/effect/[[c41d80f2b3e5]]/ # 3.19.4
-│   └── earendil-works/pi/[[dcd461925db2]]/ # tip of main
-└── state/ # one file per project
-    ├── web-a3f81c0426.json
-    └── api-5c02e7d1b8.json
-```
-
-All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.
-<!-- /generated -->
-
-<!-- generated:format -->
-### The format
-
-One `references` map, from the name your agent asks for to where that source comes from. Every value is an object holding either `source` or `references`: the first is a reference, the second is a set. That is the only rule.
-
-| a value may be | |
-| --- | --- |
-| `{ "source": "…", "description": "…" }` | a reference: one name, one source |
-| `{ "description": "…", "references": { … } }` | a set: one name, several references |
-
-| a source may be | |
-| --- | --- |
-| `"./docs/decisions"` | a folder or a file, read where it lives |
-| `"github:openai/codex"` | a repository, at its default branch |
-| `"openai/codex#v0.20.0"` | the same, at a tag, branch, or commit |
-| `"npm:zod@3.22.0"` | a package, at an exact version |
-
-A set is a reference that resolves to more than one path, so its name works everywhere a name works: `get harnesses` takes all of them, `status harnesses` reports the group. The description is required on both: a name is what the agent already has, and what it needs is when the thing behind it is worth opening.
-<!-- /generated -->
+## The commands
 
 <!-- generated:commands -->
-### The commands
-
 You will not need these. Your agent runs them. They are here anyway.
 
 #### agent-reference help

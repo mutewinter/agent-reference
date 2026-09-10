@@ -27,3 +27,4 @@ One Markdown file per decision, named for the date it was made: `YYYY-MM-DD-shor
 | 2026-08-28 | [The CLI checks the stub on disk against the one it ships](2026-08-28-the-cli-checks-its-own-stub.md) |
 | 2026-09-01 | [The page answers why before how](2026-09-01-the-page-answers-why-before-how.md) |
 | 2026-09-10 | [Usage is recorded locally, and stays there](2026-09-10-usage-is-recorded-locally.md) |
+| 2026-09-10 | [The guess leads the first screen, and the page shows the chain before the examples](2026-09-10-the-guess-leads.md) |

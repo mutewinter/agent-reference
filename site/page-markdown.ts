@@ -7,12 +7,12 @@
 import { renderCliReference } from './cli-reference.ts';
 import {
   type Example,
+  type SetupStep,
   copy,
   examples,
-  format,
-  fragments,
   howItWorks,
   samples,
+  setup,
   setupPrompt,
   terminals,
   trees,
@@ -73,36 +73,23 @@ const heroTranscript = (text: string) =>
     ),
   );
 
-/**
- * The transcripts, one level under the heading that introduces them, which is
- * itself a subsection of how it works.
- */
+/** The transcripts, one level under the heading that introduces them. */
 function renderCommands(): string {
   return renderCliReference()
     .map((entry) => `#### ${entry.command}\n\n${fence('text', entry.transcript)}`)
     .join('\n\n');
 }
 
-/** One panel label, and the rows the site sets under it, as a two-column table. */
-const table = (heading: string, rows: typeof format.values) =>
-  [
-    `| ${heading} | |`,
-    '| --- | --- |',
-    ...rows.map((row) => `| \`${fragments[row.fragment].code}\` | ${row.means} |`),
-  ].join('\n');
-
 /**
- * The format, as two tables. The site sets these as facing panels; markdown has
- * no columns, so the panel labels become the table headings instead.
+ * One step of the setup chain: its title numbered the way the page numbers it,
+ * the line under it, and whichever panel it carries.
  */
-function renderFormat(): string {
-  return [
-    `### ${format.heading}`,
-    format.lead,
-    table('a value may be', format.values),
-    table('a source may be', format.sources),
-    format.note,
-  ].join('\n\n');
+function renderStep(step: SetupStep, index: number): string {
+  const blocks = [`### ${index + 1}. ${step.title}`, step.note];
+  if (step.tree) blocks.push(fence('text', unmarked(trees[step.tree])));
+  if (step.file) blocks.push(labeled(step.file.label, step.file.sample));
+  if (step.session) blocks.push(transcript(terminals[step.session]));
+  return blocks.join('\n\n');
 }
 
 /** The two configs, the store they leave behind, and a line on either side. */
@@ -137,13 +124,12 @@ export function renderRegions(): Record<string, string> {
       `### ${copy.agent.heading}`,
       `${copy.getStarted.summaryLabel}: ${copy.getStarted.lead}`,
       fence('text', setupPrompt),
-      copy.agent.followThrough,
       copy.install.note,
     ].join('\n\n'),
+    setup: [setup.lead, ...setup.steps.map((step, index) => renderStep(step, index))].join('\n\n'),
     examples: examples.map((example) => renderExample(example)).join('\n\n'),
     store: renderStore(),
-    format: renderFormat(),
-    commands: [`### ${copy.commands.heading}`, copy.commands.note, renderCommands()].join('\n\n'),
+    commands: [copy.commands.note, renderCommands()].join('\n\n'),
   };
 }
 
@@ -171,11 +157,13 @@ export function renderHomeMarkdown(): string {
       regions.hero,
       `## ${copy.getStarted.heading}`,
       regions.agent,
-      `## ${copy.examples.heading}`,
-      regions.examples,
+      `## ${setup.heading}`,
+      regions.setup,
       `## ${howItWorks.heading}`,
       regions.store,
-      regions.format,
+      `## ${copy.examples.heading}`,
+      regions.examples,
+      `## ${copy.commands.heading}`,
       regions.commands,
       `## ${MORE_HEADING}`,
       list(`${SITE}/index.md`),
