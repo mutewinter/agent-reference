@@ -12,8 +12,16 @@ import { render } from 'takumi-js';
 import { googleFonts } from 'takumi-js/helpers';
 
 import { copy } from './code-samples.ts';
+import { SITE } from './page-markdown.ts';
 
 const PUBLIC = new URL('./public/', import.meta.url);
+
+/**
+ * The one line of identity the card carries. The name and the domain are the
+ * same word, so the header held it twice; the domain is the half a reader can
+ * type, and the mark beside it is what survives being a thumbnail.
+ */
+const HOME = SITE.replace(/^https?:\/\//u, '');
 
 /**
  * The palette, read out of the stylesheet's `@theme` block rather than restated
@@ -59,9 +67,8 @@ const card = `<div style="
   ">
     <div style="display:flex;align-items:center">
     <img src="${mark}" width="38" height="38" style="margin-right:16px" />
-    <span>${esc(copy.title)}</span>
+    <span>${esc(HOME)}</span>
     </div>
-    <span style="font-size:18px;color:${c.muted}">agent-reference.dev</span>
   </div>
 
   <div style="display:flex;font-size:64px;font-weight:500;line-height:1.15">${esc(copy.tagline)}</div>
