@@ -3,6 +3,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
+import {
+  activityProject,
+  getActivityReport,
+  recordActivity,
+  recordingDisabled,
+  type ActivityReference,
+} from './activity.ts';
+import { formatActivityLog, formatActivityReport } from './activity-format.ts';
 import { parseArgv, type CliOptions } from './args.ts';
 import {
   formatCloneResult,
@@ -29,7 +37,55 @@ import { inspectStore } from './store.ts';
 import { validateConfig } from './validate.ts';
 
 async function main(argv: string[]): Promise<void> {
-  const options = parseArgv(argv);
+  const started = Date.now();
+  // Filled in by the commands that materialize something, so the log says what a run was for
+  // rather than only that it happened.
+  const materialized: ActivityReference[] = [];
+  let options: CliOptions | null = null;
+
+  try {
+    options = parseArgv(argv);
+    await run(options, materialized);
+    await record(argv, options, materialized, started);
+  } catch (error) {
+    // A run that failed is the one worth having a record of, so it is recorded before the
+    // failure is printed and rethrown.
+    await record(argv, options, materialized, started, error);
+    throw error;
+  }
+}
+
+/**
+ * One line per run in the local log, whatever the run did. It is written after the command
+ * has printed its answer, never sent anywhere, and never allowed to fail a command:
+ * `agent-reference activity` reads it back, and nothing else reads it at all.
+ */
+async function record(
+  argv: string[],
+  options: CliOptions | null,
+  references: ActivityReference[],
+  started: number,
+  error?: unknown,
+): Promise<void> {
+  // Asked before the project is resolved, so opting out costs nothing rather than costing
+  // the directory walk that names the project.
+  if (recordingDisabled()) return;
+  // Reading the log is not a use of the tool. A viewer that appends to what it shows counts
+  // every look as activity, and the numbers stop being about what the source was fetched for.
+  if (options?.command === 'activity') return;
+
+  await recordActivity({
+    // An argv that never parsed has no command, and what was typed is the whole evidence.
+    command: options?.command ?? 'unknown',
+    project: await activityProject(),
+    args: options?.positionals ?? argv,
+    references,
+    ms: Date.now() - started,
+    error,
+  });
+}
+
+async function run(options: CliOptions, materialized: ActivityReference[]): Promise<void> {
   // A human is watching only when stdout is a terminal. Piped output feeds an agent, which
   // passes a path straight to a file API, and `~` is not a path there.
   const humanOutput = Boolean(process.stdout.isTTY);
@@ -79,6 +135,13 @@ async function main(argv: string[]): Promise<void> {
       // Every positional is a spec: get runs against the current directory's project, and
       // specs like github:owner/repo would be misread as paths by splitPositionals.
       const results = await getReferences(null, options.positionals);
+      materialized.push(
+        ...results.map((result) => ({
+          kind: result.kind,
+          name: result.name,
+          version: result.version,
+        })),
+      );
       if (options.path) {
         process.stdout.write(formatGetPaths(results));
         process.stderr.write(formatGetProblems(results));
@@ -101,6 +164,19 @@ async function main(argv: string[]): Promise<void> {
     case 'clone': {
       const { projectPath, references } = await splitPositionals(options);
       const result = await cloneReferences(projectPath, { references });
+      materialized.push(
+        ...result.cloned.map((clone) => ({
+          kind: 'package' as const,
+          name: clone.dependency.name,
+          version: clone.dependency.version,
+        })),
+        ...result.clonedGit.map((clone) => ({
+          kind: 'git' as const,
+          name: clone.name,
+          version: null,
+        })),
+        ...result.paths.map((name) => ({ kind: 'path' as const, name, version: null })),
+      );
       write(options, result, (value) => formatCloneResult(value, format));
       return;
     }
@@ -131,6 +207,19 @@ async function main(argv: string[]): Promise<void> {
         days: options.days ?? undefined,
       });
       write(options, report, (result) => formatStoreReport(result, format));
+      return;
+    }
+    case 'activity': {
+      const report = await getActivityReport({ days: options.days });
+      const activityFormat = {
+        color: humanOutput && !process.env.NO_COLOR,
+        tilde: humanOutput,
+      };
+      write(options, report, (result) =>
+        options.log
+          ? formatActivityLog(result, activityFormat)
+          : formatActivityReport(result, activityFormat),
+      );
       return;
     }
   }
@@ -226,6 +315,15 @@ Print the JSON Schema for agent-reference.json.`,
 Show what the store holds and how big it is. --prune deletes checkouts unused for
 --days (default 30) and any repository left with none; everything pruned is
 refetched on the next get.`,
+  activity: `agent-reference activity [--log] [--days <n>] [--json]
+
+How much this machine uses agent-reference, what it reaches for, and when it last
+did. Every run appends one line to <store>/log/usage.jsonl naming the command,
+the project, and what it materialized. That file stays on this machine, nothing
+is sent anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the recording.
+
+--log prints the runs themselves, oldest first, instead of the summary over them.
+--days narrows either one to a window.`,
 };
 
 function helpText(topic: string | null = null): string {
@@ -248,6 +346,7 @@ Usage:
   agent-reference guide
   agent-reference schema
   agent-reference store [--prune] [--days <n>]
+  agent-reference activity [--log] [--days <n>] [--json]
 
 Commands:
   get       Materialize one reference and print its path. A spec is a configured
@@ -272,6 +371,9 @@ Commands:
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
             checkouts unused for --days (default 30).
+  activity  How often this machine runs agent-reference and what it reaches for,
+            counted from a log the runs themselves write. Local: nothing is sent
+            anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the recording.
 
   <command> --help explains one command on its own.
 
@@ -279,8 +381,10 @@ Options:
   --json          Print machine-readable JSON.
   --path          For get: the resolved paths alone, one per line, for a shell
                   variable. Problems still print, on stderr.
+  --log           For activity: the runs themselves, not the summary.
   --prune         For store: delete stale checkouts.
-  --days <n>      For store --prune: age threshold in days. Default 30.
+  --days <n>      For store --prune: age threshold in days. Default 30. For
+                  activity: the window to count, in days. Default all of it.
 
 References are declared in agent-reference.json (committed, shareable) and
 agent-reference.local.json (gitignored, machine paths and private references),

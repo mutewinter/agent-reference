@@ -8,6 +8,7 @@ export type CliCommand =
   | 'guide'
   | 'schema'
   | 'store'
+  | 'activity'
   | 'help'
   | 'version';
 
@@ -18,6 +19,8 @@ export interface CliOptions {
   json: boolean;
   /** `get --path`: the path alone, for a caller holding it in a shell variable. */
   path: boolean;
+  /** `activity --log`: the runs themselves rather than the summary over them. */
+  log: boolean;
   prune: boolean;
   days: number | null;
   /** `--help` after a command, which asks about that command rather than running it. */
@@ -37,12 +40,13 @@ export const CLI_COMMANDS: readonly string[] = [
   'guide',
   'schema',
   'store',
+  'activity',
   'help',
   'version',
 ];
 
 const COMMANDS = new Set<string>(CLI_COMMANDS);
-const VALID_OPTIONS = '--json, --path, --prune, --days <n>';
+const VALID_OPTIONS = '--json, --path, --log, --prune, --days <n>';
 
 export function parseArgv(argv: string[]): CliOptions {
   const options: CliOptions = {
@@ -50,6 +54,7 @@ export function parseArgv(argv: string[]): CliOptions {
     positionals: [],
     json: false,
     path: false,
+    log: false,
     prune: false,
     days: null,
     help: false,
@@ -72,6 +77,8 @@ export function parseArgv(argv: string[]): CliOptions {
       options.json = true;
     } else if (flag === '--path') {
       options.path = true;
+    } else if (flag === '--log') {
+      options.log = true;
     } else if (flag === '--prune') {
       options.prune = true;
     } else if (flag === '--days') {
@@ -117,6 +124,13 @@ export function parseArgv(argv: string[]): CliOptions {
   if (options.path && options.command !== 'get' && options.command !== 'help') {
     throw new Error(
       `--path is a get option: agent-reference get <spec> --path. ${options.command} does not resolve a spec to a path.`,
+    );
+  }
+
+  // Same reason: only `activity` has runs to list instead of summarize.
+  if (options.log && options.command !== 'activity' && options.command !== 'help') {
+    throw new Error(
+      `--log is an activity option: agent-reference activity --log. ${options.command} keeps no log to print.`,
     );
   }
 

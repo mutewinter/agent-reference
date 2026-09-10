@@ -1,4 +1,18 @@
 export {
+  getActivityReport,
+  recordActivity,
+  usageLogPath,
+  type ActivityEvent,
+  type ActivityOptions,
+  type ActivityReference,
+  type ActivityReport,
+} from './activity.ts';
+export {
+  formatActivityLog,
+  formatActivityReport,
+  type ActivityFormatOptions,
+} from './activity-format.ts';
+export {
   DEFAULT_CONFIG_FILE,
   DEFAULT_LOCAL_CONFIG_FILE,
   loadAgentReferenceConfig,

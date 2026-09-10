@@ -390,6 +390,7 @@ Usage:
   agent-reference guide
   agent-reference schema
   agent-reference store [--prune] [--days <n>]
+  agent-reference activity [--log] [--days <n>] [--json]
 
 Commands:
   get       Materialize one reference and print its path. A spec is a configured
@@ -414,6 +415,9 @@ Commands:
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
             checkouts unused for --days (default 30).
+  activity  How often this machine runs agent-reference and what it reaches for,
+            counted from a log the runs themselves write. Local: nothing is sent
+            anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the recording.
 
   <command> --help explains one command on its own.
 
@@ -421,8 +425,10 @@ Options:
   --json          Print machine-readable JSON.
   --path          For get: the resolved paths alone, one per line, for a shell
                   variable. Problems still print, on stderr.
+  --log           For activity: the runs themselves, not the summary.
   --prune         For store: delete stale checkouts.
-  --days <n>      For store --prune: age threshold in days. Default 30.
+  --days <n>      For store --prune: age threshold in days. Default 30. For
+                  activity: the window to count, in days. Default all of it.
 
 References are declared in agent-reference.json (committed, shareable) and
 agent-reference.local.json (gitignored, machine paths and private references),
