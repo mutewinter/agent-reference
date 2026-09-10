@@ -8,10 +8,11 @@
  * path and explained itself in its message. An agent that reads only the checkout can
  * describe the behavior and cannot explain it.
  *
- * Nothing here touches the network. Upstream is a local git repository, reached through a
- * relative path so the committed config holds no machine path. It is read where it lives,
- * which is the point: the checkout carries its own history, so `git log` answers from it
- * without anything being cloned.
+ * Nothing here touches the network. Upstream is a local git repository, reached through an
+ * absolute `file://` URL in the gitignored config, which is where a machine path belongs and
+ * which clones into the run's store the way a `github:` reference does. A bare relative path
+ * would be a path reference, read where it lives, and then the suite would be asking whether
+ * an agent runs `git log` in a directory rather than whether it knows what `get` handed it.
  */
 import { execFile } from 'node:child_process';
 import fs from 'node:fs/promises';
@@ -346,26 +347,28 @@ async function assertHistoryOnly(repoPath) {
 
 /** A project that speaks the protocol and has already been set up for agent-reference. */
 async function buildProject(projectRoot, upstreamPath) {
-  const spec = `./${path.relative(projectRoot, upstreamPath).split(path.sep).join('/')}`;
-
   await writeFiles(projectRoot, {
     'package.json': `${JSON.stringify({ name: 'telemetry-gateway', version: '0.4.0', type: 'module', private: true }, null, 2)}\n`,
     'src/batch.js': BATCH_SOURCE,
     'src/transport.js': TRANSPORT_SOURCE,
+    '.gitignore': 'node_modules\nagent-reference.local.json\n',
     'AGENTS.md': [
       '# telemetry-gateway',
       '',
       'Batches device telemetry and ships it to the collector over wire-format.',
       '',
-      'This project declares references in agent-reference.json and agent-reference.local.json,',
-      'and agent-reference status lists them.',
+      'This project declares references in agent-reference.local.json, and',
+      'agent-reference status lists them.',
       '',
     ].join('\n'),
-    'agent-reference.json': `${JSON.stringify(
+    // The reference names a repository on this machine, so it belongs in the gitignored
+    // file, which is also the only place `validate` accepts an absolute path. `run.mjs`
+    // adds `cacheDir` to what is written here.
+    'agent-reference.local.json': `${JSON.stringify(
       {
         references: {
           'wire-format': {
-            source: spec,
+            source: `file://${upstreamPath}`,
             description:
               'The wire protocol the collector speaks. Read it when frames are rejected or the header layout is in question.',
           },

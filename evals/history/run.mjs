@@ -7,8 +7,8 @@
  * source can answer. The prompt names no mechanism: it asks for reasoning that the working
  * tree does not carry, and what the agent does next is the measurement.
  *
- * Nothing here touches the network. Upstream is a local git repository reached through a
- * relative `file:` spec, and the store lives inside the run.
+ * Nothing here touches the network. Upstream is a local git repository reached through an
+ * absolute `file://` URL in the gitignored config, and the store lives inside the run.
  *
  * Usage: node evals/history/run.mjs [--model sonnet] [--prompt "..."]
  */
@@ -54,11 +54,14 @@ const runDir = path.join(os.homedir(), '.agent-reference-evals', `history-${stam
 
 const { home, projectRoot, upstreamPath } = await buildWorld(runDir);
 
-// The store lives inside the run, so a run never touches the operator's real checkouts.
+// The store lives inside the run, so a run never touches the operator's real checkouts. Added
+// to the config the world already wrote rather than over it: the reference itself names a
+// repository on this machine and lives in the same gitignored file.
 const storeDir = path.join(runDir, 'store');
+const localConfig = path.join(projectRoot, 'agent-reference.local.json');
 await fs.writeFile(
-  path.join(projectRoot, 'agent-reference.local.json'),
-  `${JSON.stringify({ cacheDir: storeDir }, null, 2)}\n`,
+  localConfig,
+  `${JSON.stringify({ cacheDir: storeDir, ...JSON.parse(await fs.readFile(localConfig, 'utf8')) }, null, 2)}\n`,
 );
 
 await execFileAsync('git', ['init', '-q', projectRoot]);

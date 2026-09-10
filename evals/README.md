@@ -98,13 +98,13 @@ The prompt reports the bug a user would report, asks for the maintainers' actual
 
 ### Offline by construction
 
-Upstream is a local git repository, reached through a relative `file:` spec so the committed config holds no machine path, and `cacheDir` puts the store inside the run directory. The project ships the skill stub at `.claude/skills/`, so a run measures what this repository ships rather than whatever is installed globally on the machine.
+Upstream is a local git repository, reached through an absolute `file://` URL, and `cacheDir` puts the store inside the run directory. Both live in `agent-reference.local.json`, which is where a machine path belongs and which the project's `.gitignore` keeps out of its own commit, so the agent starts from a config its own `validate` passes. The project ships the skill stub at `.claude/skills/`, so a run measures what this repository ships rather than whatever is installed globally on the machine.
 
-One caveat the fixture cannot avoid: a local `file:` reference is cloned in full, because git ignores `--filter` for local clones. A real reference is a partial clone, where commit metadata is local but `-p`, `--stat`, `blame`, and `-S` fetch file contents on first use.
+The URL is what makes the fixture faithful. A bare relative path is a path reference, read where it lives, and against one of those the suite would be asking whether an agent runs `git log` in a directory rather than whether it knows what `get` handed it. A `file://` URL takes git's ordinary transport instead, so the mirror is a `blob:none` partial clone like any other: commit metadata is local, and `-p`, `--stat`, `blame`, and `-S` fetch file contents on first use, exactly as they would for a `github:` reference.
 
 ### What is graded
 
-Whether a git history command ran against the store, and in the checkout or the mirror, which is the load-bearing signal. Then whether the answer carries what only history holds, and one honesty check: an account of upstream's reasoning with no commit behind it is invention, not a pass. Going to the original repository the `file:` spec points at is recorded as a shortcut the fixture allows and a `github:` reference does not.
+Whether a git history command ran against the store, and in the checkout or the mirror, which is the load-bearing signal. Then whether the answer carries what only history holds, and one honesty check: an account of upstream's reasoning with no commit behind it is invention, not a pass. Going to the original repository the `file://` URL points at is recorded as a shortcut the fixture allows and a `github:` reference does not.
 
 ## adopt
 
