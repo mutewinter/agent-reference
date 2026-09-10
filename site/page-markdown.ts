@@ -52,28 +52,26 @@ const unmarked = (text: string) => text.replaceAll(/\[\[([^\]]+)\]\]/gu, '$1');
 const transcript = (text: string) =>
   fence('text', unmarked(text.replaceAll(/^(\s+(?:\u23BF )?)[!+] /gmu, '$1')));
 
-/** Tool labels sit outside the results so GitHub can highlight each result's language. */
-function heroTranscript(text: string): string {
-  return text
-    .split(/\n(?=\* )/u)
-    .map((block) => {
-      const [call = '', ...lines] = block.split('\n');
-      const result = lines
-        .map((line) => line.replace(/^(?: {2}⎿ | {4})(?:[!+] )?/u, ''))
-        .join('\n');
-      const language = call.startsWith('* WebFetch(')
-        ? 'html'
-        : call.endsWith('.ts)')
-          ? 'typescript'
-          : call.endsWith('.js)')
-            ? 'javascript'
-            : call.endsWith('.md)')
-              ? 'markdown'
-              : 'text';
-      return `\`${call.slice(2)}\`\n\n${fence(language, result)}`;
-    })
-    .join('\n\n');
-}
+/** What a result marker becomes in column one of a diff fence. */
+const DIFF_MARK: Record<string, string> = { '!': '-', '+': '+' };
+
+/**
+ * The first screen, one block a side, because a session is read as a session
+ * and three fences with labels between them is a file listing. The tone the
+ * site paints a result line is the one thing a fence can carry on its own, so
+ * a marker moves to column one and the block is tagged `diff`: what the agent
+ * got back is red where it went wrong and green where it went right, out of a
+ * grammar every renderer already has. The columns still line up, since `- ⎿ `
+ * and `+   ` are as wide as the `  ⎿ ` and the four spaces they replace.
+ */
+const heroTranscript = (text: string) =>
+  fence(
+    'diff',
+    unmarked(text).replaceAll(
+      /^\s(\s*(?:⎿ )?)([!+]) /gmu,
+      (_match, indent: string, mark: string) => `${DIFF_MARK[mark]}${indent}`,
+    ),
+  );
 
 /**
  * The transcripts, one level under the heading that introduces them, which is

@@ -6,56 +6,46 @@ A CLI your agent uses to read the real source of your dependencies, at the versi
 
 ### Your agent, without the source
 
-`Read(node_modules/effect/dist/FileSystem.js)`
-
-```javascript
-import*as t from"./Array.js";import*as e from…
-…r=t=>e.fail(new n({module:"FileSystem",method…
-…class extends r{readFile(t){return e.suspend(…
-```
-
-`WebFetch(effect.website/docs/platform/file-system)`
-
-```html
-<!doctype html><html lang="en" class="dark">…
-…<nav class="sidebar"><a href="/docs/getting…
-…<div class="prose"><h1>FileSystem</h1><p>The…
-…<script id="__NEXT_DATA__" type="applicat…
+```diff
+* Update(src/List.tsx)
+  ⎿ const rows = useVirtual({
+* Bash(pnpm tsc --noEmit)
+- ⎿ error TS2305: no exported member 'useVirtual'
+* Read(node_modules/effect/dist/FileSystem.js)
+- ⎿ import*as t from"./Array.js";import*as e from…
+-   …r=t=>e.fail(new n({module:"FileSystem",method…
+-   …class extends r{readFile(t){return e.suspend(…
+* WebFetch(effect.website/docs/platform/file-system)
+- ⎿ <!doctype html><html lang="en" class="dark">…
+-   …<nav class="sidebar"><a href="/docs/getting…
+-   …<div class="prose"><h1>FileSystem</h1><p>The…
+-   …<script id="__NEXT_DATA__" type="applicat…
 ```
 
 ### Your agent, with the source
 
-`Bash(agent-reference get effect)`
-
-```text
-effect@4.0.0-rc.111 -> ~/.agent-reference/src/effect@4.0.0-rc.111
-```
-
-`Read(…/effect@4.0.0-rc.111/packages/effect/README.md)`
-
-```markdown
-# effect
-Effect is a library for building robust, maintainable, type-safe, and…
-## Installation
-```
-
-`Read(…/effect@4.0.0-rc.111/packages/effect/src/FileSystem.ts)`
-
-```typescript
-/**
- * Open a file at `path` with the specified `options`.
- *
- * **Details**
- *
- * The file handle will be automatically closed when the scope is closed.
- */
-readonly open: (
-  path: string,
-  options?: {
-    readonly flag?: OpenFlag | undefined
-    readonly mode?: number | undefined
-  }
-) => Effect.Effect<File, PlatformError, Scope>
+```diff
+* Bash(agent-reference get effect)
+  ⎿ effect@4.0.0-rc.111 -> ~/.agent-reference/src/effect@4.0.0-rc.111
+* Read(…/effect@4.0.0-rc.111/packages/effect/README.md)
++ ⎿ # effect
++   Effect is a library for building robust, maintainable, type-safe, and…
++   ## Installation
+* Read(…/effect@4.0.0-rc.111/packages/effect/src/FileSystem.ts)
++ ⎿ /**
++    * Open a file at `path` with the specified `options`.
++    *
++    * **Details**
++    *
++    * The file handle will be automatically closed when the scope is closed.
++    */
++   readonly open: (
++     path: string,
++     options?: {
++       readonly flag?: OpenFlag | undefined
++       readonly mode?: number | undefined
++     }
++   ) => Effect.Effect<File, PlatformError, Scope>
 ```
 
 *[Any questions?](https://www.youtube.com/watch?v=F0kCYP_iPtg)*

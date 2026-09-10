@@ -215,16 +215,20 @@ export const trees = {
  * underlines the names that correspond to the panel beside it, since that
  * correspondence is what an example exists to show.
  *
- * `today` and `after` are the first screen, and carry no prompt: two things
+ * `today` and `after` are the first screen, and carry no prompt: three things
  * an agent does when it needs a library and what each got back, against what
- * the tool gives it. One library throughout, because a reader recognizes
- * Effect. The markup is what the docs site hands a fetch, and every line on
- * the right is real: the README and `src/FileSystem.ts` of the effect package
- * at that tag, quoted verbatim. The bundle line on the left is the pattern
- * rather than the package: Effect's own published build keeps its comments,
- * and the row stands for the many that do not. A result line marked `! ` went
- * wrong and `+ ` went right; the markers are read off before the line is
- * painted. `[[name]]` anywhere in a transcript marks a name
+ * the tool gives it. The guess leads, because it is the one whose cost a
+ * reader has paid personally: it ends in a build that failed rather than in
+ * tokens nobody watched. It is also the one block that names another library,
+ * since it needs an API that actually moved, and `useVirtual` became
+ * `useVirtualizer` between two majors of `@tanstack/react-virtual`. Effect
+ * carries the rest: the markup is what the docs site hands a fetch, and every
+ * line on the right is real, the README and `src/FileSystem.ts` of the effect
+ * package at that tag, quoted verbatim. The bundle line on the left is the
+ * pattern rather than the package: Effect's own published build keeps its
+ * comments, and the row stands for the many that do not. A result line marked
+ * `! ` went wrong and `+ ` went right; the markers are read off before the
+ * line is painted. `[[name]]` anywhere in a transcript marks a name
  * the config or the tree beside it declares, so the eye can join the two.
  *
  * Paths are the readable form, not the literal one. The store keys a checkout
@@ -235,7 +239,11 @@ export const trees = {
  * quoted lines before swapping a library.
  */
 export const terminals = {
-  today: `* Read(node_modules/effect/dist/FileSystem.js)
+  today: `* Update(src/List.tsx)
+  ⎿ const rows = useVirtual({
+* Bash(pnpm tsc --noEmit)
+  ⎿ ! error TS2305: no exported member 'useVirtual'
+* Read(node_modules/effect/dist/FileSystem.js)
   ⎿ ! import*as t from"./Array.js";import*as e from…
     ! …r=t=>e.fail(new n({module:"FileSystem",method…
     ! …class extends r{readFile(t){return e.suspend(…
