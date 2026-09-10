@@ -4,7 +4,7 @@ import process from 'node:process';
 
 import { defaultStoreDir } from './git.ts';
 import { resolveProjectInput } from './scanner.ts';
-import type { AgentReferenceKind } from './types.ts';
+import type { AgentReferenceKind, CheckoutConfidence } from './types.ts';
 
 /**
  * What this machine has asked agent-reference for, recorded locally so the question "is this
@@ -30,12 +30,38 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const BUCKET_DAYS = [1, 7, 30] as const;
 const DEFAULT_EVENT_LIMIT = 50;
 
+/** A warning is relayed text, and it shares one line with everything else about the run. */
+const MAX_WARNING_LENGTH = 120;
+const MAX_WARNINGS = 5;
+
+/**
+ * Which harness ran this, when it says so itself. Only variables a tool sets on its own
+ * process are read, by exact name, and only whether one is set is recorded: never a value,
+ * never the environment at large, and never the process tree above this one. An unrecognized
+ * caller is recorded as no caller rather than guessed at; add a row when you meet one.
+ */
+const HARNESS_ENV: ReadonlyArray<readonly [string, string]> = [
+  ['CLAUDECODE', 'claude-code'],
+  ['CODEX_SANDBOX', 'codex'],
+  ['CODEX_SESSION_ID', 'codex'],
+  ['CURSOR_INVOKED_AS', 'cursor'],
+  // Last, so a harness running inside CI still reports as itself.
+  ['CI', 'ci'],
+];
+
+/** A person typed it: nothing named a harness, and something was watching stdout. */
+export const TERMINAL = 'terminal';
+/** Neither, which is a caller this cannot name rather than a caller it says was nobody. */
+export const UNATTRIBUTED = 'unattributed';
+
 /** One source a run materialized, named the way the run named it back. */
 export interface ActivityReference {
   name: string;
   kind: AgentReferenceKind;
   /** The version resolved, for a package; null for a repository or a path. */
   version: string | null;
+  /** How sure the checkout is of that version. `fallback` means it is not that version. */
+  confidence: CheckoutConfidence | null;
 }
 
 /** One run of the CLI. */
@@ -48,9 +74,19 @@ export interface ActivityEvent {
   project: string | null;
   /** The positionals as typed: the specs asked for, which survive a failure that resolves none. */
   args: string[];
+  /** Flag names as typed, values dropped: which shape of a command was asked for. */
+  flags: string[];
   references: ActivityReference[];
+  /** Whether stdout was a terminal, which is what separates a person from a harness. */
+  tty: boolean;
+  /** The harness that ran this, when one names itself. Null is unattributed, not "nobody". */
+  agent: string | null;
+  /** The build that wrote this line, so a log spanning upgrades can be read. */
+  cli: string;
   ms: number;
   ok: boolean;
+  /** Answers the run handed back that were not what was asked for, though it succeeded. */
+  warnings: string[];
   /** The first line of the failure, for the run that needs explaining later. */
   error?: string;
 }
@@ -75,6 +111,8 @@ export interface ActivityReport {
   /** Runs in the log whatever the window, so an empty window reads as a window and not a log. */
   recorded: number;
   failures: number;
+  /** Runs that succeeded and still handed back something worth reading twice. */
+  warned: number;
   windowDays: number | null;
   firstRun: string | null;
   lastRun: string | null;
@@ -82,6 +120,8 @@ export interface ActivityReport {
   commands: ActivityCount[];
   references: ActivityReferenceCount[];
   projects: ActivityCount[];
+  /** Who ran it: the harness that named itself, `terminal` for a person, else unattributed. */
+  callers: ActivityCount[];
   /** The most recent runs, oldest first. Bounded by `limit`; `runs` is the true total. */
   events: ActivityEvent[];
 }
@@ -100,11 +140,33 @@ export interface RecordActivityInput {
   command: string;
   project: string | null;
   args: string[];
+  flags?: string[];
   references?: ActivityReference[];
+  warnings?: string[];
+  tty?: boolean;
+  cli?: string;
+  /** The harness, when the caller already knows it. Detected from the environment otherwise. */
+  agent?: string | null;
   /** Milliseconds the run took, wall clock. */
   ms: number;
   error?: unknown;
+  /** What the process is about to exit with. A command can answer and still fail, and
+   * `validate` does exactly that: it prints its findings and sets 1 without throwing. */
+  exitCode?: number;
   now?: number;
+}
+
+/**
+ * The harness that ran this, or null when nothing in the environment names one. Exported so
+ * the table above is testable from the outside, since the whole design of it is that a run
+ * is labeled only by a name a tool published about itself.
+ */
+export function detectAgent(env: NodeJS.ProcessEnv = process.env): string | null {
+  for (const [variable, agent] of HARNESS_ENV) {
+    const value = env[variable];
+    if (value !== undefined && value !== '' && value !== '0') return agent;
+  }
+  return null;
 }
 
 /**
@@ -124,9 +186,18 @@ export async function recordActivity(
     command: input.command,
     project: input.project,
     args: input.args,
+    flags: input.flags ?? [],
     references: input.references ?? [],
+    tty: input.tty ?? false,
+    agent: input.agent === undefined ? detectAgent() : input.agent,
+    cli: input.cli ?? 'unknown',
     ms: input.ms,
-    ok: input.error === undefined,
+    // A command that answered and then set a non-zero exit did not succeed, whatever it
+    // printed. Reading only the thrown failure recorded a refused config as a clean run.
+    ok: input.error === undefined && !input.exitCode,
+    warnings: (input.warnings ?? [])
+      .slice(0, MAX_WARNINGS)
+      .map((warning) => oneLine(warning, MAX_WARNING_LENGTH)),
   };
   if (input.error !== undefined) event.error = errorLine(input.error);
 
@@ -174,12 +245,16 @@ export async function getActivityReport(options: ActivityOptions = {}): Promise<
   const commands = new Map<string, ActivityCount>();
   const projects = new Map<string, ActivityCount>();
   const references = new Map<string, ActivityReferenceCount>();
+  const callers = new Map<string, ActivityCount>();
   let failures = 0;
+  let warned = 0;
 
   // Ascending, so the run being counted is always the most recent one seen for its key.
   for (const event of events) {
     if (!event.ok) failures += 1;
+    if (event.ok && event.warnings.length > 0) warned += 1;
     count(commands, event.command, event.time);
+    count(callers, caller(event), event.time);
     if (event.project) count(projects, event.project, event.time);
     for (const reference of event.references) countReference(references, reference, event.time);
   }
@@ -190,6 +265,7 @@ export async function getActivityReport(options: ActivityOptions = {}): Promise<
     runs: events.length,
     recorded: recorded.length,
     failures,
+    warned,
     windowDays: days,
     firstRun: first?.time ?? null,
     lastRun: events.at(-1)?.time ?? null,
@@ -197,6 +273,7 @@ export async function getActivityReport(options: ActivityOptions = {}): Promise<
     commands: ranked(commands),
     references: ranked(references),
     projects: ranked(projects),
+    callers: ranked(callers),
     events: limit > 0 ? events.slice(-limit) : [],
   };
 }
@@ -295,10 +372,17 @@ function parseEvent(line: string): ActivityEvent | null {
   try {
     const event = JSON.parse(line) as ActivityEvent;
     if (event.v !== SCHEMA_VERSION || Number.isNaN(Date.parse(event.time))) return null;
+    // Fields added after a line was written default rather than disqualify it: the shape is
+    // additive, so a run recorded by an older build still counts toward every total.
     return {
       ...event,
       args: Array.isArray(event.args) ? event.args : [],
+      flags: Array.isArray(event.flags) ? event.flags : [],
       references: Array.isArray(event.references) ? event.references : [],
+      warnings: Array.isArray(event.warnings) ? event.warnings : [],
+      tty: event.tty === true,
+      agent: event.agent ?? null,
+      cli: event.cli ?? 'unknown',
     };
   } catch {
     return null;
@@ -317,7 +401,19 @@ async function rotate(logPath: string): Promise<void> {
 }
 
 function errorLine(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  const first = message.split('\n')[0]?.trim() ?? '';
-  return first.length > MAX_ERROR_LENGTH ? `${first.slice(0, MAX_ERROR_LENGTH - 1)}…` : first;
+  return oneLine(error instanceof Error ? error.message : String(error), MAX_ERROR_LENGTH);
+}
+
+/** Relayed text on a line of its own: the first line of it, bounded. */
+function oneLine(value: string, limit: number): string {
+  const first = value.split('\n')[0]?.trim() ?? '';
+  return first.length > limit ? `${first.slice(0, limit - 1)}…` : first;
+}
+
+/**
+ * Who a run belongs to. A harness that named itself wins; failing that, a terminal means a
+ * person typed it, and everything else is a caller nothing here can put a name to.
+ */
+function caller(event: ActivityEvent): string {
+  return event.agent ?? (event.tty ? TERMINAL : UNATTRIBUTED);
 }

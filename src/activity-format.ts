@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { displayPath } from './fs-utils.ts';
 import { sanitizeRelayedLine } from './text-utils.ts';
-import type { ActivityEvent, ActivityReport } from './activity.ts';
+import { UNATTRIBUTED, type ActivityEvent, type ActivityReport } from './activity.ts';
 
 export interface ActivityFormatOptions {
   /** ANSI color. Callers decide from the stream: a TTY without NO_COLOR set. */
@@ -42,6 +42,7 @@ export function formatActivityReport(
 
   const sections = [
     headline(report, now, options),
+    countSection('who ran it', callerRows(report, now), 0, options),
     countSection(
       'commands',
       report.commands.map((entry) => [entry.name, String(entry.runs), '', ago(entry.lastRun, now)]),
@@ -74,6 +75,22 @@ export function formatActivityReport(
   ];
 
   return sections.filter((section) => section !== '').join('\n');
+}
+
+/**
+ * Who ran the runs, when that is a question with an answer. One row reading
+ * `unattributed` is the section saying it does not know, which is worth less than the space
+ * it takes; any other single row still names somebody.
+ */
+function callerRows(report: ActivityReport, now: number): string[][] {
+  const [only] = report.callers;
+  if (report.callers.length === 1 && only?.name === UNATTRIBUTED) return [];
+  return report.callers.map((entry) => [
+    entry.name,
+    String(entry.runs),
+    '',
+    ago(entry.lastRun, now),
+  ]);
 }
 
 /** Where the numbers came from, and what that file is not. */
@@ -142,14 +159,27 @@ function subject(event: ActivityEvent): string {
   return truncate(sanitizeRelayedLine(named.join(', ')), MAX_SUBJECT);
 }
 
-/** How it went: the failure when there was one, since that is why the line is being read. */
+/**
+ * How it went: the failure when there was one, and otherwise the warning, since a run that
+ * answered while saying the answer is not what was asked for is why this column is read.
+ */
 function detail(event: ActivityEvent, color: boolean): string {
-  if (event.ok) return duration(event.ms);
-  return paint(
-    `failed: ${truncate(sanitizeRelayedLine(event.error ?? ''), MAX_ERROR)}`,
+  if (!event.ok) {
+    return paint(
+      `failed: ${truncate(sanitizeRelayedLine(event.error ?? ''), MAX_ERROR)}`,
+      'yellow',
+      color,
+    );
+  }
+
+  const warning = event.warnings[0];
+  if (!warning) return duration(event.ms);
+  const note = paint(
+    `warned: ${truncate(sanitizeRelayedLine(warning), MAX_ERROR)}`,
     'yellow',
     color,
   );
+  return `${duration(event.ms)}  ${note}`;
 }
 
 function headline(report: ActivityReport, now: number, options: ActivityFormatOptions): string {
@@ -167,6 +197,7 @@ function headline(report: ActivityReport, now: number, options: ActivityFormatOp
       (bucket) => `${bucket.days === 1 ? 'today' : `${bucket.days} days`} ${bucket.runs}`,
     ),
     ...(report.failures > 0 ? [`${report.failures} failed`] : []),
+    ...(report.warned > 0 ? [`${report.warned} warned`] : []),
   ];
   if (counts.length > 0) lines.push(paint(counts.join(' · '), 'dim', options.color));
 

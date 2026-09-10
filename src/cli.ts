@@ -36,21 +36,29 @@ import { formatVersionsReport, getVersionsReport } from './versions.ts';
 import { inspectStore } from './store.ts';
 import { validateConfig } from './validate.ts';
 
+/**
+ * What a run did, collected as it does it. The commands that materialize something fill it
+ * in, so the log says what a run was for rather than only that it happened, and so a run
+ * that answered while warning about the answer is not recorded as a clean one.
+ */
+interface RunRecord {
+  references: ActivityReference[];
+  warnings: string[];
+}
+
 async function main(argv: string[]): Promise<void> {
   const started = Date.now();
-  // Filled in by the commands that materialize something, so the log says what a run was for
-  // rather than only that it happened.
-  const materialized: ActivityReference[] = [];
+  const performed: RunRecord = { references: [], warnings: [] };
   let options: CliOptions | null = null;
 
   try {
     options = parseArgv(argv);
-    await run(options, materialized);
-    await record(argv, options, materialized, started);
+    await run(options, performed);
+    await record(argv, options, performed, started);
   } catch (error) {
     // A run that failed is the one worth having a record of, so it is recorded before the
     // failure is printed and rethrown.
-    await record(argv, options, materialized, started, error);
+    await record(argv, options, performed, started, error);
     throw error;
   }
 }
@@ -63,7 +71,7 @@ async function main(argv: string[]): Promise<void> {
 async function record(
   argv: string[],
   options: CliOptions | null,
-  references: ActivityReference[],
+  performed: RunRecord,
   started: number,
   error?: unknown,
 ): Promise<void> {
@@ -78,14 +86,31 @@ async function record(
     // An argv that never parsed has no command, and what was typed is the whole evidence.
     command: options?.command ?? 'unknown',
     project: await activityProject(),
-    args: options?.positionals ?? argv,
-    references,
+    // `get --help` is a question about get, and the topic is the only part of it that says
+    // so: by the time it is parsed the command is `help` and the word is gone from the rest.
+    args: options?.helpTopic ? [options.helpTopic] : (options?.positionals ?? argv),
+    // Read back off argv rather than off the parsed options, so a flag this build does not
+    // have is recorded as typed instead of vanishing with the parse that refused it.
+    flags: argv.filter((arg) => arg.startsWith('-')).map((arg) => arg.split('=')[0] ?? arg),
+    references: performed.references,
+    warnings: performed.warnings,
+    tty: Boolean(process.stdout.isTTY),
+    cli: await cliVersion(),
     ms: Date.now() - started,
     error,
+    exitCode: process.exitCode === undefined ? 0 : Number(process.exitCode),
   });
 }
 
-async function run(options: CliOptions, materialized: ActivityReference[]): Promise<void> {
+/** The build writing the line, read from the manifest beside it. */
+async function cliVersion(): Promise<string> {
+  return await fs
+    .readFile(new URL('../package.json', import.meta.url), 'utf8')
+    .then((contents) => (JSON.parse(contents) as { version: string }).version)
+    .catch(() => 'unknown');
+}
+
+async function run(options: CliOptions, performed: RunRecord): Promise<void> {
   // A human is watching only when stdout is a terminal. Piped output feeds an agent, which
   // passes a path straight to a file API, and `~` is not a path there.
   const humanOutput = Boolean(process.stdout.isTTY);
@@ -135,12 +160,16 @@ async function run(options: CliOptions, materialized: ActivityReference[]): Prom
       // Every positional is a spec: get runs against the current directory's project, and
       // specs like github:owner/repo would be misread as paths by splitPositionals.
       const results = await getReferences(null, options.positionals);
-      materialized.push(
+      performed.references.push(
         ...results.map((result) => ({
           kind: result.kind,
           name: result.name,
           version: result.version,
+          confidence: result.confidence,
         })),
+      );
+      performed.warnings.push(
+        ...results.flatMap((result) => (result.problem ? [result.problem.summary] : [])),
       );
       if (options.path) {
         process.stdout.write(formatGetPaths(results));
@@ -164,19 +193,27 @@ async function run(options: CliOptions, materialized: ActivityReference[]): Prom
     case 'clone': {
       const { projectPath, references } = await splitPositionals(options);
       const result = await cloneReferences(projectPath, { references });
-      materialized.push(
+      performed.references.push(
         ...result.cloned.map((clone) => ({
           kind: 'package' as const,
           name: clone.dependency.name,
           version: clone.dependency.version,
+          confidence: clone.confidence,
         })),
         ...result.clonedGit.map((clone) => ({
           kind: 'git' as const,
           name: clone.name,
           version: null,
+          confidence: null,
         })),
-        ...result.paths.map((name) => ({ kind: 'path' as const, name, version: null })),
+        ...result.paths.map((name) => ({
+          kind: 'path' as const,
+          name,
+          version: null,
+          confidence: null,
+        })),
       );
+      performed.warnings.push(...result.problems.map((problem) => problem.summary));
       write(options, result, (value) => formatCloneResult(value, format));
       return;
     }
@@ -194,6 +231,7 @@ async function run(options: CliOptions, materialized: ActivityReference[]): Prom
     case 'validate': {
       const { projectPath } = await splitPositionals(options);
       const report = await validateConfig(projectPath);
+      performed.warnings.push(...report.errors);
       write(options, report, (result) => formatValidationReport(result, format));
       if (!report.valid) process.exitCode = 1;
       return;
