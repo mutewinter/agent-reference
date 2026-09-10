@@ -75,13 +75,12 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: 'stylesheet', href: appCss },
-      // The text face. Google Fonts rather than a vendored file for now, so a
-      // deploy carries no font binary; the mono is whatever the machine has.
+      // Fonts are loaded from Google Fonts with system fallbacks.
       { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
       { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossOrigin: 'anonymous' },
       {
         rel: 'stylesheet',
-        href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap',
+        href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Oswald:wght@400&display=swap',
       },
       { rel: 'canonical', href: SITE },
       // The same two the Worker advertises in `Link` headers, in the document

@@ -253,9 +253,19 @@ export const terminals = {
     + ## Installation
 * Read(…/effect@4.0.0-rc.111/packages/effect/src/FileSystem.ts)
   ⎿ + /**
-    +  * Read the contents of a file.
+    +  * Open a file at \`path\` with the specified \`options\`.
+    +  *
+    +  * **Details**
+    +  *
+    +  * The file handle will be automatically closed when the scope is closed.
     +  */
-    + readonly readFileString: (`,
+    + readonly open: (
+    +   path: string,
+    +   options?: {
+    +     readonly flag?: OpenFlag | undefined
+    +     readonly mode?: number | undefined
+    +   }
+    + ) => Effect.Effect<File, PlatformError, Scope>`,
 
   session: `> Implement an edit tool like [[pi]]'s, using [[Effect]] v4
 * Bash(agent-reference get [[effect]])
@@ -469,8 +479,10 @@ export const copy = {
    * the sessions say the rest.
    */
   hero: {
-    before: 'What your agent reads today',
-    after: 'What it reads with agent-reference',
+    before: 'Your agent, without the source',
+    after: 'Your agent, with the source',
+    aside: 'Any questions?',
+    asideUrl: 'https://www.youtube.com/watch?v=F0kCYP_iPtg',
   },
   /**
    * The section headings the page states outright rather than taking from the
@@ -479,13 +491,15 @@ export const copy = {
    */
   getStarted: {
     heading: 'Get started',
+    summaryLabel: 'TL;DR',
+    lead: 'Give your agent this prompt; it’ll handle the rest.',
   },
   agent: {
     heading: 'Let your agent set it up',
-    note: 'Installs the skill and writes a config for the folders, repositories, and packages you already reach for.',
   },
   install: {
-    note: 'Or install it yourself with `npm install -g agent-reference`, then ask your agent to set it up.',
+    heading: 'Prefer to install it yourself?',
+    note: 'Run `npm install -g agent-reference`, then `agent-reference init` in your project and follow the printed setup brief.',
   },
   examples: {
     heading: 'Examples',

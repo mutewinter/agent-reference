@@ -1,8 +1,36 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, type ReactNode } from 'react';
 
 import highlighted from 'virtual:highlighted';
 
 import { IconCopy } from './copy';
+
+const ReferenceNames = createContext<string[]>([]);
+
+/** Store commits and displayed paths share the identity of the reference they resolve. */
+function referenceKey(name: string) {
+  const aliases: Record<string, string> = {
+    '6ba41e59c827': 'effect@4.0.0-rc.111',
+    c41d80f2b3e5: 'effect@3.19.4',
+    dcd461925db2: 'pi',
+  };
+  const key =
+    name.toLowerCase().replace(/\/$/u, '').split('/').at(-1)?.replace(/^npm:/u, '') ?? name;
+  return aliases[key] ?? key;
+}
+
+/** A reference keeps the same underline on both sides of one example. */
+export function ReferenceScope({ names, children }: { names: string[]; children: ReactNode }) {
+  return (
+    <ReferenceNames value={[...new Set(names.map((name) => referenceKey(name)))]}>
+      {children}
+    </ReferenceNames>
+  );
+}
+
+function referenceInk(name: string, names: string[]) {
+  const index = names.indexOf(referenceKey(name));
+  return index < 0 ? undefined : index % 4;
+}
 
 /**
  * Prose with `backticks` in it. The page has no markdown, and a name like
@@ -119,11 +147,16 @@ export function Tree({ text }: { text: string }) {
  * the animation having run.
  */
 export function Highlighted({ name, marks = [] }: { name: string; marks?: string[] }) {
+  const names = useContext(ReferenceNames);
   // The keys the panel beside this one names, wrapped where Shiki left them.
   // A quoted key is one token in Shiki's output, so the first match of
   // `"name"` is the key and never a value that happens to end in the word.
   const html = marks.reduce(
-    (out, mark) => out.replace(`"${mark}"`, `<mark>"${mark}"</mark>`),
+    (out, mark) =>
+      out.replace(
+        `"${mark}"`,
+        `<mark data-ink="${referenceInk(mark, names) ?? 0}">"${mark}"</mark>`,
+      ),
     highlighted[name].html,
   );
   return <div className="shiki-block" dangerouslySetInnerHTML={{ __html: html }} />;
@@ -307,13 +340,18 @@ const unmarked = (text: string) => text.replaceAll(/\[\[([^\]]+)\]\]/gu, '$1');
  * are data, and the markdown surfaces drop them.
  */
 function Marked({ text }: { text: string }) {
+  const names = useContext(ReferenceNames);
   return (
     <>
-      {text
-        .split(/\[\[([^\]]+)\]\]/u)
-        .map((part, i) =>
-          i % 2 === 1 ? <mark key={i}>{part}</mark> : <span key={i}>{part}</span>,
-        )}
+      {text.split(/\[\[([^\]]+)\]\]/u).map((part, i) =>
+        i % 2 === 1 ? (
+          <mark key={i} data-ink={referenceInk(part, names)}>
+            {part}
+          </mark>
+        ) : (
+          <span key={i}>{part}</span>
+        ),
+      )}
     </>
   );
 }

@@ -4,7 +4,7 @@
 
 A CLI your agent uses to read the real source of your dependencies, at the version you actually have installed, plus any repo or folder you point it at.
 
-### What your agent reads today
+### Your agent, without the source
 
 ```text
 * Read(node_modules/effect/dist/FileSystem.js)
@@ -18,7 +18,7 @@ A CLI your agent uses to read the real source of your dependencies, at the versi
     …<script id="__NEXT_DATA__" type="applicat…
 ```
 
-### What it reads with agent-reference
+### Your agent, with the source
 
 ```text
 * Bash(agent-reference get effect)
@@ -29,22 +29,34 @@ A CLI your agent uses to read the real source of your dependencies, at the versi
     ## Installation
 * Read(…/effect@4.0.0-rc.111/packages/effect/src/FileSystem.ts)
   ⎿ /**
-     * Read the contents of a file.
+     * Open a file at `path` with the specified `options`.
+     *
+     * **Details**
+     *
+     * The file handle will be automatically closed when the scope is closed.
      */
-    readonly readFileString: (
+    readonly open: (
+      path: string,
+      options?: {
+        readonly flag?: OpenFlag | undefined
+        readonly mode?: number | undefined
+      }
+    ) => Effect.Effect<File, PlatformError, Scope>
 ```
+
+*[Any questions?](https://www.youtube.com/watch?v=F0kCYP_iPtg)*
 
 ## Get started
 
 ### Let your agent set it up
 
+TL;DR: Give your agent this prompt; it’ll handle the rest.
+
 ```text
 Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
 ```
 
-Installs the skill and writes a config for the folders, repositories, and packages you already reach for.
-
-Or install it yourself with `npm install -g agent-reference`, then ask your agent to set it up.
+Run `npm install -g agent-reference`, then `agent-reference init` in your project and follow the printed setup brief.
 
 ## Examples
 

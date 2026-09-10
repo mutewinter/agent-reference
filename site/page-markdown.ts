@@ -110,11 +110,12 @@ export function renderRegions(): Record<string, string> {
       transcript(terminals.today),
       `### ${copy.hero.after}`,
       transcript(terminals.after),
+      `*[${copy.hero.aside}](${copy.hero.asideUrl})*`,
     ].join('\n\n'),
     agent: [
       `### ${copy.agent.heading}`,
+      `${copy.getStarted.summaryLabel}: ${copy.getStarted.lead}`,
       fence('text', setupPrompt),
-      copy.agent.note,
       copy.install.note,
     ].join('\n\n'),
     examples: examples.map((example) => renderExample(example)).join('\n\n'),

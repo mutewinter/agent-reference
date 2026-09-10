@@ -8,7 +8,9 @@
      or a file are set in the mono, so a panel reads as a panel before a word
      of it is read. Inter comes from Google Fonts, declared in the root shell. */
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font-heading: "Oswald", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
 
   /* Derived from Jellybeans+, the same theme Shiki highlights the JSON with,
      so code and chrome are one palette rather than two that nearly agree.
@@ -35,6 +37,9 @@
      got back when it read a bundle or fetched a docs site, on the first
      screen, so a reader who skips the words still sees where it went wrong. */
   --color-bad: #cf6a4c;
+  --color-ink-blue: #8fbfdc;
+  --color-ink-rose: #d9a3b4;
+  --color-ink-violet: #b5a1df;
 
   /* 15px of prose, 13px for code and chrome, and one step under that for the
      copy pill. Tailwind's own steps are 12/14/16, which has no room for the
@@ -52,12 +57,6 @@
   --text-sm--line-height: var(--leading-body);
   --text-base: 0.9375rem;
   --text-base--line-height: var(--leading-body);
-
-  /* The one thing on the page you click sits on a hard offset shadow in the
-     accent, and presses into the page under the cursor. Two depths and then
-     none, so the travel is visible rather than a color change. */
-  --shadow-offset: 4px 4px 0 0 --alpha(var(--color-accent) / 28%);
-  --shadow-offset-sm: 2px 2px 0 0 --alpha(var(--color-accent) / 28%);
 }
 
 html {
@@ -178,11 +177,7 @@ a {
   text-indent: -2ch;
 }
 
-/* A name in a session and the entry it names in the config or the tree
-   beside it, underlined alike so the eye joins them across the gap. An
-   underline rather than a fill, so it sits under the token and leaves the
-   token's own color alone, and in the page's own text color rather than a
-   hue, so it reads as a pencil mark and not as a link. */
+/* Matching underlines connect references across panels while preserving syntax colors. */
 mark {
   background: none;
   color: inherit;
@@ -190,6 +185,32 @@ mark {
   text-decoration-color: --alpha(var(--color-fg) / 55%);
   text-decoration-thickness: 2px;
   text-underline-offset: 3px;
+}
+
+/* Color and stroke distinguish references without changing the syntax colors. */
+mark[data-ink="0"] {
+  text-decoration-color: var(--color-accent);
+  text-decoration-style: solid;
+}
+
+mark[data-ink="1"] {
+  text-decoration-color: var(--color-ink-blue);
+  text-decoration-style: double;
+  text-decoration-thickness: 1px;
+}
+
+mark[data-ink="2"] {
+  text-decoration-color: var(--color-ink-rose);
+  text-decoration-style: dashed;
+}
+
+mark[data-ink="3"] {
+  text-decoration-color: var(--color-ink-violet);
+  text-decoration-style: dotted;
+}
+
+.setup-prompt {
+  box-shadow: 0 12px 48px --alpha(var(--color-accent) / 5%);
 }
 
 /* A tool call and its results are one block, so the gap between calls is spacing
@@ -201,4 +222,108 @@ mark {
 
 .code-wrap > .prompt + .call {
   margin-top: 0;
+}
+
+/* The comparison follows reading order across desktop columns and stacked mobile panes. */
+.comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-block: 1px solid var(--color-line);
+}
+
+.comparison-before,
+.comparison-after {
+  padding: 1.5rem;
+}
+
+.comparison-before {
+  background: var(--color-term);
+}
+
+/* Opaque output is an excerpt; readable source keeps every line and wraps. */
+.comparison-before .code-wrap > div:has(.text-bad) {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.comparison-after {
+  background:
+    linear-gradient(135deg, --alpha(var(--color-ok) / 7%), transparent 70%), var(--color-panel);
+  border-top: 1px solid --alpha(var(--color-ok) / 35%);
+}
+
+.comparison-reads {
+  --sequence-lead: 0s;
+}
+
+@media (min-width: 64rem) {
+  .comparison {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  }
+
+  .comparison-before,
+  .comparison-after {
+    padding: 2rem;
+  }
+
+  .comparison-after {
+    border-top: 0;
+    border-left: 1px solid --alpha(var(--color-ok) / 35%);
+  }
+}
+
+/* Calls precede their results; reserved space keeps the comparison's height stable. */
+@media (prefers-reduced-motion: no-preference) {
+  .comparison-after:has(.comparison-reads[data-reveal="waiting"]) [data-heading-word] {
+    opacity: 0;
+  }
+
+  .comparison-after:has(.comparison-reads[data-reveal="playing"]) [data-heading-word] {
+    animation: aside-arrive 500ms both;
+    animation-delay: calc(var(--heading-lead) + var(--word-delay));
+  }
+
+  .comparison-aside {
+    visibility: hidden;
+  }
+
+  .comparison-reads[data-reveal="playing"] + .comparison-aside {
+    animation: aside-arrive 700ms var(--sequence-end) both;
+  }
+  .comparison-reads[data-reveal="waiting"] .comparison-step {
+    opacity: 0;
+  }
+
+  .comparison-reads[data-reveal="playing"] .comparison-step {
+    animation: source-arrive 600ms both;
+    animation-delay: calc(var(--sequence-lead) + var(--read-delay));
+  }
+
+  .comparison-reads[data-reveal="playing"] .code-wrap > div:not(.call) {
+    animation: source-arrive 600ms both;
+    animation-delay: calc(var(--sequence-lead) + var(--read-delay) + 0.35s);
+  }
+}
+
+@keyframes aside-arrive {
+  from {
+    visibility: hidden;
+    opacity: 0;
+  }
+  to {
+    visibility: visible;
+    opacity: 1;
+  }
+}
+
+@keyframes source-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
