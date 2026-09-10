@@ -16,7 +16,7 @@ The alternative is not "nothing." It is a hand-written `AGENTS.md` or `CLAUDE.md
 | --- | --- | --- | --- | --- |
 | 1 | References are validated, so a path that only exists on your machine cannot reach a commit | A path in prose is never checked: it can be wrong, stale, or personal, and nothing says so | `validate` errors on a machine path or a `file://` repository in the committed config, errors when the gitignored file is actually tracked by git, and warns when a path is missing or escapes the repo | "Your agent's references are a config, not a paragraph. Configs get checked." |
 | 2 | References stay pinned to what you actually install, and drift is reported | Prose says React 18 forever, including the week after you upgrade | `status` compares each pin against what the lockfile installs, offline, and emits the exact patch that fixes it | "The day you upgrade, the reference is wrong and nothing tells you. Now something does." |
-| 3 | It costs nothing until the agent asks | Every line of an instructions file is in context on every turn | 1,012 bytes of skill description is all that sits in context; the 4,703-byte stub loads when the skill fires, and the guide, the reference list, and the source itself only when asked for | "One paragraph in context. Thirty-four gigabytes on demand." |
+| 3 | It costs nothing until the agent asks | Every line of an instructions file is in context on every turn | Measured at 1.0.0: 970 bytes of skill description is all that sits in context; the 8,257-byte stub loads when the skill fires, and the 12,286-byte guide, the reference list, and the source itself only when asked for | "One paragraph in context. Thirty-four gigabytes on demand." |
 | 4 | An agent maintains it for you | An agent editing prose has to guess the conventions from the prose | One config file, a `schema` verb, an `init` that briefs rather than scaffolds, and problems that carry a machine-applicable `configPatch` | "You do not write this file. You ask for a reference and your agent writes it." |
 | 5 | Teammates inherit the shared half | Personal paths and shared ones live in the same file, so neither is safe | Two files, one committed and one gitignored, merged at read time | Weakest of the five. See below before putting it on a slide. |
 
@@ -29,6 +29,8 @@ The author's own counter, from 2026-08-19: with one teammate who codes with AI, 
 The author's own machine, measured 2026-08-19: 209 reference directories, 188 git clones, 34 GB, maintained by hand. In one repository's agent sessions, 106 of 388 pasted at least one of those paths, 278 pastes in total.
 
 Every fourth conversation, a human was the retrieval layer.
+
+That measurement is now a command, so the evidence a reader weighs is their own rather than the author's. `audit` reads the transcript stores their harnesses already wrote and counts the sessions where an agent guessed an API and had it rejected, went to the web for documentation, read a published build, or cloned a repository into a temp directory, quoting the line each count came out of. It reads only, it sends nothing, and it answers before anything is installed, which is why it is what the page offers a reader who is not yet convinced.
 
 ## Use cases, in the order they convince
 
