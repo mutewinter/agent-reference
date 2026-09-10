@@ -26,3 +26,4 @@ One Markdown file per decision, named for the date it was made: `YYYY-MM-DD-shor
 | 2026-08-28 | [The parsed config is one list, because the namespace is one namespace](2026-08-28-the-parsed-config-is-one-list.md) |
 | 2026-08-28 | [The CLI checks the stub on disk against the one it ships](2026-08-28-the-cli-checks-its-own-stub.md) |
 | 2026-09-01 | [The page answers why before how](2026-09-01-the-page-answers-why-before-how.md) |
+| 2026-09-10 | [Usage is recorded locally, and stays there](2026-09-10-usage-is-recorded-locally.md) |
