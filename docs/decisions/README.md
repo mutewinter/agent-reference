@@ -28,3 +28,4 @@ One Markdown file per decision, named for the date it was made: `YYYY-MM-DD-shor
 | 2026-09-01 | [The page answers why before how](2026-09-01-the-page-answers-why-before-how.md) |
 | 2026-09-10 | [Usage is recorded locally, and stays there](2026-09-10-usage-is-recorded-locally.md) |
 | 2026-09-10 | [The guess leads the first screen, and the page shows the chain before the examples](2026-09-10-the-guess-leads.md) |
+| 2026-09-10 | [A run is attributed only when it says so](2026-09-10-a-run-is-attributed-only-when-it-says-so.md) |
