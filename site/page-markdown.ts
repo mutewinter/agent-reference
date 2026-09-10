@@ -52,6 +52,29 @@ const unmarked = (text: string) => text.replaceAll(/\[\[([^\]]+)\]\]/gu, '$1');
 const transcript = (text: string) =>
   fence('text', unmarked(text.replaceAll(/^(\s+(?:\u23BF )?)[!+] /gmu, '$1')));
 
+/** Tool labels sit outside the results so GitHub can highlight each result's language. */
+function heroTranscript(text: string): string {
+  return text
+    .split(/\n(?=\* )/u)
+    .map((block) => {
+      const [call = '', ...lines] = block.split('\n');
+      const result = lines
+        .map((line) => line.replace(/^(?: {2}⎿ | {4})(?:[!+] )?/u, ''))
+        .join('\n');
+      const language = call.startsWith('* WebFetch(')
+        ? 'html'
+        : call.endsWith('.ts)')
+          ? 'typescript'
+          : call.endsWith('.js)')
+            ? 'javascript'
+            : call.endsWith('.md)')
+              ? 'markdown'
+              : 'text';
+      return `\`${call.slice(2)}\`\n\n${fence(language, result)}`;
+    })
+    .join('\n\n');
+}
+
 /**
  * The transcripts, one level under the heading that introduces them, which is
  * itself a subsection of how it works.
@@ -107,15 +130,16 @@ export function renderRegions(): Record<string, string> {
     lead: copy.lead,
     hero: [
       `### ${copy.hero.before}`,
-      transcript(terminals.today),
+      heroTranscript(terminals.today),
       `### ${copy.hero.after}`,
-      transcript(terminals.after),
+      heroTranscript(terminals.after),
       `*[${copy.hero.aside}](${copy.hero.asideUrl})*`,
     ].join('\n\n'),
     agent: [
       `### ${copy.agent.heading}`,
       `${copy.getStarted.summaryLabel}: ${copy.getStarted.lead}`,
       fence('text', setupPrompt),
+      copy.agent.followThrough,
       copy.install.note,
     ].join('\n\n'),
     examples: examples.map((example) => renderExample(example)).join('\n\n'),

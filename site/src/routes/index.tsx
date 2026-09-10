@@ -288,6 +288,7 @@ function Home() {
         </p>
         <div className="mt-6">
           <ForYourAgent text={setupPrompt} />
+          <p className="mx-auto mt-4 max-w-xl text-sm text-muted">{copy.agent.followThrough}</p>
           <div className="mt-7 text-sm text-muted">
             <p className="font-medium">{copy.install.heading}</p>
             <Prose text={copy.install.note} className="mt-1" />

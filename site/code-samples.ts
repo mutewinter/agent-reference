@@ -496,6 +496,7 @@ export const copy = {
   },
   agent: {
     heading: 'Let your agent set it up',
+    followThrough: 'Your agent keeps track of references and fetches the source when it needs it.',
   },
   install: {
     heading: 'Prefer to install it yourself?',
@@ -510,10 +511,7 @@ export const copy = {
   },
 };
 
-/**
- * The one command that sets a project up. Short enough to retype off a link
- * preview, which is the only place it appears without something to copy it.
- */
+/** The setup command included in the prompt a person hands their agent. */
 export const quickStart = 'npx agent-reference init';
 
 /** The one sentence a person hands their agent. The site and the README share it. */
