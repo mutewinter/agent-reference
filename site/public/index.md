@@ -2,7 +2,7 @@
 
 **Give your agents the source**
 
-A CLI your agent uses to read the real source of your dependencies, at the version you actually have installed, plus any repo or folder you point it at.
+A CLI your agent uses to read the source of your dependencies at the version you have installed, plus any repo or folder you point it at.
 
 ### Your agent, without the source
 
@@ -65,7 +65,7 @@ Counts what they did without source, out of the transcripts your harness already
 
 ## What setup installs
 
-Two pieces: a CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it travels in a plugin or a team skills repo the way any other skill does.
+A CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it can ship in a plugin or a team skills repo.
 
 ### 1. A SKILL.md goes in your agent’s skills folder
 
@@ -81,7 +81,7 @@ Machine-wide or in this project. Your agent asks which before it writes anything
 
 ### 2. The skill says when to reach for the tool
 
-The description is what sits in context between tasks. The rest of it loads when the skill fires.
+Only the description stays in context between tasks. The rest loads when the skill fires.
 
 `.claude/skills/agent-reference/SKILL.md`
 
@@ -156,9 +156,9 @@ Say what happened either way. The fix is one line in the user's shell profile, t
 
 </details>
 
-### 3. Your agent runs the CLI when the moment comes
+### 3. Your agent runs the CLI when it needs the source
 
-The task the first screen got wrong, with the source in hand.
+The first screen’s task again, this time with the source on disk.
 
 ```text
 > add a virtualized list here
@@ -173,7 +173,7 @@ The task the first screen got wrong, with the source in hand.
 
 ## How it works
 
-Skip this if you like: your agent handles all of it. Two projects, pinning two versions of the same dependency, sharing one store.
+Your agent handles all of this, so skip it if you like. Two projects pin two versions of the same dependency and share one store.
 
 `web/agent-reference.json`
 
@@ -427,7 +427,7 @@ Committed beside your `package.json`. Your agent writes it and adds to it as it 
 
 ## The commands
 
-You will not need most of these; your agent runs them. The two you run yourself are `audit`, before any of it, and `activity`, after.
+Your agent runs most of these. The two you run yourself are `audit`, before installing anything, and `activity`, afterward.
 
 #### agent-reference audit
 
@@ -589,5 +589,5 @@ agent-reference activity --log shows the runs themselves
 - [llms.txt](https://agent-reference.dev/llms.txt): what this domain publishes for agents, and when to reach for the tool at all
 - [Agent skill](https://agent-reference.dev/.well-known/agent-skills/agent-reference/SKILL.md): the one verb, when to reach for it, and the safety rules. `npx skills add https://agent-reference.dev` installs it into a harness from this domain
 - [Config JSON Schema](https://agent-reference.dev/schema/agent-reference.schema.json): what `agent-reference.json` and `agent-reference.local.json` are checked against. Read it before writing one; `agent-reference schema` prints the same document from the installed CLI
-- [Source](https://github.com/mutewinter/agent-reference): the CLI, the tests that specify it, and `docs/decisions/` for why the design is what it is
+- [Source](https://github.com/mutewinter/agent-reference): the CLI, the tests that specify it, and `docs/decisions/` for the reasoning behind the design
 - [Package](https://www.npmjs.com/package/agent-reference): released versions. `npx agent-reference init` sets a project up without installing anything first

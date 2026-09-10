@@ -9,7 +9,7 @@
 [agent-reference.dev](https://agent-reference.dev) &middot; [npm](https://www.npmjs.com/package/agent-reference) &middot; [the guide your agent reads](guide/agent-reference.md)
 
 <!-- generated:lead -->
-A CLI your agent uses to read the real source of your dependencies, at the version you actually have installed, plus any repo or folder you point it at.
+A CLI your agent uses to read the source of your dependencies at the version you have installed, plus any repo or folder you point it at.
 <!-- /generated -->
 
 <!-- generated:hero -->
@@ -47,7 +47,7 @@ Counts what they did without source, out of the transcripts your harness already
 ## What setup installs
 
 <!-- generated:setup -->
-Two pieces: a CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it travels in a plugin or a team skills repo the way any other skill does.
+A CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it can ship in a plugin or a team skills repo.
 
 ### 1. A SKILL.md goes in your agent’s skills folder
 
@@ -63,7 +63,7 @@ Machine-wide or in this project. Your agent asks which before it writes anything
 
 ### 2. The skill says when to reach for the tool
 
-The description is what sits in context between tasks. The rest of it loads when the skill fires.
+Only the description stays in context between tasks. The rest loads when the skill fires.
 
 `.claude/skills/agent-reference/SKILL.md`
 
@@ -138,9 +138,9 @@ Say what happened either way. The fix is one line in the user's shell profile, t
 
 </details>
 
-### 3. Your agent runs the CLI when the moment comes
+### 3. Your agent runs the CLI when it needs the source
 
-The task the first screen got wrong, with the source in hand.
+The first screen’s task again, this time with the source on disk.
 
 ```text
 > add a virtualized list here
@@ -157,7 +157,7 @@ The task the first screen got wrong, with the source in hand.
 ## How it works
 
 <!-- generated:store -->
-Skip this if you like: your agent handles all of it. Two projects, pinning two versions of the same dependency, sharing one store.
+Your agent handles all of this, so skip it if you like. Two projects pin two versions of the same dependency and share one store.
 
 `web/agent-reference.json`
 
@@ -414,7 +414,7 @@ Committed beside your `package.json`. Your agent writes it and adds to it as it 
 ## The commands
 
 <!-- generated:commands -->
-You will not need most of these; your agent runs them. The two you run yourself are `audit`, before any of it, and `activity`, after.
+Your agent runs most of these. The two you run yourself are `audit`, before installing anything, and `activity`, afterward.
 
 #### agent-reference audit
 

@@ -263,7 +263,7 @@ export const LINKS: Link[] = [
   {
     name: 'Source',
     url: REPOSITORY,
-    note: 'the CLI, the tests that specify it, and `docs/decisions/` for why the design is what it is',
+    note: 'the CLI, the tests that specify it, and `docs/decisions/` for the reasoning behind the design',
   },
   {
     name: 'Package',
@@ -280,7 +280,7 @@ export const LINKS: Link[] = [
  */
 const WHEN_TO_USE: string[] = [
   'You are about to write code against a library whose API you cannot recall exactly. `agent-reference get <name>` puts the repository behind that exact version on disk, with the README, `docs/`, `examples/`, and changelog a published build drops. A docs site carries whatever shipped last; the checkout carries what the project installs.',
-  'You need to know how something upstream actually works: how it is implemented, how its maintainers test it, why it behaves the way it does, or whether it is worth adopting.',
+  'You need to know how something upstream works: how it is implemented, how its maintainers test it, why it behaves the way it does, or whether it is worth adopting.',
   'The user names a repository, app, folder, or file that is not in the current project and gives no path for it. Read `agent-reference.json` and `agent-reference.local.json`, which are an index of names to sources and resolve without fetching anything.',
   'A project you are working in contains `agent-reference.json` or `agent-reference.local.json`, or the user asks to add a reference or set a project up. Run `agent-reference guide` before writing either file; it prints the config format from the installed CLI rather than from memory.',
 ];

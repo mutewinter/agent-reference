@@ -366,7 +366,7 @@ export interface SetupStep {
 
 export const setup: { heading: string; lead: string; steps: SetupStep[] } = {
   heading: 'What setup installs',
-  lead: 'Two pieces: a CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it travels in a plugin or a team skills repo the way any other skill does.',
+  lead: 'A CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it can ship in a plugin or a team skills repo.',
   steps: [
     {
       title: 'A SKILL.md goes in your agent’s skills folder',
@@ -376,12 +376,12 @@ export const setup: { heading: string; lead: string; steps: SetupStep[] } = {
     },
     {
       title: 'The skill says when to reach for the tool',
-      note: 'The description is what sits in context between tasks. The rest of it loads when the skill fires.',
+      note: 'Only the description stays in context between tasks. The rest loads when the skill fires.',
       file: { label: '.claude/skills/agent-reference/SKILL.md', sample: SKILL_SAMPLE },
     },
     {
-      title: 'Your agent runs the CLI when the moment comes',
-      note: 'The task the first screen got wrong, with the source in hand.',
+      title: 'Your agent runs the CLI when it needs the source',
+      note: 'The first screen’s task again, this time with the source on disk.',
       session: 'virtual',
     },
   ],
@@ -479,7 +479,7 @@ export interface HowItWorks {
 
 export const howItWorks: HowItWorks = {
   heading: 'How it works',
-  lead: 'Skip this if you like: your agent handles all of it. Two projects, pinning two versions of the same dependency, sharing one store.',
+  lead: 'Your agent handles all of this, so skip it if you like. Two projects pin two versions of the same dependency and share one store.',
   configs: [
     {
       file: 'web/agent-reference.json',
@@ -504,7 +504,7 @@ export const howItWorks: HowItWorks = {
 export const copy = {
   title: 'agent-reference',
   tagline: 'Give your agents the source',
-  lead: 'A CLI your agent uses to read the real source of your dependencies, at the version you actually have installed, plus any repo or folder you point it at.',
+  lead: 'A CLI your agent uses to read the source of your dependencies at the version you have installed, plus any repo or folder you point it at.',
   description:
     'Give your agents the source. A CLI your agent uses to read the real source of your dependencies, at the version you have installed, plus any repo or folder you point it at.',
   /**
@@ -560,7 +560,7 @@ export const copy = {
     // Two of them earn the exception, and they are the pair a person actually
     // types: one before any of this is installed and one after, both answering
     // a question about the machine rather than about the project.
-    note: 'You will not need most of these; your agent runs them. The two you run yourself are `audit`, before any of it, and `activity`, after.',
+    note: 'Your agent runs most of these. The two you run yourself are `audit`, before installing anything, and `activity`, afterward.',
   },
 };
 
