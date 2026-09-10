@@ -118,7 +118,7 @@ Names are one namespace: a set may not take a reference's name, and two entries 
 
 ## Adding references ("add this as a reference: ...")
 
-Edit the JSON directly; there are no add commands. Both config files are read as JSON with comments (`//` and `/* */`) and trailing commas, so preserve any note the file already carries rather than reformatting it away, and write one yourself when an entry needs a caveat that is not a `description`. Run `agent-reference validate` after every edit. Route by what was pasted:
+Edit the JSON directly; there are no add commands. Both config files are read as JSON with comments (`//` and `/* */`) and trailing commas, so preserve any note the file already carries rather than reformatting it away, and write one yourself when an entry needs a caveat that is not a `description`. A name the map already holds is edited where it stands: declaring it a second time is an error rather than an override, because JSON would keep only the last of them. Run `agent-reference validate` after every edit. Route by what was pasted:
 
 Every entry is `"<name>": { "source": …, "description": … }`, wherever it lands.
 
