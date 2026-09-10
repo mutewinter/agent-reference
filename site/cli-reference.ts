@@ -64,6 +64,25 @@ export const commands = [
 ];
 
 /**
+ * The environment the fixture runs under, with anything that would name the
+ * machine's own harness taken out of it. `activity` reports who ran a command,
+ * and it is right to: it reads the variables a harness sets on itself. That
+ * makes the transcript a record of whoever last ran this script, which differs
+ * between a laptop, a CI job, and a deploy, so the committed output would flip
+ * with the operator. Broader than the CLI's own table on purpose, so a harness
+ * added there cannot quietly sign the page.
+ */
+function anonymous(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  for (const name of Object.keys(env)) {
+    if (name === 'CI' || /^(AIDER|AMP|CLAUDE|CODEX|COPILOT|CURSOR|GEMINI|OPENCODE)/u.test(name)) {
+      delete env[name];
+    }
+  }
+  return env;
+}
+
+/**
  * Runs every command above against the fixture and returns what each printed.
  * Machine paths are replaced with placeholders, because both surfaces are
  * public. The CLI is read from source so this needs no build step.
@@ -91,7 +110,7 @@ export function renderCliReference() {
       const printed = execFileSync(process.execPath, ['--experimental-strip-types', cli, ...argv], {
         cwd: project,
         encoding: 'utf8',
-        env: { ...process.env, AGENT_REFERENCE_STORE_DIR: store, NO_COLOR: '1' },
+        env: { ...anonymous(), AGENT_REFERENCE_STORE_DIR: store, NO_COLOR: '1' },
       });
       return {
         note,
