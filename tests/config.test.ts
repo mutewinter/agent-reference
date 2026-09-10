@@ -6,7 +6,12 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { samples } from '../site/code-samples.ts';
-import { loadAgentReferenceConfig, parseConfig, referencesOfKind } from '../src/config.ts';
+import {
+  configuredReferences,
+  loadAgentReferenceConfig,
+  parseConfig,
+  referencesOfKind,
+} from '../src/config.ts';
 import { parseJsonc } from '../src/jsonc.ts';
 import { runGit } from '../src/git.ts';
 import { missingSelectionMessage, resolveSets, selectionFilter } from '../src/sets.ts';
@@ -611,6 +616,73 @@ test('config files are JSONC, and the same characters inside a string stay data'
       ['notes', './notes'],
       ['vault', '~/notes'],
     ],
+  );
+});
+
+test('a name declared twice in one file is refused rather than silently losing one', async () => {
+  const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-reference-duplicate-test-'));
+  const configPath = path.join(projectRoot, 'agent-reference.json');
+  await fs.writeFile(
+    configPath,
+    `{
+  "references": {
+    "chess-engine": {
+      "source": "github:acme/chess-engine",
+      "description": "The engine, as it was"
+    },
+    "chess-engine": {
+      "source": "github:acme/chess-engine#v2",
+      "description": "The engine, appended a second time"
+    }
+  }
+}
+`,
+  );
+
+  await assert.rejects(
+    loadAgentReferenceConfig(projectRoot),
+    /a key is declared twice: references\.chess-engine on lines 3 and 7/,
+  );
+
+  // A set's members are a second map to collide in, and the path says which one.
+  await fs.writeFile(
+    configPath,
+    `{
+  "references": {
+    "engines": {
+      "references": {
+        "chess-engine": { "source": "github:acme/chess-engine", "description": "One" },
+        "chess-engine": { "source": "./chess-engine", "description": "Two" }
+      },
+      "description": "Everything the engine work needs"
+    }
+  }
+}
+`,
+  );
+
+  await assert.rejects(
+    loadAgentReferenceConfig(projectRoot),
+    /references\.engines\.references\.chess-engine on lines 5 and 6/,
+  );
+
+  // The same key in two different objects is what every entry in the file looks like, and a
+  // brace or a colon inside a description is a value rather than a container.
+  await fs.writeFile(
+    configPath,
+    `{
+  "references": {
+    "chess-engine": { "source": "github:acme/chess-engine", "description": "Write { \\"source\\": ... } to add one" },
+    "notes": { "source": "./notes", "description": "Notes" }
+  }
+}
+`,
+  );
+
+  const loaded = await loadAgentReferenceConfig(projectRoot);
+  assert.deepEqual(
+    configuredReferences(loaded?.config).map((reference) => reference.name),
+    ['chess-engine', 'notes'],
   );
 });
 

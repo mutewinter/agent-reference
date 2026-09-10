@@ -1,6 +1,9 @@
+import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { pathExists, readJsoncFile } from './fs-utils.ts';
+import { pathExists } from './fs-utils.ts';
+import { duplicateJsoncKeys, parseJsonc } from './jsonc.ts';
+import type { DuplicateKey } from './jsonc.ts';
 import { isExactRegistryVersion, SUPPORTED_ECOSYSTEM } from './package-utils.ts';
 import { classifySource, UnknownSourceError } from './source.ts';
 import type { ClassifiedSource } from './source.ts';
@@ -93,8 +96,11 @@ export async function loadAgentReferenceConfig(
 }
 
 async function readConfigJson(configPath: string): Promise<unknown> {
+  const raw = await fs.readFile(configPath, 'utf8');
+
+  let parsed: unknown;
   try {
-    return await readJsoncFile<unknown>(configPath);
+    parsed = parseJsonc<unknown>(raw);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
@@ -102,6 +108,31 @@ async function readConfigJson(configPath: string): Promise<unknown> {
       { cause: error },
     );
   }
+
+  // After the parse, because a duplicate key is valid JSON. It is checked here rather than
+  // in `parseConfig`, which reads an object that has already lost the earlier declaration.
+  const duplicates = duplicateJsoncKeys(raw);
+  if (duplicates.length > 0) fail(configPath, duplicateKeyMessage(duplicates));
+
+  return parsed;
+}
+
+/**
+ * An entry written twice is the shape a config takes when something appends what is already
+ * there, which is what an agent editing this file does. JSON keeps the last one, so the
+ * message names what was lost and where, rather than what is wrong with the file.
+ */
+function duplicateKeyMessage(duplicates: DuplicateKey[]): string {
+  const named = duplicates
+    .map((duplicate) => `${duplicate.path} on lines ${andList(duplicate.lines)}`)
+    .join('; ');
+
+  return `${duplicates.length === 1 ? 'a key is' : 'keys are'} declared twice: ${named}. JSON keeps the last of them, so every earlier one is dropped without a word. Delete the ones you did not mean, or give them names of their own.`;
+}
+
+function andList(values: number[]): string {
+  if (values.length < 2) return values.join('');
+  return `${values.slice(0, -1).join(', ')} and ${values.at(-1)}`;
 }
 
 export function parseConfig(value: unknown, configPath: string): AgentReferenceConfig {
