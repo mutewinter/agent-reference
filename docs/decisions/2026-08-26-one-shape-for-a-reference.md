@@ -22,7 +22,7 @@ Every `configPatch` the tool emits already used the object form and only the obj
 
 **`description` is required, on a reference and on a set alike.** It is the whole value of a reference to a future agent: a name is what the agent already has, and what it needs is when the thing behind the name is worth opening. Requiring it costs nothing that anyone is doing today, and the shorthand that was removed is exactly the shape that let an agent skip it.
 
-**A `configPatch` carries the description of the entry it patches**, and `<when to read this, and what it answers>` only when it is adding one. A patch is pasted into a config, so a placeholder over an existing entry would destroy the sentence its own fix text tells you to edit.
+**A `configPatch` carries the description of the entry it patches**, and `<what this source is, and whose it is>` only when it is adding one. A patch is pasted into a config, so a placeholder over an existing entry would destroy the sentence its own fix text tells you to edit.
 
 **The source string is unchanged**, including the bare `owner/repo` and bare `name@version` shorthands that no config uses. It reads like the loose part and is the invariant worth protecting: `get <spec>` and a `source` value are the same string through one classifier, so a spelling that works in one works in the other by construction. Refusing the shorthands in the config alone would break that to save one regex, and declaring the kind instead is what the previous decision removed.
 

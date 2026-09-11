@@ -491,15 +491,15 @@ function assertMergedNamesAreFree(
 }
 
 /**
- * The one field that is not about reaching the source. It is required because it is the
- * whole value of a reference to a future agent: a name it already has says nothing about
- * when the thing behind it is worth opening.
+ * The one field that is not about reaching the source. It is required because it is what a
+ * future agent reads to decide whether to open the source; the name alone says nothing
+ * about what is behind it.
  */
 function requireDescription(value: unknown, configPath: string, field: string): string {
   if (value === undefined || value === null) {
     fail(
       configPath,
-      `${field}.description is required. Say when to read this and what it answers, in a sentence; the agent already has the name.`,
+      `${field}.description is required. Say what the source is and whose it is, in a sentence; the agent already has the name.`,
     );
   }
   const description = expectString(value, configPath, `${field}.description`).trim();

@@ -33,7 +33,7 @@ export function ambiguousInstalledMessage(name: string, candidates: PackageRefer
  * is already declared the producer passes the description it has, and a shallow merge then
  * leaves the sentence the user wrote alone.
  */
-export const DESCRIPTION_PLACEHOLDER = '<when to read this, and what it answers>';
+export const DESCRIPTION_PLACEHOLDER = '<what this source is, and whose it is>';
 
 export const KEEP_REFERENCE_NOTE: string =
   'Fix the reference. Do not delete it from agent-reference.json to clear this;\n' +
