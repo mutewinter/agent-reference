@@ -33,7 +33,7 @@ TL;DR: Give your agent this prompt; it'll handle the rest.
 Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
 ```
 
-Run `npm install -g agent-reference`, then `agent-reference init` in your project and follow the printed setup brief.
+Prefer to install it yourself? Run `npm install -g agent-reference`, then `agent-reference init` in your project and follow the printed setup brief.
 
 ### Not sure your agents need it?
 
@@ -195,9 +195,9 @@ Your agent handles all of this, so skip it if you like. Two projects pin two ver
 │   ├── Effect-TS/effect.git
 │   └── earendil-works/pi.git
 ├── src/ # a worktree per version
-│   ├── Effect-TS/effect/[[6ba41e59c827]]/ # 4.0.0-rc.111
-│   ├── Effect-TS/effect/[[c41d80f2b3e5]]/ # 3.19.4
-│   └── earendil-works/pi/[[dcd461925db2]]/ # tip of main
+│   ├── Effect-TS/effect/6ba41e59c827/ # 4.0.0-rc.111
+│   ├── Effect-TS/effect/c41d80f2b3e5/ # 3.19.4
+│   └── earendil-works/pi/dcd461925db2/ # tip of main
 └── state/ # one file per project
     ├── web-a3f81c0426.json
     └── api-5c02e7d1b8.json

@@ -113,7 +113,7 @@ function renderStore(): string {
   return [
     howItWorks.lead,
     ...howItWorks.configs.map((config) => labeled(config.file, config.sample)),
-    fence('text', trees[howItWorks.tree]),
+    fence('text', unmarked(trees[howItWorks.tree])),
     howItWorks.cache,
   ].join('\n\n');
 }
@@ -159,7 +159,7 @@ export function renderRegions(): Record<string, string> {
       `### ${copy.agent.heading}`,
       `${copy.getStarted.summaryLabel}: ${copy.getStarted.lead}`,
       fence('text', setupPrompt),
-      copy.install.note,
+      `${copy.install.heading} ${copy.install.note}`,
       `### ${copy.audit.heading}`,
       fence('text', auditCommand),
       copy.audit.note,
