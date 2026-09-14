@@ -145,12 +145,17 @@ function BeforeAfter() {
   );
 }
 
-/** Each pane begins once in view, so the mobile source sequence is visible as it plays. */
+/**
+ * Each pane begins once in view, so the mobile source sequence is visible as
+ * it plays. The pane is prerendered already waiting: the effect that plays it
+ * runs after the first paint, and a pane hidden only by that effect shows its
+ * whole transcript for the frames before it.
+ */
 function ComparisonReads({ text }: { text: string }) {
   const reads = text.split(/\n(?=\* )/u);
 
   return (
-    <div className="comparison-reads">
+    <div className="comparison-reads" data-reveal="waiting">
       {reads.map((read) => (
         <div key={read} className="comparison-step">
           <Session text={read} />

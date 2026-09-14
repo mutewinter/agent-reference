@@ -299,26 +299,30 @@ mark[data-ink="3"] {
   }
 }
 
-/* Calls precede their results; reserved space keeps the comparison's height stable. */
-@media (prefers-reduced-motion: no-preference) {
-  .comparison-after:has(.comparison-reads[data-reveal="waiting"]) [data-heading-word] {
+/* A pane arrives from the server already waiting, so this is what the first
+   paint shows and nothing is on screen before the script that plays the pane
+   runs. Scoped to browsers that run one: without it nothing would ever set the
+   pane playing, and the transcript is the page's argument. */
+@media (prefers-reduced-motion: no-preference) and (scripting: enabled) {
+  .comparison-after:has(.comparison-reads[data-reveal="waiting"]) [data-heading-word],
+  .comparison-reads[data-reveal="waiting"] .comparison-step {
     opacity: 0;
-  }
-
-  .comparison-after:has(.comparison-reads[data-reveal="playing"]) [data-heading-word] {
-    animation: aside-arrive 360ms both;
-    animation-delay: calc(var(--heading-lead) + var(--word-delay));
   }
 
   .comparison-aside {
     visibility: hidden;
   }
+}
+
+/* Calls precede their results; reserved space keeps the comparison's height stable. */
+@media (prefers-reduced-motion: no-preference) {
+  .comparison-after:has(.comparison-reads[data-reveal="playing"]) [data-heading-word] {
+    animation: aside-arrive 360ms both;
+    animation-delay: calc(var(--heading-lead) + var(--word-delay));
+  }
 
   .comparison-reads[data-reveal="playing"] + .comparison-aside {
     animation: aside-arrive 500ms var(--sequence-end) both;
-  }
-  .comparison-reads[data-reveal="waiting"] .comparison-step {
-    opacity: 0;
   }
 
   .comparison-reads[data-reveal="playing"] .comparison-step {
