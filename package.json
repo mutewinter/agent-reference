@@ -1,7 +1,7 @@
 {
   "name": "agent-reference",
   "version": "1.0.1",
-  "description": "Materialize package, git, and path references for coding agents.",
+  "description": "Give your agents the source: dependencies at the installed version, git repositories, and local folders, all by name.",
   "type": "module",
   "repository": {
     "type": "git",
