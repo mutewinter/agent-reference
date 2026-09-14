@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { render } from 'takumi-js';
 import { googleFonts } from 'takumi-js/helpers';
 
-import { copy } from './code-samples.ts';
+import { copy, terminals } from './code-samples.ts';
 import { SITE } from './page-markdown.ts';
 
 const PUBLIC = new URL('./public/', import.meta.url);
@@ -48,26 +48,96 @@ const c = palette();
 const favicon = readFileSync(new URL('favicon.svg', PUBLIC), 'utf8');
 const mark = `data:image/svg+xml;base64,${Buffer.from(favicon).toString('base64')}`;
 
-/** No snippet contains either, but the text comes from a file other people edit. */
-const esc = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
+/** The transcripts carry both, and the markup on the first screen is made of them. */
+const esc = (text: string) =>
+  text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 
-// A thumbnail-sized comparison uses the site's headings, palette, and typefaces.
-// The pairing is the first screen's last exchange, cut for texture rather than
-// for argument: the markup a fetch of the FileSystem docs page hands back
-// against the example on that page as its author wrote it, out of the docs
-// repository. At the size a link preview is actually read those are two
-// different shapes before they are two different meanings, and nothing has to
-// be read for the point to land. The page can lead with the guessed API
-// because it has a reader's attention for longer than a quarter of a second;
-// this does not. Four lines is what the pane holds, so the one that does not
-// fit is cut where the page cuts its own long lines.
+/**
+ * The first screen, cut to what a card can hold: the last two calls of each
+ * transcript, a result that is one long line cut to `chars` characters, and a
+ * result that is a list of lines cut to `lines` of them, with the fold under
+ * it recounted for what was dropped so it stays true of the file.
+ */
+function excerpt(transcript: string, { chars, lines }: { chars: number; lines: number }) {
+  return transcript
+    .split(/\n(?=\* )/u)
+    .slice(-2)
+    .map((read) => {
+      const [call = '', ...result] = read.split('\n');
+      if (result.length === 1) {
+        const [only = ''] = result;
+        return { call, result: [only.length > chars ? `${only.slice(0, chars)}…` : only] };
+      }
+      const fold = /^(\s+)… \+(\d+) lines$/u.exec(result.at(-1) ?? '');
+      const body = fold ? result.slice(0, -1) : result;
+      const kept = body.slice(0, lines);
+      if (!fold || kept.length === body.length) return { call, result: kept };
+      const [, indent, more] = fold;
+      return {
+        call,
+        result: [...kept, `${indent}… +${Number(more) + body.length - kept.length} lines`],
+      };
+    });
+}
+
+/** The type size the panes are set in, and the leading each line takes. */
+const TYPE = { size: 16, line: 26 };
+
+/** The dot a call carries, as a shape: no webfont subset carries the glyph. */
+const dot = `<div style="width:8px;height:8px;border-radius:4px;background:${c.ok};margin:${(TYPE.line - 8) / 2}px 10px 0 0;flex-shrink:0"></div>`;
+
+/** The elbow under a call, drawn from two borders for the same reason. */
+const elbow = `<div style="width:8px;height:11px;border-left:1.5px solid ${c.line};border-bottom:1.5px solid ${c.line};margin:5px 8px 0 22px;flex-shrink:0"></div>`;
+
+const WRAP = 'white-space:pre-wrap;overflow-wrap:anywhere';
+
+/** A call, painted the way `Session` paints one: the name in ink, the arguments quieter. */
+function callLine(call: string): string {
+  const text = call.slice(2);
+  const open = text.indexOf('(');
+  const name = open === -1 ? text : text.slice(0, open);
+  const args = open === -1 ? '' : `<span style="color:${c.muted}">${esc(text.slice(open))}</span>`;
+  return `<div style="display:flex;margin-top:8px">${dot}<div style="${WRAP}">${esc(name)}${args}</div></div>`;
+}
+
+/** A result line: the elbow on the first, the same indent on the rest, the marker read off. */
+function resultLine(text: string, first: boolean): string {
+  const match = /^(\s+)(⎿ )?([!+] )?(.*)$/u.exec(text);
+  const [, , , marker, rest = text] = match ?? [];
+  const tone =
+    marker === '! ' ? c.bad : marker === '+ ' ? c.ok : /^… \+\d+ lines$/u.test(rest) ? c.dim : c.fg;
+  const lead = first ? elbow : `<div style="width:38px;flex-shrink:0"></div>`;
+  return `<div style="display:flex">${lead}<div style="color:${tone};${WRAP}">${esc(rest)}</div></div>`;
+}
+
+function pane(heading: string, transcript: string, ground: string, ink: string): string {
+  const reads = excerpt(transcript, { chars: 118, lines: 4 });
+  const body = reads
+    .map(
+      ({ call, result }) =>
+        callLine(call) + result.map((line, index) => resultLine(line, index === 0)).join(''),
+    )
+    .join('');
+  return `<div style="display:flex;flex-direction:column;flex:1;padding:24px 28px;background:${ground};overflow:hidden">
+    <div style="font-family:'Oswald';font-size:32px;color:${ink};margin-bottom:8px">${esc(heading)}</div>
+    <div style="display:flex;flex-direction:column;font-family:'JetBrains Mono';font-size:${TYPE.size}px;line-height:${TYPE.line}px">${body}</div>
+  </div>`;
+}
+
+// A thumbnail-sized comparison uses the site's headings, palette, and typefaces,
+// and shows the first screen as it is on the page: the same two transcripts,
+// drawn as the tool calls they are, cut to the last two calls a side and a few
+// lines of what each got back. At the size a link preview is actually read,
+// red markup against green markdown is two different shapes before it is two
+// different meanings, and nothing has to be read for the point to land. The
+// tagline sits close above the panes so the panes get the height.
 const card = `<div style="
-  width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between;
-  background:${c.bg};color:${c.fg};font-family:'Inter';padding:44px 56px
+  width:100%;height:100%;display:flex;flex-direction:column;
+  background:${c.bg};color:${c.fg};font-family:'Inter';padding:40px 56px
 ">
   <div style="
     display:flex;align-items:center;justify-content:space-between;font-size:24px;font-family:'JetBrains Mono';
-    padding-bottom:20px;border-bottom:1px solid ${c.line}
+    padding-bottom:18px;border-bottom:1px solid ${c.line}
   ">
     <div style="display:flex;align-items:center">
     <img src="${mark}" width="38" height="38" style="margin-right:16px" />
@@ -75,20 +145,12 @@ const card = `<div style="
     </div>
   </div>
 
-  <div style="display:flex;font-size:64px;font-weight:500;line-height:1.15">${esc(copy.tagline)}</div>
+  <div style="display:flex;font-size:60px;font-weight:500;line-height:1.15;margin:26px 0 22px">${esc(copy.tagline)}</div>
 
-  <div style="display:flex;height:270px;border:1px solid ${c.line}">
-    <div style="display:flex;flex-direction:column;flex:1;padding:28px;background:${c.term}">
-      <div style="font-family:'Oswald';font-size:32px;color:${c.muted};margin-bottom:26px">${esc(copy.hero.before)}</div>
-      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.bad}">&lt;!doctype html&gt;&lt;html lang=&quot;en&quot; class=…<br/>…&lt;nav class=&quot;sidebar&quot;&gt;&lt;a href=&quot;/docs/…<br/>…&lt;script id=&quot;__NEXT_DATA__&quot; type=&quot;app…</div>
-    </div>
-    <div style="display:flex;flex-direction:column;flex:1;padding:28px;background:${c.panel};border-left:1px solid ${c.line}">
-      <div style="font-family:'Oswald';font-size:32px;margin-bottom:26px">${esc(copy.hero.after)}</div>
-      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.ok};white-space:pre">const program = Effect.gen(function* () {
-  const fs = yield* FileSystem.FileSystem
-  const content = yield* fs.readFileString(…
-  console.log(content)</div>
-    </div>
+  <div style="display:flex;flex:1;border:1px solid ${c.line}">
+    ${pane(copy.hero.before, terminals.today, c.term, c.muted)}
+    <div style="width:1px;background:${c.line}"></div>
+    ${pane(copy.hero.after, terminals.after, c.panel, c.fg)}
   </div>
 </div>`;
 

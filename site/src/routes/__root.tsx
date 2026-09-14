@@ -22,7 +22,7 @@ const HEADLINE = `${TITLE} \u00B7 ${TAGLINE}`;
  * crawler has cached.
  */
 const CARD = `${SITE}/og.png?v=${__CARD_VERSION__}`;
-const CARD_ALT = `${TAGLINE}. ${copy.hero.before}: the markup a docs site hands a fetch. ${copy.hero.after}: the example on that page, as its author wrote it.`;
+const CARD_ALT = `${TAGLINE}. ${copy.hero.before}: the markup a docs site hands a fetch. ${copy.hero.after}: the same page read out of its repository, as its author wrote it.`;
 
 export const Route = createRootRoute({
   head: () => ({
