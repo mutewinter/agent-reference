@@ -19,7 +19,7 @@ A CLI your agent uses to read the source of your dependencies at the version you
 
 ### Your agent, with the source
 
-![An agent running agent-reference get effect, then reading that version's own README and the source of FileSystem.ts, comments and all.](https://agent-reference.dev/hero-with.png)
+![An agent running agent-reference get effect, then reading the source of FileSystem.ts, comments and all, and the FileSystem docs page as its author wrote it.](https://agent-reference.dev/hero-with.png)
 <!-- /generated -->
 
 ## Get started

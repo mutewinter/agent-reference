@@ -44,8 +44,8 @@ function Section({ label, children }: { label: string; children: React.ReactNode
 /**
  * How the first screen plays. A tool call is read at a glance, so the pace is
  * the reader's rather than a typist's: the sequence is over before anyone
- * decides to scroll past it. Four calls on the left and three on the right,
- * one after another, is what these have to add up against.
+ * decides to scroll past it. Four calls on each side, one after another, is
+ * what these have to add up against.
  */
 const REVEAL = {
   /** Between one tool call and the next. */

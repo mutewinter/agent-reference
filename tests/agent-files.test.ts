@@ -52,7 +52,8 @@ test('llms.txt has the shape llmstxt.org describes', () => {
 });
 
 test('index.md carries the page sections, in the page order', () => {
-  const prose = served('index.md').replaceAll(/```[^\n]*\n[\s\S]*?```/gu, '');
+  // A block quoting a fence is fenced with a longer rail, and closes on the same one.
+  const prose = served('index.md').replaceAll(/^(`{3,})[^\n]*\n[\s\S]*?^\1$/gmu, '');
   const headings = [...prose.matchAll(/^## (.+)$/gm)].map((match) => match[1]);
   assert.deepEqual(headings, [
     copy.getStarted.heading,

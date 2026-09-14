@@ -27,8 +27,9 @@ const escape = (text: string) =>
 
 /**
  * One transcript line, painted the way `Session` paints it: a call carries the
- * dot, a result carries the tone its marker asked for, and the marker itself
- * never reaches the page.
+ * dot, a result carries the tone its marker asked for, the fold that stands
+ * for the rest of a long result is dimmed, and the marker itself never
+ * reaches the page.
  */
 function line(text: string): string {
   if (text.startsWith('* ')) {
@@ -43,7 +44,8 @@ function line(text: string): string {
   const result = /^(\s+)(⎿ )?([!+] )?(.*)$/u.exec(text);
   if (!result) return `<div>${escape(text)}</div>`;
   const [, indent = '', elbow, mark, rest = ''] = result;
-  const tone = mark === '! ' ? c.bad : mark === '+ ' ? c.ok : c.fg;
+  const tone =
+    mark === '! ' ? c.bad : mark === '+ ' ? c.ok : /^… \+\d+ lines$/u.test(rest) ? c.dim : c.fg;
   const rail = elbow ? `<span style="color:${c.line}">⎿ </span>` : '';
   return `<div class="result">${indent.replaceAll(' ', '&nbsp;')}${rail}<span style="color:${tone}">${escape(rest)}</span></div>`;
 }

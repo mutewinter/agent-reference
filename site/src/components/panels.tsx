@@ -300,7 +300,8 @@ function sessionLine(line: string, i: number) {
   // and source read out of a checkout, or a line the agent added to a file.
   // Markers are data, not output, so they are read off and the line takes the
   // tone instead: the theme's red, or the green that means on disk everywhere
-  // else.
+  // else. A result folded at `+N lines` is the harness talking, not the file,
+  // and is dimmed the way a harness dims it.
   const result = line.match(/^(\s+)(\u23BF )?([!+] )?(.*)$/u);
   if (result) {
     const [, indent, elbow, mark, rest] = result;
@@ -312,6 +313,8 @@ function sessionLine(line: string, i: number) {
           <span className={TONE[mark]}>
             <Marked text={rest} />
           </span>
+        ) : FOLD.test(rest) ? (
+          <span className="text-dim">{rest}</span>
         ) : rest.includes('[[') ? (
           <Marked text={rest} />
         ) : (
@@ -330,6 +333,9 @@ function sessionLine(line: string, i: number) {
 
 /** What each result marker paints its line in. */
 const TONE: Record<string, string> = { '! ': 'text-bad', '+ ': 'text-ok' };
+
+/** The line a harness folds the rest of a long result behind. */
+const FOLD = /^… \+\d+ lines$/u;
 
 /** Text without its `[[ ]]` markers, for measuring. */
 const unmarked = (text: string) => text.replaceAll(/\[\[([^\]]+)\]\]/gu, '$1');

@@ -233,25 +233,30 @@ export const trees = {
  * underlines the names that correspond to the panel beside it, since that
  * correspondence is what an example exists to show.
  *
- * `today` and `after` are the first screen, and carry no prompt: three things
- * an agent does when it needs a library and what each got back, against what
+ * `today` and `after` are the first screen, and carry no prompt: what an agent
+ * does when it needs a library and what each attempt got back, against what
  * the tool gives it. The guess leads, because it is the one whose cost a
  * reader has paid personally: it ends in a build that failed rather than in
  * tokens nobody watched. It is also the one block that names another library,
  * since it needs an API that actually moved, and `useVirtual` became
  * `useVirtualizer` between two majors of `@tanstack/react-virtual`. Effect
- * carries the rest: the markup is what the docs site hands a fetch, and every
- * line on the right is real, the README and `src/FileSystem.ts` of the effect
- * package at that tag, quoted verbatim. The bundle line on the left is the
- * pattern rather than the package: Effect's own published build keeps its
- * comments, and the row stands for the many that do not. Each of those two is
- * one line, because that is what a minified bundle and a fetched page are: the
- * elisions that used to chop them into column-width pieces were the narrow
- * pane of one surface written into the source of all three, and an image of
- * that reads as text cut for no reason. Every surface cuts them its own way
- * now, and none of them cuts the data. A result line marked `! ` went wrong
- * and `+ ` went right; the markers are read off before the line is painted. `[[name]]` anywhere in a transcript marks a name
- * the config or the tree beside it declares, so the eye can join the two.
+ * carries the rest: the bundle and the markup on the left are the two things
+ * the right reads as they were written, `src/FileSystem.ts` of the effect
+ * package at that tag and the v4 FileSystem page out of the website
+ * repository, quoted verbatim less blank lines. A result the agent did not
+ * read to the end closes on `… +N lines`, the way a harness folds a long
+ * one; N counts the lines of the file after the ones shown, so it is true of
+ * the file rather than a number that looked right. The bundle line on the
+ * left is the pattern rather than the package: Effect's own published build
+ * keeps its comments, and the row stands for the many that do not. Each of
+ * those two is one line, because that is what a minified bundle and a fetched
+ * page are: the elisions that used to chop them into column-width pieces were
+ * the narrow pane of one surface written into the source of all three, and an
+ * image of that reads as text cut for no reason. Every surface cuts them its
+ * own way now, and none of them cuts the data. A result line marked `! ` went
+ * wrong and `+ ` went right; the markers are read off before the line is
+ * painted. `[[name]]` anywhere in a transcript marks a name the config or the
+ * tree beside it declares, so the eye can join the two.
  *
  * Paths are the readable form, not the literal one. The store keys a checkout
  * by commit, and a commit is not something a person reads, so the page names
@@ -272,25 +277,30 @@ export const terminals = {
 
   after: `* Bash(agent-reference get effect)
   ⎿ effect@4.0.0-rc.111 -> ~/.agent-reference/src/effect@4.0.0-rc.111
-* Read(…/effect@4.0.0-rc.111/packages/effect/README.md)
-  ⎿ + # effect
-    + Effect is a library for building robust, maintainable, type-safe, and…
-    + ## Installation
 * Read(…/effect@4.0.0-rc.111/packages/effect/src/FileSystem.ts)
   ⎿ + /**
-    +  * Open a file at \`path\` with the specified \`options\`.
-    +  *
-    +  * **Details**
-    +  *
-    +  * The file handle will be automatically closed when the scope is closed.
+    +  * Read the contents of a file.
     +  */
-    + readonly open: (
-    +   path: string,
-    +   options?: {
-    +     readonly flag?: OpenFlag | undefined
-    +     readonly mode?: number | undefined
-    +   }
-    + ) => Effect.Effect<File, PlatformError, Scope>`,
+    + readonly readFile: (
+    +   path: string
+    + ) => Effect.Effect<Uint8Array, PlatformError>
+    … +1051 lines
+* Bash(agent-reference get effect-docs)
+  ⎿ effect-docs -> ~/.agent-reference/src/effect-website/docs/v4
+* Read(…/docs/v4/platform/file-system.mdx)
+  ⎿ + **Example** (Reading a File as a String)
+    + \`\`\`ts twoslash
+    + import { Effect, FileSystem } from "effect"
+    + import { NodeServices, NodeRuntime } from "@effect/platform-node"
+    + //      ┌─── Effect<void, PlatformError, FileSystem>
+    + //      ▼
+    + const program = Effect.gen(function* () {
+    +   const fs = yield* FileSystem.FileSystem
+    +   // Reading the content of the same file where this code is written
+    +   const content = yield* fs.readFileString("./index.ts", "utf8")
+    +   console.log(content)
+    + })
+    … +39 lines`,
 
   /**
    * The first screen's failure, run again with the skill installed: the same
@@ -520,7 +530,7 @@ export const copy = {
     beforeAlt:
       'An agent writing useVirtual from memory, the compiler rejecting it, then reading a minified bundle out of node_modules and fetching a docs site that answers in markup.',
     afterAlt:
-      "An agent running agent-reference get effect, then reading that version's own README and the source of FileSystem.ts, comments and all.",
+      'An agent running agent-reference get effect, then reading the source of FileSystem.ts, comments and all, and the FileSystem docs page as its author wrote it.',
     aside: 'Any questions?',
     asideUrl: 'https://www.youtube.com/watch?v=F0kCYP_iPtg',
   },

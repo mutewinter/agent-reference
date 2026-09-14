@@ -19,29 +19,34 @@ A CLI your agent uses to read the source of your dependencies at the version you
 
 ### Your agent, with the source
 
-```text
+````text
 * Bash(agent-reference get effect)
   ⎿ effect@4.0.0-rc.111 -> ~/.agent-reference/src/effect@4.0.0-rc.111
-* Read(…/effect@4.0.0-rc.111/packages/effect/README.md)
-  ⎿ # effect
-    Effect is a library for building robust, maintainable, type-safe, and…
-    ## Installation
 * Read(…/effect@4.0.0-rc.111/packages/effect/src/FileSystem.ts)
   ⎿ /**
-     * Open a file at `path` with the specified `options`.
-     *
-     * **Details**
-     *
-     * The file handle will be automatically closed when the scope is closed.
+     * Read the contents of a file.
      */
-    readonly open: (
-      path: string,
-      options?: {
-        readonly flag?: OpenFlag | undefined
-        readonly mode?: number | undefined
-      }
-    ) => Effect.Effect<File, PlatformError, Scope>
-```
+    readonly readFile: (
+      path: string
+    ) => Effect.Effect<Uint8Array, PlatformError>
+    … +1051 lines
+* Bash(agent-reference get effect-docs)
+  ⎿ effect-docs -> ~/.agent-reference/src/effect-website/docs/v4
+* Read(…/docs/v4/platform/file-system.mdx)
+  ⎿ **Example** (Reading a File as a String)
+    ```ts twoslash
+    import { Effect, FileSystem } from "effect"
+    import { NodeServices, NodeRuntime } from "@effect/platform-node"
+    //      ┌─── Effect<void, PlatformError, FileSystem>
+    //      ▼
+    const program = Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem
+      // Reading the content of the same file where this code is written
+      const content = yield* fs.readFileString("./index.ts", "utf8")
+      console.log(content)
+    })
+    … +39 lines
+````
 
 ## Get started
 
