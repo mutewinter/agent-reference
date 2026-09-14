@@ -18,9 +18,10 @@ const HEADLINE = `${TITLE} \u00B7 ${TAGLINE}`;
 /**
  * The link preview, drawn by og.ts and committed under public/. Absolute,
  * because the crawler that reads it has no page to resolve a relative path
- * against.
+ * against. The query string is a hash of the file, so a redraw gets a URL no
+ * crawler has cached.
  */
-const CARD = `${SITE}/og.png`;
+const CARD = `${SITE}/og.png?v=${__CARD_VERSION__}`;
 const CARD_ALT = `${TAGLINE}. ${copy.hero.before}: the markup a docs site hands a fetch. ${copy.hero.after}: the package's own README.`;
 
 export const Route = createRootRoute({

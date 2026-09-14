@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 
 import { cloudflare } from '@cloudflare/vite-plugin';
@@ -18,6 +19,15 @@ const cliVersion = (
     version: string;
   }
 ).version;
+
+// A fingerprint of the link preview, appended to its URL as a query string.
+// The crawlers that draw a card cache the image by URL, X for about a week, so
+// a redraw served at the same address keeps showing the old picture. Hashing
+// the file makes the address change with the picture and only then.
+const cardVersion = createHash('sha256')
+  .update(readFileSync(new URL('./public/og.png', import.meta.url)))
+  .digest('hex')
+  .slice(0, 8);
 
 // Jellybeans+ by Simon Watts, MIT, vendored from siwatts/jellybeans-theme-vscode
 // because a build in CI cannot fetch it. The page palette in styles.css is
@@ -87,7 +97,10 @@ function cliReference() {
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
-  define: { __CLI_VERSION__: JSON.stringify(cliVersion) },
+  define: {
+    __CLI_VERSION__: JSON.stringify(cliVersion),
+    __CARD_VERSION__: JSON.stringify(cardVersion),
+  },
   plugins: [
     highlightedSnippets(),
     cliReference(),
