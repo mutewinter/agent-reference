@@ -12,18 +12,7 @@ const ANSI = { dim: '2', yellow: '33' } as const;
 
 type AnsiColor = keyof typeof ANSI;
 
-/**
- * The reader is being asked to believe something about their own machine, so
- * the stores come first with what was actually read, then the counts, then one
- * line saying what all four have in common. A percentage rides beside every
- * count because "71" means nothing without the 775 it came out of.
- *
- * The gray is spent on the two things that are genuinely secondary, the paths
- * and the closing lines. An earlier version dimmed the heading, the paths, the
- * percentages, the quotes and the footer, which is most of the screen: there
- * was nothing left at full strength for the dim to be quieter than, and the
- * whole readout came out washed.
- */
+/** Lists scanned stores, session counts, matching excerpts, and the setup prompt. */
 export function formatAuditReport(report: AuditReport, options: AuditFormatOptions): string {
   if (report.harnesses.length === 0) return emptyState(report, options);
 
@@ -46,10 +35,9 @@ function stores(report: AuditReport, options: AuditFormatOptions): string {
     return `  ${(name ?? '').padEnd(agent)}  ${label}  ${paint(path ?? '', 'dim', options.color)}`;
   });
 
-  const window =
-    report.days === null ? 'every session on this machine' : `the last ${dayCount(report.days)}`;
+  const window = report.days === null ? 'all time' : `last ${dayCount(report.days)}`;
 
-  return `what your agents did without the source, over ${window}\n${lines.join('\n')}\n`;
+  return `Scanned local agent sessions (${window}):\n${lines.join('\n')}\n`;
 }
 
 /**
@@ -79,31 +67,27 @@ function counts(report: AuditReport, options: AuditFormatOptions): string {
     // case with nothing to show.
     const evidence = report.evidence[row.id];
     if (!evidence) return [line];
-    // Full strength: this is the line the reader is meant to recognize, and it
-    // is the whole reason the count is worth printing.
-    const rail = paint('    ⎿ ', 'dim', options.color);
-    return [line, `${rail}${displayPath(evidence.text, options)}`];
+    const excerpt = `    ⎿ ${displayPath(evidence.text, options)}`;
+    return [line, paint(excerpt, 'dim', options.color)];
   });
 
   return `${lines.join('\n')}\n`;
 }
 
-/** What the four have in common, which is the only sentence here that sells anything. */
+/** Summarizes the matches and gives the human a prompt to paste into their agent. */
 function footer(report: AuditReport, options: AuditFormatOptions): string {
-  const lines =
-    report.affected === 0
-      ? [
-          'None of these turned up, which is worth knowing too.',
-          'Nothing left this machine: only these files were read, and only counts came out.',
-        ]
-      : [
-          `${report.affected.toLocaleString()} of ${sessionCount(report.sessions)} did at least one of these.`,
-          'Every one of them is a session that had no readable source to reach for.',
-          'agent-reference get <name> puts it there. See agent-reference.dev',
-        ];
+  if (report.affected === 0) {
+    return `No sessions matched these patterns.\n${paint('Session data stayed on this machine.', 'dim', options.color)}\n`;
+  }
 
-  const [first, ...rest] = lines;
-  return `${[first ?? '', ...rest.map((line) => paint(line, 'dim', options.color))].join('\n')}\n`;
+  return [
+    `${report.affected.toLocaleString()} of ${sessionCount(report.sessions)} matched at least one pattern.`,
+    '',
+    'To give your agent readable dependency source, paste this prompt:',
+    '',
+    'Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.',
+    '',
+  ].join('\n');
 }
 
 /** No store found is the interesting case: it says where it looked, so it can be corrected. */

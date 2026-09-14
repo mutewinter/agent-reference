@@ -421,7 +421,7 @@ Your agent runs most of these. The two you run yourself are `audit`, before inst
 ```text
 # what your agents did before they had any of this. The one you run yourself
 $ agent-reference audit
-what your agents did without the source, over every session on this machine
+Scanned local agent sessions (all time):
   claude-code  42 sessions  ~/.claude/projects
   codex        12 sessions  ~/.codex/sessions
 
@@ -434,9 +434,11 @@ what your agents did without the source, over every session on this machine
   cloned a repository into a temp directory  1  2%
     ⎿ Bash(git clone --depth 1 https://github.com/remotion-dev/remotion.git /t…)
 
-11 of 54 sessions did at least one of these.
-Every one of them is a session that had no readable source to reach for.
-agent-reference get <name> puts it there. See agent-reference.dev
+11 of 54 sessions matched at least one pattern.
+
+To give your agent readable dependency source, paste this prompt:
+
+Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
 ```
 
 #### agent-reference help
