@@ -52,11 +52,15 @@ const mark = `data:image/svg+xml;base64,${Buffer.from(favicon).toString('base64'
 const esc = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;');
 
 // A thumbnail-sized comparison uses the site's headings, palette, and typefaces.
-// The pairing is chosen for texture rather than for argument: at the size a
-// link preview is actually read, markup against prose is two different shapes
-// before it is two different meanings, and nothing has to be read for the point
-// to land. The page can lead with the guessed API because it has a reader's
-// attention for longer than a quarter of a second; this does not.
+// The pairing is the first screen's last exchange, cut for texture rather than
+// for argument: the markup a fetch of the FileSystem docs page hands back
+// against the example on that page as its author wrote it, out of the docs
+// repository. At the size a link preview is actually read those are two
+// different shapes before they are two different meanings, and nothing has to
+// be read for the point to land. The page can lead with the guessed API
+// because it has a reader's attention for longer than a quarter of a second;
+// this does not. Four lines is what the pane holds, so the one that does not
+// fit is cut where the page cuts its own long lines.
 const card = `<div style="
   width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between;
   background:${c.bg};color:${c.fg};font-family:'Inter';padding:44px 56px
@@ -80,7 +84,10 @@ const card = `<div style="
     </div>
     <div style="display:flex;flex-direction:column;flex:1;padding:28px;background:${c.panel};border-left:1px solid ${c.line}">
       <div style="font-family:'Oswald';font-size:32px;margin-bottom:26px">${esc(copy.hero.after)}</div>
-      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.ok}"># effect<br/>Effect is a library for building<br/>robust, maintainable, type-safe…<br/>## Installation</div>
+      <div style="font-family:'JetBrains Mono';font-size:19px;line-height:1.8;color:${c.ok};white-space:pre">const program = Effect.gen(function* () {
+  const fs = yield* FileSystem.FileSystem
+  const content = yield* fs.readFileString(…
+  console.log(content)</div>
     </div>
   </div>
 </div>`;
