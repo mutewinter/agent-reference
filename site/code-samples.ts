@@ -369,7 +369,7 @@ export const setup: { heading: string; lead: string; steps: SetupStep[] } = {
   lead: 'A CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it can ship in a plugin or a team skills repo.',
   steps: [
     {
-      title: 'A SKILL.md goes in your agent’s skills folder',
+      title: "A SKILL.md goes in your agent's skills folder",
       note: 'Machine-wide or in this project. Your agent asks which before it writes anything.',
       tree: 'skill',
       marks: ['SKILL.md'],
@@ -381,7 +381,7 @@ export const setup: { heading: string; lead: string; steps: SetupStep[] } = {
     },
     {
       title: 'Your agent runs the CLI when it needs the source',
-      note: 'The first screen’s task again, this time with the source on disk.',
+      note: "The first screen's task again, this time with the source on disk.",
       session: 'virtual',
     },
   ],
@@ -427,7 +427,7 @@ export const examples: Example[] = [
     config: { file: 'agent-reference.json', sample: 'repos', marks: ['remotion', 'codex'] },
   },
   {
-    title: 'Provides references to other folders on your computer',
+    title: 'Points your agent at other folders on your computer',
     tree: 'siblings',
     config: {
       file: 'web/agent-reference.local.json',
@@ -441,7 +441,7 @@ export const examples: Example[] = [
     tree: 'checkout',
   },
   {
-    title: 'Provides references for every agent on your computer',
+    title: 'Declares references once, for every agent on your computer',
     tree: 'global',
     config: {
       file: '~/agent-reference.local.json',
@@ -450,7 +450,7 @@ export const examples: Example[] = [
     },
   },
   {
-    title: 'Groups references for easy mentioning',
+    title: 'Groups references under one name',
     session: 'set',
     config: {
       file: 'agent-reference.json',
@@ -490,7 +490,7 @@ export const howItWorks: HowItWorks = {
   ],
   tree: 'store',
   cache:
-    'All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.',
+    'All of it is cache. Delete any of it and the next `get` rebuilds what it needs, mirror first, network last. `agent-reference store --prune` drops the checkouts that have gone unused.',
 };
 
 /**
@@ -532,7 +532,7 @@ export const copy = {
   getStarted: {
     heading: 'Get started',
     summaryLabel: 'TL;DR',
-    lead: 'Give your agent this prompt; it’ll handle the rest.',
+    lead: "Give your agent this prompt; it'll handle the rest.",
   },
   agent: {
     heading: 'Let your agent set it up',

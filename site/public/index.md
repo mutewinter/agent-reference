@@ -47,7 +47,7 @@ A CLI your agent uses to read the source of your dependencies at the version you
 
 ### Let your agent set it up
 
-TL;DR: Give your agent this prompt; it’ll handle the rest.
+TL;DR: Give your agent this prompt; it'll handle the rest.
 
 ```text
 Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
@@ -67,7 +67,7 @@ Counts what they did without source, out of the transcripts your harness already
 
 A CLI that puts source on disk, and a skill that tells your agent when to run it. The skill is a plain `SKILL.md`, so it can ship in a plugin or a team skills repo.
 
-### 1. A SKILL.md goes in your agent’s skills folder
+### 1. A SKILL.md goes in your agent's skills folder
 
 Machine-wide or in this project. Your agent asks which before it writes anything.
 
@@ -158,7 +158,7 @@ Tell the user either way. The fix is one line in their shell profile, they canno
 
 ### 3. Your agent runs the CLI when it needs the source
 
-The first screen’s task again, this time with the source on disk.
+The first screen's task again, this time with the source on disk.
 
 ```text
 > add a virtualized list here
@@ -219,7 +219,7 @@ Your agent handles all of this, so skip it if you like. Two projects pin two ver
     └── api-5c02e7d1b8.json
 ```
 
-All of it is cache. Delete any of it and the next get rebuilds what it needs, mirror first, network last. agent-reference store --prune drops the checkouts that have gone unused.
+All of it is cache. Delete any of it and the next `get` rebuilds what it needs, mirror first, network last. `agent-reference store --prune` drops the checkouts that have gone unused.
 
 ## Examples
 
@@ -295,7 +295,7 @@ Committed beside your `package.json`. Your agent writes it and adds to it as it 
 }
 ```
 
-### Provides references to other folders on your computer
+### Points your agent at other folders on your computer
 
 ```text
 ~/code/acme/
@@ -351,7 +351,7 @@ Committed beside your `package.json`. Your agent writes it and adds to it as it 
         └── src/
 ```
 
-### Provides references for every agent on your computer
+### Declares references once, for every agent on your computer
 
 ```text
 ~/
@@ -388,7 +388,7 @@ Committed beside your `package.json`. Your agent writes it and adds to it as it 
 }
 ```
 
-### Groups references for easy mentioning
+### Groups references under one name
 
 ```text
 > Implement context compaction based on how other harnesses do it

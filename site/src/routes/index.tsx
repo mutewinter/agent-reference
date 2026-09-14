@@ -225,7 +225,7 @@ function Store() {
           <Tree text={trees[howItWorks.tree]} />
         </Panel>
       </div>
-      <p className="mt-6 max-w-3xl text-muted">{howItWorks.cache}</p>
+      <Prose text={howItWorks.cache} className="mt-6 max-w-3xl text-muted" />
     </ReferenceScope>
   );
 }
