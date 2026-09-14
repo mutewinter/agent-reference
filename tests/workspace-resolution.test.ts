@@ -385,6 +385,7 @@ async function initRepo(parentDir: string, name: string): Promise<string> {
   await git(['config', 'user.email', 'agent-reference@example.test'], repoPath);
   await git(['config', 'user.name', 'agent-reference Test'], repoPath);
   await git(['config', 'commit.gpgSign', 'false'], repoPath);
+  await git(['config', 'tag.gpgSign', 'false'], repoPath);
   return repoPath;
 }
 
