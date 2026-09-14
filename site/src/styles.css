@@ -264,13 +264,16 @@ mark[data-ink="3"] {
 
 /* Opaque output is one enormous line, which is the whole complaint about it.
    The pane keeps three of it and drops the rest: enough to read as the wall it
-   is, bounded so it cannot push the source beside it down the page. */
+   is, bounded so it cannot push the source beside it down the page. The
+   ellipsis the clamp draws takes the block's color, not the span's, so the
+   block is painted the tone of the line it cuts. */
 .comparison-before .code-wrap > div:has(.text-bad) {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   line-clamp: 3;
   overflow: hidden;
+  color: var(--color-bad);
 }
 
 .comparison-after {
