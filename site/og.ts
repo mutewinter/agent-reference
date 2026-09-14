@@ -54,9 +54,9 @@ const esc = (text: string) =>
 
 /**
  * The first screen, cut to what a card can hold: the last two calls of each
- * transcript, a result that is one long line cut to `chars` characters, and a
- * result that is a list of lines cut to `lines` of them, with the fold under
- * it recounted for what was dropped so it stays true of the file.
+ * transcript, each result to `lines` lines and each line to `chars`
+ * characters. The fold the page closes a long result on is dropped rather than
+ * recounted: a card is glanced at, and a count is a thing to read.
  */
 function excerpt(transcript: string, { chars, lines }: { chars: number; lines: number }) {
   return transcript
@@ -64,24 +64,18 @@ function excerpt(transcript: string, { chars, lines }: { chars: number; lines: n
     .slice(-2)
     .map((read) => {
       const [call = '', ...result] = read.split('\n');
-      if (result.length === 1) {
-        const [only = ''] = result;
-        return { call, result: [only.length > chars ? `${only.slice(0, chars)}…` : only] };
-      }
-      const fold = /^(\s+)… \+(\d+) lines$/u.exec(result.at(-1) ?? '');
-      const body = fold ? result.slice(0, -1) : result;
-      const kept = body.slice(0, lines);
-      if (!fold || kept.length === body.length) return { call, result: kept };
-      const [, indent, more] = fold;
       return {
         call,
-        result: [...kept, `${indent}… +${Number(more) + body.length - kept.length} lines`],
+        result: result
+          .filter((line) => !/^\s+… \+\d+ lines$/u.test(line))
+          .slice(0, lines)
+          .map((line) => (line.length > chars ? `${line.slice(0, chars)}…` : line)),
       };
     });
 }
 
 /** The type size the panes are set in, and the leading each line takes. */
-const TYPE = { size: 16, line: 26 };
+const TYPE = { size: 17, line: 28 };
 
 /** The dot a call carries, as a shape: no webfont subset carries the glyph. */
 const dot = `<div style="width:8px;height:8px;border-radius:4px;background:${c.ok};margin:${(TYPE.line - 8) / 2}px 10px 0 0;flex-shrink:0"></div>`;
@@ -104,8 +98,7 @@ function callLine(call: string): string {
 function resultLine(text: string, first: boolean): string {
   const match = /^(\s+)(⎿ )?([!+] )?(.*)$/u.exec(text);
   const [, , , marker, rest = text] = match ?? [];
-  const tone =
-    marker === '! ' ? c.bad : marker === '+ ' ? c.ok : /^… \+\d+ lines$/u.test(rest) ? c.dim : c.fg;
+  const tone = marker === '! ' ? c.bad : marker === '+ ' ? c.ok : c.fg;
   const lead = first ? elbow : `<div style="width:38px;flex-shrink:0"></div>`;
   return `<div style="display:flex">${lead}<div style="color:${tone};${WRAP}">${esc(rest)}</div></div>`;
 }
@@ -119,15 +112,17 @@ function pane(heading: string, transcript: string, ground: string, ink: string):
     )
     .join('');
   return `<div style="display:flex;flex-direction:column;flex:1;padding:24px 28px;background:${ground};overflow:hidden">
-    <div style="font-family:'Oswald';font-size:32px;color:${ink};margin-bottom:8px">${esc(heading)}</div>
+    <div style="font-size:24px;font-weight:500;color:${ink};margin-bottom:10px">${esc(heading)}</div>
     <div style="display:flex;flex-direction:column;font-family:'JetBrains Mono';font-size:${TYPE.size}px;line-height:${TYPE.line}px">${body}</div>
   </div>`;
 }
 
-// A thumbnail-sized comparison uses the site's headings, palette, and typefaces,
-// and shows the first screen as it is on the page: the same two transcripts,
-// drawn as the tool calls they are, cut to the last two calls a side and a few
-// lines of what each got back. At the size a link preview is actually read,
+// A thumbnail-sized comparison in the site's palette and typefaces, showing the
+// first screen as it is on the page: the same two transcripts, drawn as the
+// tool calls they are, cut to the last two calls a side and a few lines of what
+// each got back. The panes are headed Before and After rather than with the
+// page's headings: a feed is read faster than a page, and one word each is
+// what that reading has room for. At the size a link preview is actually read,
 // red markup against green markdown is two different shapes before it is two
 // different meanings, and nothing has to be read for the point to land. The
 // tagline sits close above the panes so the panes get the height.
@@ -148,9 +143,9 @@ const card = `<div style="
   <div style="display:flex;font-size:60px;font-weight:500;line-height:1.15;margin:26px 0 22px">${esc(copy.tagline)}</div>
 
   <div style="display:flex;flex:1;border:1px solid ${c.line}">
-    ${pane(copy.hero.before, terminals.today, c.term, c.muted)}
+    ${pane('Before', terminals.today, c.term, c.muted)}
     <div style="width:1px;background:${c.line}"></div>
-    ${pane(copy.hero.after, terminals.after, c.panel, c.fg)}
+    ${pane('After', terminals.after, c.panel, c.fg)}
   </div>
 </div>`;
 
@@ -158,7 +153,6 @@ const fonts = await googleFonts([
   { name: 'Inter', weight: 400 },
   { name: 'Inter', weight: 500 },
   { name: 'JetBrains Mono', weight: 400 },
-  { name: 'Oswald', weight: 400 },
 ]);
 
 writeFileSync(new URL('og.png', PUBLIC), await render(card, { width: 1200, height: 630, fonts }));
