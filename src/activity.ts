@@ -4,6 +4,7 @@ import process from 'node:process';
 
 import { defaultStoreDir } from './git.ts';
 import { resolveProjectInput } from './scanner.ts';
+import type { TranscriptReads } from './transcript-reads.ts';
 import type { AgentReferenceKind, CheckoutConfidence } from './types.ts';
 
 /**
@@ -124,6 +125,12 @@ export interface ActivityReport {
   callers: ActivityCount[];
   /** The most recent runs, oldest first. Bounded by `limit`; `runs` is the true total. */
   events: ActivityEvent[];
+  /**
+   * What agents read out of references, from their transcripts rather than this log. Null
+   * when nothing asked for it: the scan reads every transcript on the machine, so the caller
+   * that prints a summary opts in, and the log and the tests do not pay for it.
+   */
+  transcripts: TranscriptReads | null;
 }
 
 export function usageLogPath(storeDir: string): string {
@@ -275,6 +282,7 @@ export async function getActivityReport(options: ActivityOptions = {}): Promise<
     projects: ranked(projects),
     callers: ranked(callers),
     events: limit > 0 ? events.slice(-limit) : [],
+    transcripts: null,
   };
 }
 

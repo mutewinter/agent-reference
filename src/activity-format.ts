@@ -3,6 +3,7 @@ import path from 'node:path';
 import { displayPath } from './fs-utils.ts';
 import { sanitizeRelayedLine } from './text-utils.ts';
 import { UNATTRIBUTED, type ActivityEvent, type ActivityReport } from './activity.ts';
+import type { TranscriptReads } from './transcript-reads.ts';
 
 export interface ActivityFormatOptions {
   /** ANSI color. Callers decide from the stream: a TTY without NO_COLOR set. */
@@ -13,7 +14,7 @@ export interface ActivityFormatOptions {
   now?: number;
 }
 
-const ANSI = { dim: '2', yellow: '33' } as const;
+const ANSI = { bold: '1', dim: '2', green: '32', yellow: '33' } as const;
 
 type AnsiColor = keyof typeof ANSI;
 
@@ -38,9 +39,11 @@ export function formatActivityReport(
   options: ActivityFormatOptions,
 ): string {
   const now = options.now ?? Date.now();
-  if (report.runs === 0) return emptyState(report, options);
+  const reads = readsSection(report.transcripts, options);
+  if (report.runs === 0) return [reads, emptyState(report, options)].filter(Boolean).join('\n');
 
   const sections = [
+    reads,
     headline(report, now, options),
     countSection('who ran it', callerRows(report, now), 0, options),
     countSection(
@@ -75,6 +78,119 @@ export function formatActivityReport(
   ];
 
   return sections.filter((section) => section !== '').join('\n');
+}
+
+/** Harness names the way their makers write them. */
+const HARNESS_NAMES: Record<string, string> = {
+  'claude-code': 'Claude Code',
+  codex: 'Codex',
+  opencode: 'opencode',
+};
+
+/**
+ * What agents read out of references, one number to a line and every number in one column,
+ * then where the numbers came from. Listings are counted but not printed: next to reads and
+ * searches they are noise, and `--json` carries them.
+ */
+function readsSection(reads: TranscriptReads | null, options: ActivityFormatOptions): string {
+  const scanned = reads?.stores.filter((store) => store.sessions > 0) ?? [];
+  if (!reads || scanned.length === 0) return '';
+
+  const source = sourceLines(reads, scanned, options).map((line) =>
+    paint(line, 'dim', options.color),
+  );
+  if (reads.sessionsUsing === 0) {
+    return `${paint('No reads of a reference yet.', 'dim', options.color)}\n${source.join('\n')}\n`;
+  }
+
+  const rows: Array<[number, string]> = [
+    [reads.lines, 'lines of source read'],
+    [reads.filesOpened, 'files opened'],
+    [reads.filesSearched, 'files searched'],
+    [reads.searches, 'searches'],
+    [reads.history, 'git log and blame calls'],
+    [reads.sessionsUsing, 'sessions that used it'],
+  ];
+  const width = Math.max(...rows.map(([value]) => shortNumber(value).length));
+  const lines = rows.map(([value, label]) => {
+    const number = paint(shortNumber(value).padStart(width), 'green', options.color);
+    return `  ${paint(number, 'bold', options.color)}  ${label}`;
+  });
+
+  return [
+    `${paint('agent-reference', 'bold', options.color)}  ${paint(dateRange(reads), 'dim', options.color)}`,
+    '',
+    ...lines,
+    '',
+    ...source,
+    '',
+  ].join('\n');
+}
+
+/**
+ * What the numbers were read from. One store reads as one sentence; several get a line each,
+ * since three paths strung together in a sentence are unreadable.
+ */
+function sourceLines(
+  reads: TranscriptReads,
+  scanned: TranscriptReads['stores'],
+  options: ActivityFormatOptions,
+): string[] {
+  const size = `${formatBytes(reads.bytes)} of transcripts`;
+  const [only] = scanned;
+  if (scanned.length === 1 && only) {
+    const name = HARNESS_NAMES[only.agent] ?? only.agent;
+    return [
+      `Read from ${only.sessions.toLocaleString('en-US')} ${name} ${only.sessions === 1 ? 'session' : 'sessions'} (${size} in ${displayPath(only.path, options)}).`,
+    ];
+  }
+
+  const counts = scanned.map((store) => store.sessions.toLocaleString('en-US'));
+  const names = scanned.map((store) => HARNESS_NAMES[store.agent] ?? store.agent);
+  const countWidth = Math.max(...counts.map((value) => value.length));
+  const nameWidth = Math.max(...names.map((value) => value.length));
+  return [
+    `Read from ${reads.sessions.toLocaleString('en-US')} sessions in ${size}:`,
+    ...scanned.map(
+      (store, index) =>
+        `  ${(counts[index] ?? '').padStart(countWidth)} ${(names[index] ?? '').padEnd(nameWidth)}  ${displayPath(store.path, options)}`,
+    ),
+  ];
+}
+
+/**
+ * Exact below a thousand, one decimal below a hundred thousand, whole thousands past that:
+ * the column is read at a glance, and 135,417 reads slower than 135k without saying more.
+ */
+function shortNumber(value: number): string {
+  if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
+  if (value >= 1e5) return `${Math.round(value / 1e3)}k`;
+  if (value >= 1e3) return `${(value / 1e3).toFixed(1)}k`;
+  return String(value);
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
+  if (bytes >= 1e6) return `${Math.round(bytes / 1e6)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1e3))} KB`;
+}
+
+/**
+ * First read to last, with the year said once when both fall in it. Always with a year: this
+ * line ends up in screenshots, which are read long after the year they were taken in.
+ */
+function dateRange(reads: TranscriptReads): string {
+  if (!reads.firstUse || !reads.lastUse) return '';
+  const first = new Date(reads.firstUse);
+  const last = new Date(reads.lastUse);
+  const day = (at: Date) => at.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const year = (at: Date) => String(at.getFullYear());
+  if (first.getFullYear() !== last.getFullYear()) {
+    return `${day(first)}, ${year(first)} to ${day(last)}, ${year(last)}`;
+  }
+  return day(first) === day(last)
+    ? `${day(last)}, ${year(last)}`
+    : `${day(first)} to ${day(last)}, ${year(last)}`;
 }
 
 /**

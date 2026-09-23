@@ -13,6 +13,7 @@ import {
 import { formatActivityLog, formatActivityReport } from './activity-format.ts';
 import { getAuditReport } from './audit.ts';
 import { auditProgress, formatAuditReport } from './audit-format.ts';
+import { getTranscriptReads } from './transcript-reads.ts';
 import { parseArgv, type CliOptions } from './args.ts';
 import {
   formatCloneResult,
@@ -267,6 +268,17 @@ async function run(options: CliOptions, performed: RunRecord): Promise<void> {
     }
     case 'activity': {
       const report = await getActivityReport({ days: options.days });
+      // The summary leads with what agents read, which only their transcripts saw. The log is
+      // the runs themselves and has no use for it.
+      if (!options.log) {
+        const drawing = humanOutput && process.stdout.isTTY;
+        const progress = drawing ? auditProgress((text) => process.stdout.write(text)) : undefined;
+        report.transcripts = await getTranscriptReads({
+          days: options.days,
+          progress: progress?.update,
+        });
+        progress?.clear();
+      }
       const activityFormat = {
         color: humanOutput && !process.env.NO_COLOR,
         tilde: humanOutput,
@@ -388,6 +400,11 @@ did. Every run appends one line to <store>/log/usage.jsonl naming the command,
 the project, and what it materialized. That file stays on this machine, nothing
 is sent anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the recording.
 
+The summary opens with what agents read out of references, counted off the
+Claude Code, Codex and opencode transcripts on this machine: every read, search,
+listing and git history call inside a store checkout or a declared local path,
+and the lines each one returned. Those files are only read.
+
 --log prints the runs themselves, oldest first, instead of the summary over them.
 --days narrows either one to a window.`,
 };
@@ -438,9 +455,11 @@ Commands:
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
             checkouts unused for --days (default 30).
-  activity  How often this machine runs agent-reference and what it reaches for,
-            counted from a log the runs themselves write. Local: nothing is sent
-            anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the recording.
+  activity  What agents read out of references, counted off their own
+            transcripts, then how often this machine runs agent-reference and
+            what it reaches for, from a log the runs themselves write. Local:
+            nothing is sent anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the
+            recording.
   audit     How often the agents on this machine worked without source, counted
             off their own transcripts: an API guessed and rejected, the web
             asked for docs, a published build opened, a repository cloned to

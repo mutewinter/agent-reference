@@ -422,19 +422,19 @@ Your agent runs most of these. The two you run yourself are `audit`, before inst
 # what your agents did before they had any of this. The one you run yourself
 $ agent-reference audit
 Scanned local agent sessions (all time):
-  claude-code  42 sessions  ~/.claude/projects
+  claude-code  44 sessions  ~/.claude/projects
   codex        12 sessions  ~/.codex/sessions
 
   guessed an API and had it rejected         2  4%
     ⎿ error TS2305: 'zod' has no exported member 'strictObject'
   went to the web for documentation          5  9%
     ⎿ WebFetch(https://effect.website/docs/platform/file-system)
-  read a published build                     3  6%
+  read a published build                     3  5%
     ⎿ Read(~/code/my-app/node_modules/effect/dist/FileSystem.js)
   cloned a repository into a temp directory  1  2%
     ⎿ Bash(git clone --depth 1 https://github.com/remotion-dev/remotion.git /t…)
 
-11 of 54 sessions matched at least one pattern.
+11 of 56 sessions matched at least one pattern.
 
 To give your agent readable dependency source, paste this prompt:
 
@@ -444,7 +444,7 @@ Set this project up for agent-reference: run `npx agent-reference init` and foll
 #### agent-reference help
 
 <details>
-<summary>Show all 71 lines</summary>
+<summary>Show all 73 lines</summary>
 
 ```text
 # every command, from the version you have installed
@@ -491,9 +491,11 @@ Commands:
   schema    Print the JSON Schema for agent-reference.json.
   store     Show what the store holds and how big it is. --prune deletes
             checkouts unused for --days (default 30).
-  activity  How often this machine runs agent-reference and what it reaches for,
-            counted from a log the runs themselves write. Local: nothing is sent
-            anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the recording.
+  activity  What agents read out of references, counted off their own
+            transcripts, then how often this machine runs agent-reference and
+            what it reaches for, from a log the runs themselves write. Local:
+            nothing is sent anywhere, and AGENT_REFERENCE_NO_LOG=1 stops the
+            recording.
   audit     How often the agents on this machine worked without source, counted
             off their own transcripts: an API guessed and rejected, the web
             asked for docs, a published build opened, a repository cloned to
@@ -552,9 +554,25 @@ brief -> ~/code/my-app/notes/brief.md
 
 #### agent-reference activity
 
+<details>
+<summary>Show all 31 lines</summary>
+
 ```text
 # whether your agents are reaching for it, and for what
 $ agent-reference activity
+agent-reference  Sep 8 to Sep 15, 2026
+
+  603  lines of source read
+    2  files opened
+    6  files searched
+    1  searches
+    1  git log and blame calls
+    2  sessions that used it
+
+Read from 56 sessions in 22 KB of transcripts:
+  44 Claude Code  ~/.claude/projects
+  12 Codex        ~/.codex/sessions
+
 4 runs in the last 1 day · last run just now
 
 commands
@@ -572,4 +590,6 @@ projects
 ~/.agent-reference/log/usage.jsonl · this machine only, never sent anywhere
 agent-reference activity --log shows the runs themselves
 ```
+
+</details>
 <!-- /generated -->

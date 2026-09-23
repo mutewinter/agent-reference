@@ -129,7 +129,8 @@ const QUIET = { '.claude/projects/my-app': 32, '.codex/sessions/2026/09': 11 };
  *
  * `activity` runs last because it reports on the runs above it. What it prints
  * here is the record those left in this fixture's own store, which is also the
- * shortest way to show what the command is for.
+ * shortest way to show what the command is for. It reads the invented home too,
+ * because it opens with what the agents there read out of the store.
  */
 export const commands = [
   {
@@ -140,7 +141,11 @@ export const commands = [
   { argv: ['help'], note: 'every command, from the version you have installed' },
   { argv: ['status'], note: 'what this project declares, and whether it is on disk yet' },
   { argv: ['get', 'brief'], note: 'a name in, a path out. This is the one agents live in' },
-  { argv: ['activity'], note: 'whether your agents are reaching for it, and for what' },
+  {
+    argv: ['activity'],
+    note: 'whether your agents are reaching for it, and for what',
+    home: true,
+  },
 ];
 
 /**
@@ -173,8 +178,10 @@ export function renderCliReference() {
   // prints a path that the un-resolved prefix does not match.
   const real = realpathSync(root);
   const project = join(real, 'my-app');
-  const store = join(real, 'store');
   const home = join(real, 'home');
+  // Inside the invented home, so a transcript can name a checkout as `~/...`
+  // and weigh the same number of bytes whatever temp directory this runs in.
+  const store = join(home, '.agent-reference');
 
   try {
     for (const [name, contents] of Object.entries(fixture)) {
@@ -184,6 +191,7 @@ export function renderCliReference() {
     }
 
     writeTranscripts(home);
+    writeReads(home);
 
     const cli = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
     const clean = (text: string) =>
@@ -219,6 +227,78 @@ export function renderCliReference() {
   } finally {
     rmSync(real, { recursive: true, force: true });
   }
+}
+
+/** A tool result this many lines long. */
+const lines = (count: number) =>
+  Array.from({ length: count }, (_, index) => `line ${index + 1}`).join('\n');
+
+/**
+ * Sessions that read the store, for `activity` to count: an agent that fetched
+ * a checkout and then read it, searched it, and asked its history, the way the
+ * first screen describes. Stamped at midday UTC so the dates print the same in
+ * every timezone this renders in, and spelled from `~` so the transcripts are
+ * the same size wherever the fixture lives.
+ */
+function writeReads(home: string): void {
+  const checkout = '~/.agent-reference/src/github.com/anomalyco/opencode/9caddc5cf5bf';
+  const matches = [
+    'tool/bash.ts',
+    'tool/edit.ts',
+    'tool/write.ts',
+    'permission/index.ts',
+    'session/prompt.ts',
+    'agent/agent.ts',
+  ]
+    .flatMap((file, index) =>
+      Array.from(
+        { length: 6 + index },
+        (_, line) => `${checkout}/packages/opencode/src/${file}:${line * 7 + 3}:  permission`,
+      ),
+    )
+    .join('\n');
+  const reads: Array<[string, string, Record<string, unknown>, string]> = [
+    [
+      'Read',
+      '2026-09-08T12:00:00.000Z',
+      { file_path: `${checkout}/packages/opencode/src/tool/bash.ts` },
+      lines(412),
+    ],
+    [
+      'Bash',
+      '2026-09-08T12:01:00.000Z',
+      { command: `rg -n "permission" ${checkout}/packages/opencode/src` },
+      matches,
+    ],
+    [
+      'Bash',
+      '2026-09-15T12:00:00.000Z',
+      { command: `cd ${checkout} && git log --oneline -20 -- packages/opencode/src/tool` },
+      lines(20),
+    ],
+    [
+      'Bash',
+      '2026-09-15T12:01:00.000Z',
+      { command: `sed -n '1,120p' ${checkout}/packages/opencode/src/session/prompt.ts` },
+      lines(120),
+    ],
+  ];
+
+  reads.forEach(([name, timestamp, input, result], index) => {
+    const session = index < 2 ? 'reads-one' : 'reads-two';
+    const id = `toolu_${index}`;
+    const event = (type: string, content: unknown) =>
+      JSON.stringify({ type, sessionId: session, timestamp, message: { role: type, content } });
+    const file = join(home, '.claude/projects/my-app', `${session}.jsonl`);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(
+      file,
+      `${event('assistant', [{ type: 'tool_use', id, name, input }])}\n${event('user', [
+        { type: 'tool_result', tool_use_id: id, content: result },
+      ])}\n`,
+      { flag: 'a' },
+    );
+  });
 }
 
 /**

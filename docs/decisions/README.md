@@ -30,3 +30,4 @@ One Markdown file per decision, named for the date it was made: `YYYY-MM-DD-shor
 | 2026-09-10 | [The guess leads the first screen, and the page shows the chain before the examples](2026-09-10-the-guess-leads.md) |
 | 2026-09-10 | [A run is attributed only when it says so](2026-09-10-a-run-is-attributed-only-when-it-says-so.md) |
 | 2026-09-10 | [The pitch is counted, not claimed, off the reader's own transcripts](2026-09-10-the-pitch-is-counted-not-claimed.md) |
+| 2026-09-23 | [Activity counts what agents read, off their transcripts](2026-09-23-activity-counts-what-agents-read.md) |

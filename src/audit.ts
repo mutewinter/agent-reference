@@ -274,6 +274,22 @@ function storeRoot(harness: Harness, home: string, env: NodeJS.ProcessEnv): stri
   return path.join(moved, ...harness.segments.slice(2));
 }
 
+/** Where one harness keeps its transcripts, for a reader other than this one. */
+export interface TranscriptStore {
+  agent: string;
+  root: string;
+  extension: string;
+}
+
+/** Every store this module knows how to find, whether or not it is on disk. */
+export function transcriptStores(home: string, env: NodeJS.ProcessEnv): TranscriptStore[] {
+  return HARNESSES.map((harness) => ({
+    agent: harness.agent,
+    root: storeRoot(harness, home, env),
+    extension: harness.extension,
+  }));
+}
+
 /** How far around a match the event it belongs to is looked for. */
 const EVENT_WINDOW = 600;
 
@@ -281,7 +297,7 @@ const EVENT_WINDOW = 600;
 const MAX_QUOTE = 68;
 
 /** A session file and when it was last written, which is what ranks the quotes. */
-interface Session {
+export interface Session {
   file: string;
   at: number;
 }
@@ -518,7 +534,11 @@ async function read(file: string): Promise<Buffer | null> {
  * before anything is opened and newest first: the line quoted under a count
  * should be the most recent one, which is the one a reader still remembers.
  */
-async function sessionFiles(root: string, extension: string, after: number): Promise<Session[]> {
+export async function sessionFiles(
+  root: string,
+  extension: string,
+  after: number,
+): Promise<Session[]> {
   const files: Session[] = [];
 
   async function walk(dir: string, depth: number): Promise<void> {
