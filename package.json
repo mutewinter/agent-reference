@@ -1,6 +1,6 @@
 {
   "name": "agent-reference",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Give your agents the source: dependencies at the installed version, git repositories, and local folders, all by name.",
   "type": "module",
   "repository": {
