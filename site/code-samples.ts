@@ -583,10 +583,10 @@ export const copy = {
 export const FOLD_LINES = 24;
 
 /** The setup command included in the prompt a person hands their agent. */
-export const quickStart = 'npx agent-reference init';
+export const quickStart = 'npx agent-reference@latest init';
 
 /** The one sentence a person hands their agent. The site and the README share it. */
 export const setupPrompt = `Set this project up for agent-reference: run \`${quickStart}\` and follow the brief it prints.`;
 
 /** The one command a person runs themselves, and the only one on the page. */
-export const auditCommand = 'npx agent-reference audit';
+export const auditCommand = 'npx agent-reference@latest audit';

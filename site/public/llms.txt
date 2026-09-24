@@ -17,4 +17,4 @@ agent-reference is a command line tool. It puts readable upstream source on disk
 - [Agent skill](https://agent-reference.dev/.well-known/agent-skills/agent-reference/SKILL.md): the one verb, when to reach for it, and the safety rules. `npx skills add https://agent-reference.dev` installs it into a harness from this domain
 - [Config JSON Schema](https://agent-reference.dev/schema/agent-reference.schema.json): what `agent-reference.json` and `agent-reference.local.json` are checked against. Read it before writing one; `agent-reference schema` prints the same document from the installed CLI
 - [Source](https://github.com/mutewinter/agent-reference): the CLI, the tests that specify it, and `docs/decisions/` for the reasoning behind the design
-- [Package](https://www.npmjs.com/package/agent-reference): released versions. `npx agent-reference init` sets a project up without installing anything first
+- [Package](https://www.npmjs.com/package/agent-reference): released versions. `npx agent-reference@latest init` sets a project up without installing anything first

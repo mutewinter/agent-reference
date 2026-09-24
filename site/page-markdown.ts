@@ -268,7 +268,7 @@ export const LINKS: Link[] = [
   {
     name: 'Package',
     url: NPM,
-    note: 'released versions. `npx agent-reference init` sets a project up without installing anything first',
+    note: 'released versions. `npx agent-reference@latest init` sets a project up without installing anything first',
   },
 ];
 

@@ -30,7 +30,7 @@ A CLI your agent uses to read the source of your dependencies at the version you
 TL;DR: Give your agent this prompt; it'll handle the rest.
 
 ```text
-Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
+Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.
 ```
 
 Prefer to install it yourself? Run `npm install -g agent-reference`, then `agent-reference init` in your project and follow the printed setup brief.
@@ -38,7 +38,7 @@ Prefer to install it yourself? Run `npm install -g agent-reference`, then `agent
 ### Not sure your agents need it?
 
 ```text
-npx agent-reference audit
+npx agent-reference@latest audit
 ```
 
 Counts what they did without source, out of the transcripts your harness already wrote. Nothing is sent anywhere.
@@ -438,7 +438,7 @@ Scanned local agent sessions (all time):
 
 To give your agent readable dependency source, paste this prompt:
 
-Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
+Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.
 ```
 
 #### agent-reference help

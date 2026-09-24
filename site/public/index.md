@@ -55,7 +55,7 @@ A CLI your agent uses to read the source of your dependencies at the version you
 TL;DR: Give your agent this prompt; it'll handle the rest.
 
 ```text
-Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
+Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.
 ```
 
 Prefer to install it yourself? Run `npm install -g agent-reference`, then `agent-reference init` in your project and follow the printed setup brief.
@@ -63,7 +63,7 @@ Prefer to install it yourself? Run `npm install -g agent-reference`, then `agent
 ### Not sure your agents need it?
 
 ```text
-npx agent-reference audit
+npx agent-reference@latest audit
 ```
 
 Counts what they did without source, out of the transcripts your harness already wrote. Nothing is sent anywhere.
@@ -456,7 +456,7 @@ Scanned local agent sessions (all time):
 
 To give your agent readable dependency source, paste this prompt:
 
-Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.
+Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.
 ```
 
 #### agent-reference help
@@ -617,4 +617,4 @@ agent-reference activity --log shows the runs themselves
 - [Agent skill](https://agent-reference.dev/.well-known/agent-skills/agent-reference/SKILL.md): the one verb, when to reach for it, and the safety rules. `npx skills add https://agent-reference.dev` installs it into a harness from this domain
 - [Config JSON Schema](https://agent-reference.dev/schema/agent-reference.schema.json): what `agent-reference.json` and `agent-reference.local.json` are checked against. Read it before writing one; `agent-reference schema` prints the same document from the installed CLI
 - [Source](https://github.com/mutewinter/agent-reference): the CLI, the tests that specify it, and `docs/decisions/` for the reasoning behind the design
-- [Package](https://www.npmjs.com/package/agent-reference): released versions. `npx agent-reference init` sets a project up without installing anything first
+- [Package](https://www.npmjs.com/package/agent-reference): released versions. `npx agent-reference@latest init` sets a project up without installing anything first
