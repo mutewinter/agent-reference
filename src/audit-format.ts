@@ -85,7 +85,7 @@ function footer(report: AuditReport, options: AuditFormatOptions): string {
     '',
     'To give your agent readable dependency source, paste this prompt:',
     '',
-    'Set this project up for agent-reference: run `npx agent-reference init` and follow the brief it prints.',
+    'Set this project up for agent-reference: run `npx agent-reference@latest init` and follow the brief it prints.',
     '',
   ].join('\n');
 }
